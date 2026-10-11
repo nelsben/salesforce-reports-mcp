@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The Salesforce CLI now starts on Windows: `sf.cmd` runs through a shell with the org alias checked first, and a failure to start the CLI says how to fix it.
 - Three skills replace `skills/salesforce-reports`: `report-runner` (explore and answer, never saves), `report-designer` (change or make a report, preview, save) and `report-deploy` (move a saved report between orgs or into git with the Salesforce CLI).
 - A Claude Code plugin: `.claude-plugin/plugin.json` and `marketplace.json`, bundling the skills and the server through `npx -y github:nelsben/salesforce-reports-mcp`, with no org baked in.
 - `create_report` takes `fromReportId`: copy a saved report, apply the changes given, and save as new.

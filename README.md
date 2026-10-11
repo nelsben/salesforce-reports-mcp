@@ -118,7 +118,7 @@ Every run returns the same shape: the filters that were applied (including Sales
 - `--read-only` registers no write tools at all.
 - `delete_report` does not exist unless you start the server with `--allow-delete`. A deleted report goes to the Recycle Bin.
 - A new report with no folder goes to the user's **Private Reports** folder. Only that user can see it until they move it.
-- The server never prints, logs or returns an access token, and calls the Salesforce CLI with an argument list, not a shell string.
+- The server never prints, logs or returns an access token, and calls the Salesforce CLI with an argument list and no shell. On Windows, `sf.cmd` needs a shell, so there the org alias is checked against a short list of safe characters first.
 
 ## Limits
 
