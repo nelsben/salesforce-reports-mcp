@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>ReportsApi</members>
+        <members>ReportsApiTest</members>
+        <members>ReportsCombine</members>
+        <members>ReportsCombineTest</members>
+        <members>ReportsDefinition</members>
+        <members>ReportsDefinitionTest</members>
+        <members>ReportsShape</members>
+        <members>ReportsSummary</members>
+        <members>ReportsSummaryTest</members>
+        <name>ApexClass</name>
+    </types>
+    <version>62.0</version>
+</Package>
