@@ -70,10 +70,25 @@ Run the live check's read steps through this door, from the repo root:
 npm run live -- --org <alias> --door apex --allow-delete
 ```
 
-Remove every class (check first with `--dry-run`):
+Remove everything: first the MCP rows and server access (from the repo root), then the server, the API Catalog entry, the permission set and the classes. Check the second command first with `--dry-run`. A server that is still active cannot be deleted ("Server must be inactive before making changes"), and a class an API Catalog entry names cannot be deleted before the entry, which is why the manifest has a pre and a post step.
 
 ```bash
-sf project deploy start --manifest manifest/package.xml --post-destructive-changes manifest/destructiveChanges.xml -o <alias>
+npm run mcp:teardown -- <alias>
+sf project deploy start --manifest manifest/package.xml --pre-destructive-changes manifest/destructiveChangesPre.xml --post-destructive-changes manifest/destructiveChanges.xml -o <alias>
 ```
+
+## Hosted MCP door
+
+The same class is also a Salesforce hosted MCP server. The admin steps are in the repo's [README](../README.md), section "In the org", and the platform findings are in [docs/probes/v0.2-phase2.md](../docs/probes/v0.2-phase2.md).
+
+| Piece | Source | Made by |
+| --- | --- | --- |
+| API Catalog entry `ReportsApi` (ExternalServiceRegistration, ApexRest, inline OpenAPI 3) | `force-app/main/default/externalServiceRegistrations/` | `npm run mcp:generate`, from the local tool list |
+| MCP server `SalesforceReports`, with six tools on `ar:ReportsApi` | `force-app/main/default/mcpServerDefinitions/` | `npm run mcp:generate` |
+| Permission set `Salesforce_Reports_MCP` (the five non-test classes) | `force-app/main/default/permissionsets/` | by hand |
+| External Client App `SalesforceReportsMcp` (PKCE, `mcp_api`, `refresh_token`, callback for claude.ai) | `eca/` | by hand; deploy it with `-d eca` |
+| Tool rows and server access | not metadata | `npm run mcp:setup -- <alias>`, removed by `npm run mcp:teardown -- <alias>` |
+
+`npm run mcp:generate -- --check` fails when the committed registration or server no longer matches `src/server.ts`.
 
 `scripts/measure.apex` measures heap and CPU of real runs through the door's code. The phase 1 doc says how to run it.

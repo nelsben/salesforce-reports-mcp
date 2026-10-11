@@ -28,7 +28,11 @@
     "live": "tsx scripts/live-check.ts",
     "parity": "tsx scripts/parity-check.ts",
     "capture": "tsx scripts/capture-fixtures.ts",
-    "prepare": "tsc"
+    "prepare": "tsc",
+    "mcp-check": "tsx scripts/mcp-check.ts",
+    "mcp:generate": "tsx salesforce/scripts/generate-metadata.ts",
+    "mcp:setup": "tsx salesforce/scripts/mcp-setup.ts",
+    "mcp:teardown": "tsx salesforce/scripts/mcp-teardown.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
