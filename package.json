@@ -26,6 +26,7 @@
     "build": "tsc",
     "test": "vitest run",
     "live": "tsx scripts/live-check.ts",
+    "parity": "tsx scripts/parity-check.ts",
     "capture": "tsx scripts/capture-fixtures.ts",
     "prepare": "tsc"
   },

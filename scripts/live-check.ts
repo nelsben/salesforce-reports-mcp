@@ -1,7 +1,9 @@
 /**
  * End-to-end check against a real org, through the MCP server in memory.
- * Usage: npm run live -- --org <alias> --allow-delete
- * Creates two private reports named zz-live-check-*, deletes them, and fails if any remain.
+ * Usage: npm run live -- --org <alias> --allow-delete [--door apex]
+ * Creates private reports named zz-live-check-*, deletes them, and fails if any remain.
+ * With --door apex, the read steps go through the in-org REST door (salesforce/, class ReportsApi). Reports are still
+ * created and deleted through the local server, and steps for tools the door lacks print "skipped on the apex door".
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -12,7 +14,7 @@ import { resolveConnection } from "../src/salesforce/connection.js";
 import { buildServer } from "../src/server.js";
 
 const { values } = parseArgs({
-  options: { org: { type: "string" }, "allow-delete": { type: "boolean" } },
+  options: { org: { type: "string" }, "allow-delete": { type: "boolean" }, door: { type: "string" } },
   strict: true,
 });
 if (!values.org) {
@@ -24,7 +26,16 @@ if (!values["allow-delete"]) {
   process.exit(2);
 }
 
-const reports = new ReportsApi(createClient(resolveConnection({ org: values.org })));
+if (values.door !== undefined && values.door !== "apex") {
+  console.error('--door takes "apex". Leave it out to use the local server.');
+  process.exit(2);
+}
+const apexDoor = values.door === "apex";
+/** The tools the in-org door answers. Everything else runs on the local server. */
+const APEX_TOOLS = new Set(["search_reports", "list_report_folders", "describe_report", "describe_report_type", "run_report", "combine_reports"]);
+
+const connection = resolveConnection({ org: values.org });
+const reports = new ReportsApi(createClient(connection));
 const server = buildServer(reports, { readOnly: false, allowDelete: true, maxRows: 200 });
 const client = new Client({ name: "live-check", version: "0.0.0" });
 const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
@@ -34,6 +45,7 @@ await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
 type Json = any;
 
 async function call(name: string, args: Record<string, unknown> = {}): Promise<Json> {
+  if (apexDoor && APEX_TOOLS.has(name)) return callApex(name, args);
   const result = (await client.callTool({ name, arguments: args })) as { isError?: boolean; content: { text: string }[] };
   const text = result.content[0]!.text;
   let body: Json;
@@ -46,8 +58,38 @@ async function call(name: string, args: Record<string, unknown> = {}): Promise<J
   return body;
 }
 
+/** POST /services/apexrest/reports/v1/<tool> on the same connection. */
+async function callApex(name: string, args: Record<string, unknown>): Promise<Json> {
+  const send = (auth: { instanceUrl: string; accessToken: string }) =>
+    fetch(`${auth.instanceUrl}/services/apexrest/reports/v1/${name}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${auth.accessToken}`, Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(args),
+    });
+  let response = await send(await connection.getAuth());
+  if (response.status === 401) response = await send(await connection.refresh());
+  const text = await response.text();
+  let body: Json;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    throw new Error(`${name} on the apex door answered ${response.status}: ${text.slice(0, 300)}`);
+  }
+  if (response.status !== 200) throw new Error(`${name} on the apex door answered ${response.status}: ${body.error?.code}: ${body.error?.message}`);
+  return body;
+}
+
 let failures = 0;
-async function step(label: string, fn: () => Promise<void>): Promise<boolean> {
+/**
+ * One step. On the apex door, `apex: "skip"` marks a step for a tool the door lacks, and `apex: "local"` a setup step
+ * (create, clone, delete) that still runs on the local server so the read steps have reports to read.
+ */
+async function step(label: string, fn: () => Promise<void>, options: { apex?: "skip" | "local" } = {}): Promise<boolean> {
+  if (apexDoor && options.apex === "skip") {
+    console.log(`SKIP  ${label}: skipped on the apex door`);
+    return true;
+  }
+  if (apexDoor && options.apex === "local") label = `${label} (local server: the apex door does not save or delete)`;
   try {
     await fn();
     console.log(`PASS  ${label}`);
@@ -79,20 +121,24 @@ try {
     for (const n of ["search_reports", "run_report", "query_report", "create_report", "update_report", "clone_report", "delete_report", "combine_reports"]) {
       expect(names.includes(n), `missing ${n}`);
     }
-  });
+  }, { apex: "skip" });
 
   await step("1. list report types", async () => {
     const out = await call("list_report_types", { search: "opportunit" });
     expect(out.types.some((t: Json) => t.type === "Opportunity"), "no Opportunity type");
-  });
+  }, { apex: "skip" });
 
-  await step("2. describe Opportunity", async () => {
+  // The apex door reads a report type through a saved report of that type, so on that door step 2 runs after 4a.
+  const describeOpportunity = async () => {
     const out = await call("describe_report_type", { type: "Opportunity", search: "amount" });
     const names = out.sections.flatMap((s: Json) => s.fields.map((f: Json) => f.name));
     expect(names.includes("AMOUNT"), "no AMOUNT field");
     expect(out.dateGranularities.includes("Month"), "no Month granularity");
-    expect(out.filterOperators.string?.includes("equals"), "no string operators");
-  });
+    // Apex has no filter operators, so the apex door returns none and says so in a note.
+    if (!apexDoor) expect(out.filterOperators.string?.includes("equals"), "no string operators");
+  };
+  if (apexDoor) console.log("SKIP  2. describe Opportunity: skipped on the apex door here, because it needs a saved Opportunity report; it runs after 4a");
+  else await step("2. describe Opportunity", describeOpportunity);
 
   await step("2b. list_report_folders includes the org-wide Public Reports folder", async () => {
     const out = await call("list_report_folders");
@@ -120,7 +166,7 @@ try {
     const labels = out.groups.measures.map((m: Json) => m.label).join("|");
     for (const word of ["Sum", "Average", "Smallest", "Largest", "Unique"]) expect(labels.includes(word), `aggregate prefix gave no "${word}" measure: ${labels}`);
     expect(out.totals && out.totals.values.length === 6, "no totals");
-  });
+  }, { apex: "skip" });
 
   await step("3b. date granularity changes the groups", async () => {
     const out = await call("query_report", {
@@ -129,7 +175,7 @@ try {
       dateFilter: { column: "CLOSE_DATE", duration: "THIS_YEAR" },
     });
     expect(/Q\d/.test(String(out.groups.rows[0]?.[0])), `label ${out.groups.rows[0]?.[0]}`);
-  });
+  }, { apex: "skip" });
 
   await step("3c. query a matrix report", async () => {
     const out = await call("query_report", {
@@ -142,7 +188,7 @@ try {
     expect(out.report.format === "MATRIX", `format ${out.report.format}`);
     expect(out.groups.dimensions.length === 2, "expected two dimensions");
     expect(out.groups.rows.length > 0, "no matrix rows");
-  });
+  }, { apex: "skip" });
 
   await step("3d. query a tabular report with detail rows, sort and top rows", async () => {
     const out = await call("query_report", {
@@ -156,7 +202,7 @@ try {
     expect(out.detail.rows.length === 2, `rows ${out.detail.rows.length}`);
     expect(out.detail.truncated === true && out.notes.length > 0, "cut by maxRows should be noted");
     expect(typeof out.detail.rows[0][1] === "number", "amount should be a number");
-  });
+  }, { apex: "skip" });
 
   let firstId = "";
   await step("4a. create a report in Private Reports", async () => {
@@ -165,7 +211,9 @@ try {
     created.push(out.id);
     expect(/^00O/.test(out.id), "no id");
     expect(out.folder === "Private Reports", `folder ${out.folder}`);
-  });
+  }, { apex: "local" });
+
+  if (apexDoor) await step("2. describe Opportunity (apex door, through the report from 4a)", describeOpportunity);
 
   await step("4b. describe it", async () => {
     const out = await call("describe_report", { reportId: firstId });
@@ -184,7 +232,7 @@ try {
     expect(out.summary.name === `${prefix}-a2-${stamp}`, "name not updated");
     expect(out.changes.some((c: string) => c.startsWith("reportFilters:") && !c.endsWith("unchanged")), `changes ${JSON.stringify(out.changes)}`);
     expect(out.summary.groupingsDown.length === 1, "partial update lost the grouping");
-  });
+  }, { apex: "skip" });
 
   await step("4d. run it, then run it with overrides", async () => {
     const plain = await call("run_report", { reportId: firstId });
@@ -199,7 +247,7 @@ try {
     secondId = out.id;
     created.push(out.id);
     expect(out.folder === "Private Reports", `folder ${out.folder}`);
-  });
+  }, { apex: "local" });
 
   await step("5b. create_report fromReportId: a flat copy, then a grouped copy of that", async () => {
     // Start from the grouped report: drop its filters, keep its grouping, change the name only.
@@ -233,7 +281,7 @@ try {
     expect(original.format === "TABULAR" && original.groupingsDown.length === 0, "the original changed");
     const run = await call("run_report", { reportId: grouped.id });
     expect(run.groups.rows.length >= 0 && run.report.id === grouped.id, "the copy does not run");
-  });
+  }, { apex: "skip" });
 
   await step("6a. combine with stack (this year against last 30 days)", async () => {
     const out = await call("combine_reports", {
@@ -265,7 +313,7 @@ try {
       await call("delete_report", { reportId: id });
       created.splice(created.indexOf(id), 1);
     }
-  });
+  }, { apex: "local" });
 } finally {
   // Never leave anything behind, even after a failed step.
   for (const id of created) {
