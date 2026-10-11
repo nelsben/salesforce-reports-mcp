@@ -235,6 +235,10 @@ Answered on 2026-10-11 in `docs/probes/v0.2-phase0.md`; the results are under "P
 
 Done 2026-10-11 (`docs/probes/v0.2-phase1.md`, `salesforce/README.md`). `ReportsApi` matches the local server on all 27 parity cases on a seeded scratch org, and the live check's read steps pass with `--door apex`. Differences: `describe_report_type` reads the type through a saved report of it and has no filter operators; `describe_report` with `includeMetadata` returns only the fields Apex exposes; a run too large for Apex returns `RESULT_TOO_LARGE` instead of going async. The cell cap held, and CPU, not heap, is what stops a larger run. A 200-row measurement still needs an org with more data.
 
+### Phase 2 result
+
+Built 2026-10-11 (`docs/probes/v0.2-phase2.md`). The server `SalesforceReports` is deployed and active in a scratch org with the six read tools, named exactly like the local ones. Tool rows use `ApiSource` `API_CATALOG`, `ApiIdentifier` `ar:ReportsApi` and `Operation` equal to the tool name, and at API 68.0 the `McpServerDefinition` metadata carries its tools. Open: activating the API Catalog operations is a Setup click, and a live call needs one interactive sign-in through the External Client App. A client credentials token was not issued, because the org does not return an app's secret over REST.
+
 ### Phases
 
 | Phase | Work | Done when |

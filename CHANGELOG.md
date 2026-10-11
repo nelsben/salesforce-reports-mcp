@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- v0.2 phase 2, the in-org MCP door: `salesforce/` adds the API Catalog entry `ReportsApi` (one operation per tool, schemas generated from the local server by `npm run mcp:generate`), the hosted MCP server `SalesforceReports` with the six read tools, a permission set, `npm run mcp:setup` and `mcp:teardown`, an External Client App for sign-in, and `npm run mcp-check`. The README's "In the org" section has the admin steps.
 - v0.2 phase 1, the in-org REST door: `salesforce/` holds `ReportsApi`, an Apex REST class at `/services/apexrest/reports/v1/<tool>` for search_reports, list_report_folders, describe_report, describe_report_type, run_report and combine_reports, with the local server's inputs and results. `npm run parity` checks both doors give the same JSON, and `npm run live -- --door apex` runs the read steps through it.
 - The Salesforce CLI now starts on Windows: `sf.cmd` runs through a shell with the org alias checked first, and a failure to start the CLI says how to fix it.
 - Three skills replace `skills/salesforce-reports`: `report-runner` (explore and answer, never saves), `report-designer` (change or make a report, preview, save) and `report-deploy` (move a saved report between orgs or into git with the Salesforce CLI).
