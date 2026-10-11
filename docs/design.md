@@ -50,7 +50,7 @@ Runtime: Node 20 or later, TypeScript in strict mode, ESM, `@modelcontextprotoco
 | `--allow-delete` | `SF_REPORTS_ALLOW_DELETE=1` | off | Register `delete_report`. |
 | `--max-rows <n>` | `SF_REPORTS_MAX_ROWS` | `200` | Default cap on detail rows in a result. The hard ceiling is 2,000. |
 
-The CLI is called with `execFile` and an argument array, never a shell string. A token is never written to stdout, stderr or a log, and never appears in an error message.
+The CLI is called with `execFile` and an argument array, with no shell. The exception is Windows, where `sf.cmd` needs a shell (Node refuses to spawn a `.cmd` file without one): there the call is one command string built from fixed literals and the org alias, and the alias is checked against `^[A-Za-z0-9._@+-]+$` first. A bad alias is refused and nothing is spawned. A token is never written to stdout, stderr or a log, and never appears in an error message.
 
 ## Tools
 

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createClient, SalesforceError } from "../src/salesforce/client.js";
-import { ConnectionError, resolveConnection, type ExecFile } from "../src/salesforce/connection.js";
+import { ConnectionError, resolveConnection, type ExecFile, type ExecShell } from "../src/salesforce/connection.js";
 
 // Built from parts so no secret-shaped literal sits in the repo.
 const REAL_TOKEN = ["00D000000000001", "AQEAQFakeTokenValueForTestsOnly.12345"].join("!");
@@ -66,7 +66,51 @@ describe("resolveConnection", () => {
     const exec: ExecFile = async () => {
       throw Object.assign(new Error("spawn sf ENOENT"), { code: "ENOENT" });
     };
-    await expect(resolveConnection({ env: {}, execFile: exec }).getAuth()).rejects.toThrow(/not found on PATH/);
+    await expect(resolveConnection({ env: {}, execFile: exec }).getAuth()).rejects.toThrow(/could not be started/);
+  });
+
+  it("explains EINVAL when the CLI cannot be started", async () => {
+    const exec: ExecFile = async () => {
+      throw Object.assign(new Error("spawn EINVAL"), { code: "EINVAL" });
+    };
+    await expect(resolveConnection({ env: {}, execFile: exec }).getAuth()).rejects.toThrow(/could not be started.*SF_INSTANCE_URL and SF_ACCESS_TOKEN/);
+  });
+});
+
+describe("resolveConnection on Windows", () => {
+  function fakeShell(): { shell: ExecShell; commands: string[] } {
+    const commands: string[] = [];
+    const shell: ExecShell = async (command) => {
+      commands.push(command);
+      return { stdout: JSON.stringify({ status: 0, result: { instanceUrl: URL, accessToken: REAL_TOKEN } }) };
+    };
+    return { shell, commands };
+  }
+
+  it("runs sf.cmd through a shell as one command string", async () => {
+    const { shell, commands } = fakeShell();
+    const exec = vi.fn();
+    await resolveConnection({ org: "dev-1@x.com", env: {}, platform: "win32", execFile: exec as unknown as ExecFile, execShell: shell }).getAuth();
+    expect(commands).toEqual(["sf.cmd org display --json --target-org dev-1@x.com"]);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it("refuses an unsafe alias and spawns nothing", async () => {
+    const { shell, commands } = fakeShell();
+    const exec = vi.fn();
+    const conn = resolveConnection({ org: "dev & calc", env: {}, platform: "win32", execFile: exec as unknown as ExecFile, execShell: shell });
+    await expect(conn.getAuth()).rejects.toThrow(ConnectionError);
+    await expect(conn.getAuth()).rejects.toThrow(/A-Z/);
+    expect(commands).toEqual([]);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it.each(["linux", "darwin"] as const)("keeps execFile with an argument array on %s", async (platform) => {
+    const { exec, calls } = fakeSf({ "org display": () => ({ instanceUrl: URL, accessToken: REAL_TOKEN }) });
+    const shell = vi.fn();
+    await resolveConnection({ org: "dev & calc", env: {}, platform, execFile: exec, execShell: shell as unknown as ExecShell }).getAuth();
+    expect(calls).toEqual([["org", "display", "--json", "--target-org", "dev & calc"]]);
+    expect(shell).not.toHaveBeenCalled();
   });
 });
 
