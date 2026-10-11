@@ -1,0 +1,58 @@
+{
+  "report": {
+    "id": null,
+    "name": "Unsaved report",
+    "format": "SUMMARY",
+    "reportType": "Opportunity"
+  },
+  "filters": [
+    "Close Date: THIS_YEAR",
+    "Scope: organization",
+    "Standard filter open: all",
+    "Standard filter probability: >0"
+  ],
+  "notes": [],
+  "totals": {
+    "measures": [
+      "s!AMOUNT",
+      "RowCount"
+    ],
+    "values": [
+      3091000,
+      8
+    ]
+  },
+  "groups": {
+    "dimensions": [
+      {
+        "name": "FULL_NAME",
+        "label": "Opportunity Owner",
+        "axis": "down"
+      }
+    ],
+    "measures": [
+      {
+        "name": "s!AMOUNT",
+        "label": "Sum of Amount",
+        "dataType": "currency"
+      },
+      {
+        "name": "RowCount",
+        "label": "Record Count",
+        "dataType": "int"
+      }
+    ],
+    "rows": [
+      [
+        "User 1",
+        291000,
+        2
+      ],
+      [
+        "User 2",
+        2800000,
+        6
+      ]
+    ]
+  }
+}

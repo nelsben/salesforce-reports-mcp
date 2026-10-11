@@ -1,0 +1,177 @@
+{
+  "report": {
+    "id": null,
+    "name": "Unsaved report",
+    "format": "SUMMARY",
+    "reportType": "Opportunity"
+  },
+  "filters": [
+    "Close Date: THIS_YEAR",
+    "Scope: organization",
+    "Standard filter open: all",
+    "Standard filter probability: >0"
+  ],
+  "notes": [],
+  "totals": {
+    "measures": [
+      "s!AMOUNT",
+      "RowCount"
+    ],
+    "values": [
+      3091000,
+      8
+    ]
+  },
+  "groups": {
+    "dimensions": [
+      {
+        "name": "STAGE_NAME",
+        "label": "Stage",
+        "axis": "down"
+      },
+      {
+        "name": "CLOSE_DATE",
+        "label": "Close Date",
+        "axis": "down"
+      }
+    ],
+    "measures": [
+      {
+        "name": "s!AMOUNT",
+        "label": "Sum of Amount",
+        "dataType": "currency"
+      },
+      {
+        "name": "RowCount",
+        "label": "Record Count",
+        "dataType": "int"
+      }
+    ],
+    "rows": [
+      [
+        "Prospecting",
+        "December 2026",
+        0,
+        1
+      ],
+      [
+        "Needs Analysis",
+        "December 2026",
+        360000,
+        1
+      ],
+      [
+        "Value Proposition",
+        "December 2026",
+        420000,
+        1
+      ],
+      [
+        "Id. Decision Makers",
+        "December 2026",
+        480000,
+        1
+      ],
+      [
+        "Proposal/Price Quote",
+        "December 2026",
+        640000,
+        1
+      ],
+      [
+        "Negotiation/Review",
+        "October 2026",
+        57000,
+        1
+      ],
+      [
+        "Negotiation/Review",
+        "November 2026",
+        234000,
+        1
+      ],
+      [
+        "Negotiation/Review",
+        "December 2026",
+        900000,
+        1
+      ]
+    ]
+  },
+  "detail": {
+    "columns": [
+      {
+        "name": "STAGE_NAME",
+        "label": "Stage",
+        "dataType": "picklist"
+      },
+      {
+        "name": "CLOSE_DATE",
+        "label": "Close Date",
+        "dataType": "date"
+      },
+      {
+        "name": "OPPORTUNITY_NAME",
+        "label": "Opportunity Name",
+        "dataType": "string"
+      },
+      {
+        "name": "AMOUNT",
+        "label": "Amount",
+        "dataType": "currency"
+      }
+    ],
+    "rows": [
+      [
+        "Prospecting",
+        "December 2026",
+        "Opportunity 8",
+        null
+      ],
+      [
+        "Needs Analysis",
+        "December 2026",
+        "Opportunity 5",
+        360000
+      ],
+      [
+        "Value Proposition",
+        "December 2026",
+        "Opportunity 4",
+        420000
+      ],
+      [
+        "Id. Decision Makers",
+        "December 2026",
+        "Opportunity 3",
+        480000
+      ],
+      [
+        "Proposal/Price Quote",
+        "December 2026",
+        "Opportunity 2",
+        640000
+      ],
+      [
+        "Negotiation/Review",
+        "October 2026",
+        "Opportunity 7",
+        57000
+      ],
+      [
+        "Negotiation/Review",
+        "November 2026",
+        "Opportunity 6",
+        234000
+      ],
+      [
+        "Negotiation/Review",
+        "December 2026",
+        "Opportunity 1",
+        900000
+      ]
+    ],
+    "rowCount": 8,
+    "truncated": false
+  }
+}
