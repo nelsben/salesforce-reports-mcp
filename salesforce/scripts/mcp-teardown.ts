@@ -3,12 +3,13 @@
  * rows on the Salesforce Reports server, and the server's McpServerAccess row. Metadata (the server, the
  * registration, the permission set, the classes) stays; remove it with the destructive manifest.
  *
- * Usage, from the repo root:  npx tsx salesforce/scripts/mcp-teardown.ts <alias>
+ * Usage, from the repo root:  npx tsx salesforce/scripts/mcp-teardown.ts --org <alias> [--yes]
  */
 import { DOOR_TOOLS } from "./door-tools.js";
-import { Org, orgFromArgs, SERVER, type Json } from "./org.js";
+import { announce, Org, orgFromArgs, SERVER, type Json } from "./org.js";
 
-const org = new Org(orgFromArgs("npx tsx salesforce/scripts/mcp-teardown.ts <alias>"));
+const org = new Org(orgFromArgs("npx tsx salesforce/scripts/mcp-teardown.ts --org <alias> [--yes]"));
+await announce(org);
 
 const server = await org.server();
 if (!server) {

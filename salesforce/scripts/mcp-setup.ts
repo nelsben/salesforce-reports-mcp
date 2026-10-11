@@ -2,7 +2,7 @@
  * Wires the six door tools onto the Salesforce Reports hosted MCP server, idempotently, and activates the
  * server. Run it after deploying salesforce/force-app (the registration, the server and the permission set).
  *
- * Usage, from the repo root:  npx tsx salesforce/scripts/mcp-setup.ts <alias>
+ * Usage, from the repo root:  npx tsx salesforce/scripts/mcp-setup.ts --org <alias> [--yes]
  *
  * For each tool it creates or updates one McpServerToolDefinition (ToolName, ToolTitle, DescriptionOverride
  * from the local server, ReadOnly true, Destructive false, Idempotent true, OpenWorld true) and its child
@@ -11,9 +11,10 @@
  * are still inactive (those are activated in Setup).
  */
 import { doorTools } from "./door-tools.js";
-import { API_IDENTIFIER, API_SOURCE, Org, orgFromArgs, REGISTRATION, SERVER, type Json } from "./org.js";
+import { announce, API_IDENTIFIER, API_SOURCE, Org, orgFromArgs, REGISTRATION, SERVER, type Json } from "./org.js";
 
-const org = new Org(orgFromArgs("npx tsx salesforce/scripts/mcp-setup.ts <alias>"));
+const org = new Org(orgFromArgs("npx tsx salesforce/scripts/mcp-setup.ts --org <alias> [--yes]"));
+await announce(org);
 
 const server = await org.server();
 if (!server) {

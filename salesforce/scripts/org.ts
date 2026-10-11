@@ -5,8 +5,6 @@
 import { parseArgs } from "node:util";
 import { resolveConnection, type Auth } from "../../src/salesforce/connection.js";
 
-/** The only orgs these scripts may touch. */
-export const ALLOWED_ORGS = ["dev-frontend-2", "dev-backend"];
 export const API_VERSION = "68.0";
 
 export const SERVER = "SalesforceReports";
@@ -17,24 +15,53 @@ export const API_IDENTIFIER = `ar:${REGISTRATION}`;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Json = any;
 
-/** The alias from `<alias>` or `--org <alias>`. Exits on a missing alias or one not on the list. */
+/**
+ * Decides whether these scripts may change an org. When SF_REPORTS_SETUP_ORGS is set (comma-separated,
+ * spaces trimmed, empty entries ignored) the alias must be on it, even with --yes. When it is unset or
+ * empty, the alias is refused unless --yes is given.
+ */
+export function checkOrg(alias: string, opts: { env: Record<string, string | undefined>; yes: boolean }): { ok: true } | { ok: false; message: string } {
+  const list = (opts.env.SF_REPORTS_SETUP_ORGS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (list.length) {
+    if (list.includes(alias)) return { ok: true };
+    return { ok: false, message: `Refusing org "${alias}". It is not on SF_REPORTS_SETUP_ORGS (${list.join(", ")}). Add it there to allow it.` };
+  }
+  if (opts.yes) return { ok: true };
+  return {
+    ok: false,
+    message: `Refusing org "${alias}". Pass --yes to confirm this org may be changed, or set SF_REPORTS_SETUP_ORGS to the aliases these scripts may change.`,
+  };
+}
+
+/** The alias from `<alias>` or `--org <alias>`, plus `--yes`. Exits 2 on a missing alias or a refused one, before any CLI call. */
 export function orgFromArgs(usage: string): string {
-  const { values, positionals } = parseArgs({ options: { org: { type: "string" } }, allowPositionals: true, strict: true });
+  const { values, positionals } = parseArgs({
+    options: { org: { type: "string" }, yes: { type: "boolean", default: false } },
+    allowPositionals: true,
+    strict: true,
+  });
   const org = values.org ?? positionals[0];
   if (!org) {
     console.error(`Usage: ${usage}`);
     process.exit(2);
   }
-  if (!ALLOWED_ORGS.includes(org)) {
-    console.error(`Refusing org "${org}". This script only runs against ${ALLOWED_ORGS.join(" or ")}.`);
+  const verdict = checkOrg(org, { env: process.env, yes: values.yes ?? false });
+  if (!verdict.ok) {
+    console.error(verdict.message);
     process.exit(2);
   }
   return org;
 }
 
+/** Prints the alias and instance URL about to be changed. Never the token. */
+export async function announce(org: Org): Promise<void> {
+  const auth = await org.connection.getAuth();
+  console.log(`About to change org ${org.alias} (${auth.instanceUrl})\n`);
+}
+
 export class Org {
   private auth?: Auth;
-  private readonly connection;
+  readonly connection;
 
   constructor(readonly alias: string) {
     // env: {} so SF_ACCESS_TOKEN in the shell can never point the script at another org.

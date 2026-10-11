@@ -154,10 +154,10 @@ To set up the MCP door, an admin does this once per org. Replace `<alias>` with 
    sf org assign permset -n Salesforce_Reports_MCP -o <alias> --on-behalf-of <user>
    ```
 
-3. Run the setup script from the repo root. It writes the six tool rows if they are missing, turns the server on, and prints the server's URL. It only runs against the aliases listed in `ALLOWED_ORGS` in `salesforce/scripts/org.ts`, so add yours there first.
+3. Run the setup script from the repo root. It writes the six tool rows if they are missing, turns the server on, and prints the server's URL. Name the org with `--org`, then either pass `--yes` or set `SF_REPORTS_SETUP_ORGS` to the aliases these scripts may change (comma-separated). When that variable is set, an alias not on it is refused even with `--yes`. The script prints the alias and instance URL before it writes.
 
    ```bash
-   npm run mcp:setup -- <alias>
+   npm run mcp:setup -- --org <alias> --yes
    ```
 
 4. If the script says operations are inactive and a tool call fails, open Setup, go to API Catalog, open `ReportsApi`, select its six operations, and click Activate. No API does this.
@@ -171,7 +171,7 @@ To set up the MCP door, an admin does this once per org. Replace `<alias>` with 
 
 6. Connect Claude. In claude.ai, open Settings, then Connectors, then Add custom connector. Paste the URL from step 3. Under Advanced settings, paste the consumer key as the OAuth Client ID. Click Add, then Connect, and sign in to the org. A sandbox or scratch org uses `https://api.salesforce.com/platform/mcp/v1/sandbox/custom/SalesforceReports`. Production and Developer Edition use the same URL without `sandbox/`.
 
-Each user signs in as themselves, so sharing, folder access and field-level security apply. To check the door from a terminal, run `SF_MCP_TOKEN=<token> npm run mcp-check -- --org <alias>` with an access token from that sign-in. It lists the tools and runs `search_reports` and `run_report`. To remove the door, run `npm run mcp:teardown -- <alias>`, then use the removal command in `salesforce/README.md`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy again.
+Each user signs in as themselves, so sharing, folder access and field-level security apply. To check the door from a terminal, run `SF_MCP_TOKEN=<token> npm run mcp-check -- --org <alias>` with an access token from that sign-in. It lists the tools and runs `search_reports` and `run_report`. To remove the door, run `npm run mcp:teardown -- --org <alias> --yes` (the same `--yes` or `SF_REPORTS_SETUP_ORGS` rule applies), then use the removal command in `salesforce/README.md`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy again.
 
 ## The skills
 
