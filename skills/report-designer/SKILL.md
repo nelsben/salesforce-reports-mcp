@@ -22,7 +22,8 @@ You are helping someone get a report they can keep, without learning what a repo
 
 ## Things people ask for that need a straight answer
 
-- **Rename a column header.** Salesforce does not rename standard column headers through the API. The offer: a row-level formula column that carries the label they want (see `reference.md`), or Report Builder for the header itself.
+- **Rename a column header.** As far as we know Salesforce has no way to rename a standard column header, in the API or elsewhere. Say so once, then offer the one thing that works: a row-level formula column that carries the label they want, with the original column left out of the detail columns. Pass it in `reportMetadata` and use the lowercase type `number`:
+  `reportMetadata: {customDetailFormula: {"CDF1": {label: "Deal value", formulaType: "number", decimalPlaces: 2, formula: "AMOUNT"}}}`, then put `"CDF1"` in `columns`. The formula uses column API names, and `Currency` or `Number` (capitalised) are rejected. To total it, aggregate the formula column: `{fn: "sum", column: "CDF1"}` gives "Sum of Deal value". Do not send them to Report Builder for this.
 - **Conditional highlighting, joined-report blocks.** The API cannot set these. Say so and link to Report Builder.
 - **Share it with the team.** Move it to a shared folder: `list_report_folders`, then `create_report` or `update_report` with `folderId`.
 

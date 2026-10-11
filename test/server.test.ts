@@ -254,6 +254,20 @@ describe("other read tools", () => {
     expect(decodeURIComponent(requests.find((r) => r.path.startsWith("/query?q="))!.path)).toContain("FROM Folder WHERE Id = '00l000000000001AAA'");
   });
 
+  it("list_report_folders adds the org-wide Public Reports folder", async () => {
+    const { call } = await connect((method, path) => {
+      const q = decodeURIComponent(path);
+      if (q.includes("FROM Organization")) return { records: [{ Id: "00D000000000001AAA" }] };
+      if (q.includes("FROM Folder")) return { records: [{ Id: "00l000000000001AAA", Name: "Sales Reports", DeveloperName: "Sales_Reports", AccessType: "Shared" }] };
+      return routes(method, path, undefined);
+    });
+    const { body } = await call("list_report_folders");
+    expect(body.folders[0]).toEqual({ id: "00D000000000001AAA", name: "Public Reports", developerName: "unfiled$public", accessType: "Public" });
+    expect(body.folders[1]).toMatchObject({ name: "Sales Reports", developerName: "Sales_Reports" });
+    const searched = await call("list_report_folders", { search: "sales" });
+    expect(searched.body.folders.map((f: { name: string }) => f.name)).toEqual(["Sales Reports"]);
+  });
+
   it("describe_report names the org-wide Public Reports folder unfiled$public", async () => {
     const { call } = await connect((method, path) => {
       if (method === "GET" && path.endsWith("/describe")) {

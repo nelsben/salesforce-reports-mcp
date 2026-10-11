@@ -160,7 +160,7 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     {
       title: "List report folders",
       description:
-        "List the report folders the user can see, with id, name and access type. Use it to choose a `folderId` for create_report, update_report or clone_report. A report saved with no folder goes to the user's Private Reports folder, which is not listed here.",
+        "List the report folders the user can see, with id, name, developer name and access type, including the org-wide Public Reports folder. Use it to choose a `folderId` for create_report, update_report or clone_report. A report saved with no folder goes to the user's Private Reports folder, which is not listed here.",
       inputSchema: {
         search: z.string().optional().describe("Part of a folder name."),
         limit: z.number().int().min(1).max(200).optional().describe("Maximum folders. Default 100."),
@@ -173,9 +173,15 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
         const rows = await reports.soql(
           `SELECT Id, Name, DeveloperName, AccessType FROM Folder WHERE ${where.join(" AND ")} ORDER BY Name LIMIT ${limit ?? 100}`,
         );
+        const folders = rows.map((f) => ({ id: f.Id, name: f.Name, developerName: f.DeveloperName, accessType: f.AccessType }));
+        // The org-wide Public Reports folder is not a Folder row; its id is the org id.
+        if (!search || "public reports".includes(search.toLowerCase())) {
+          const publicFolder = await orgPublicFolder();
+          if (publicFolder) folders.unshift({ id: publicFolder.id, name: "Public Reports", developerName: "unfiled$public", accessType: "Public" });
+        }
         return ok({
-          count: rows.length,
-          folders: rows.map((f) => ({ id: f.Id, name: f.Name, developerName: f.DeveloperName, accessType: f.AccessType })),
+          count: folders.length,
+          folders,
           note: "A report saved with no folderId goes to the user's Private Reports folder.",
         });
       } catch (error) {
@@ -488,6 +494,15 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
         }
       },
     );
+  }
+
+  async function orgPublicFolder(): Promise<FolderInfo | null> {
+    try {
+      const org = await reports.soql("SELECT Id FROM Organization");
+      return org[0]?.Id ? { id: org[0].Id, name: "Public Reports", developerName: "unfiled$public", isPrivate: false } : null;
+    } catch {
+      return null;
+    }
   }
 
   async function folderInfo(id: string | null | undefined): Promise<FolderInfo | null> {

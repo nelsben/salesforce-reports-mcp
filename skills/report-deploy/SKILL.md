@@ -5,12 +5,12 @@ description: Move a saved Salesforce report from one org to another, or put repo
 
 # Moving a saved report between orgs
 
-This is for an admin, in Claude Code with the Salesforce CLI. Saving a report in your own org needs no deploy; this is only for moving one to another org or into source control. Run it only on an explicit request, and confirm every real deploy first. Use the MCP server's `describe_report` and `update_report`, and the `sf` CLI for the rest. Always pass `--target-org` explicitly; never rely on the default org.
+This is for an admin, in Claude Code with the Salesforce CLI. Saving a report in your own org needs no deploy; this is only for moving one to another org or into source control. Run it only on an explicit request, and confirm every real deploy first. Use the MCP server's `describe_report` and `update_report`, and the `sf` CLI for the rest. Always pass `--target-org` explicitly; never rely on the default org. The admin names the orgs by their CLI alias ("from dev-frontend-2 to dev-backend"); use those aliases as given and do not look them up. If they did not name an alias for a side, ask.
 
 ## The steps
 
 1. **Identify the report.** `search_reports`, then `describe_report`. From the result take `developerName` and `folder`. The metadata name is `<folder.developerName>/<developerName>`. The org-wide Public Reports folder has the developer name `unfiled$public`, so a report there is `unfiled$public/<developerName>`.
-2. **Check the folder.** If `folder.isPrivate` is true, stop and say so: a report in Private Reports cannot be retrieved (the CLI answers "cannot be found" and retrieves nothing). It must move to a shared folder first. Offer `list_report_folders` and an `update_report` with a `folderId`, and move it only after the admin agrees; that changes the report in the source org.
+2. **Check the folder.** If `folder.isPrivate` is true, stop and say so: a report in Private Reports cannot be retrieved (the CLI answers "cannot be found" and retrieves nothing). It must move to a shared folder first. Offer `list_report_folders` (it includes the org-wide Public Reports folder, developer name `unfiled$public`) and an `update_report` with that folder's `folderId`, and move it only after the admin agrees; that changes the report in the source org.
 3. **Retrieve.** Inside an SFDX project (offer `sf project generate --name <dir>` if there is none), run:
    `sf project retrieve start --metadata 'Report:<folder>/<developerName>' --target-org <source>`
    Single-quote the name; `$` in `unfiled$public` is special to the shell. If the report type is custom, retrieve it too (`ReportType:<name>`), and the folder (`ReportFolder:<name>`) when the target lacks it. The file lands under `force-app/main/default/reports/<folder>/`.

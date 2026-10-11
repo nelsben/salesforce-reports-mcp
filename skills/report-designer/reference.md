@@ -38,10 +38,10 @@ Checked live, 2026-10-11.
   - Bucket fields. `buckets: [{bucketType: "picklist", developerName: "BucketField_1", label, sourceColumnName: "STAGE_NAME", values: [{label: "Early", sourceDimensionValues: ["Prospecting", "Qualification"]}]}]`, then add `"BucketField_1"` to the detail columns. A numeric bucket uses `bucketType: "number"` and `values: [{label, rangeUpperBound: 1000}, {label, rangeUpperBound: null}]`; the last upper bound must be null. A picklist bucket must have at least one value. The names `devName`, `useOther` and `nullTreatment` from older docs are rejected.
   - The folder (`folderId`), charts, custom summary formulas and historical trending (untested here).
 - **Cannot set:** conditional highlighting, joined-report blocks (Report Builder or the Metadata API only).
-- **Cannot rename a standard column header.** There is no field for it: an unknown key is rejected. A row-level formula column can carry any label, and the original column can then be dropped from the detail columns. Only offer this when the user wants it; say the label is on a formula column.
+- **Cannot rename a standard column header.** There is no field for it: an unknown key is rejected. A row-level formula column can carry any label, and the original column can then be dropped from the detail columns. A summary total of the formula column works too: `{fn: "sum", column: "CDF1"}` gives "Sum of Deal value" (verified in a rehearsal). Only offer this when the user wants it; say the label is on a formula column.
 
 ## Folders
 
 - No `folderId`: the report lands in the user's Private Reports.
-- `list_report_folders` shows folders the user can see. The org-wide "Public Reports" folder is not in that list; its id is the org id (starts `00D`), and `describe_report` on a report in it shows `folder.name` "Public Reports".
+- `list_report_folders` shows folders the user can see, plus the org-wide "Public Reports" folder, whose id is the org id (starts `00D`). `describe_report` shows a report's `folder` as `{id, name, developerName, isPrivate}`.
 - A report in Private Reports can only be seen by its owner and cannot be moved between orgs until it is in a shared folder.

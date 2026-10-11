@@ -94,6 +94,12 @@ try {
     expect(out.filterOperators.string?.includes("equals"), "no string operators");
   });
 
+  await step("2b. list_report_folders includes the org-wide Public Reports folder", async () => {
+    const out = await call("list_report_folders");
+    const pub = out.folders.find((f: Json) => f.developerName === "unfiled$public");
+    expect(pub && /^00D/.test(pub.id), `folders ${JSON.stringify(out.folders.map((f: Json) => f.name))}`);
+  });
+
   await step("3a. query a summary report with every aggregate", async () => {
     const out = await call("query_report", {
       reportType: "Opportunity",
