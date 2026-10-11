@@ -1,4 +1,4 @@
-import { execFile as nodeExecFile } from "node:child_process";
+import { exec as nodeExec, execFile as nodeExecFile } from "node:child_process";
 
 export interface Auth {
   instanceUrl: string;
@@ -18,10 +18,19 @@ export type ExecFile = (
   options: { timeout: number; maxBuffer: number },
 ) => Promise<{ stdout: string }>;
 
+/** Runs one command string through a shell. Used only on Windows, where sf.cmd needs one. */
+export type ExecShell = (
+  command: string,
+  options: { timeout: number; maxBuffer: number },
+) => Promise<{ stdout: string }>;
+
 export interface ConnectionOptions {
   org?: string;
   env?: Record<string, string | undefined>;
   execFile?: ExecFile;
+  execShell?: ExecShell;
+  /** Defaults to process.platform. Tests set it to cover win32 on any OS. */
+  platform?: NodeJS.Platform;
 }
 
 export class ConnectionError extends Error {}
@@ -33,6 +42,16 @@ const defaultExecFile: ExecFile = (file, args, options) =>
       else resolve({ stdout: String(stdout) });
     });
   });
+
+const defaultExecShell: ExecShell = (command, options) =>
+  new Promise((resolve, reject) => {
+    nodeExec(command, options, (error, stdout) => {
+      if (error) reject(Object.assign(error, { stdout: String(stdout) }));
+      else resolve({ stdout: String(stdout) });
+    });
+  });
+
+const SAFE_ORG = /^[A-Za-z0-9._@+-]+$/;
 
 /** A real Salesforce session id looks like `00D...!...`. The CLI's redacted form does not. */
 function isRealToken(value: unknown): value is string {
@@ -58,22 +77,33 @@ export function resolveConnection(options: ConnectionOptions = {}): Connection {
   }
 
   const org = options.org ?? env.SF_ORG;
-  const sfBin = process.platform === "win32" ? "sf.cmd" : "sf";
+  const isWindows = (options.platform ?? process.platform) === "win32";
+  const execShell = options.execShell ?? defaultExecShell;
   let cached: Auth | undefined;
   let instanceUrl: string | undefined;
 
   async function runSf(args: string[]): Promise<Record<string, unknown>> {
     const full = [...args, "--json", ...(org ? ["--target-org", org] : [])];
+    const limits = { timeout: 60_000, maxBuffer: 4 * 1024 * 1024 };
+    if (isWindows && org !== undefined && !SAFE_ORG.test(org)) {
+      throw new ConnectionError(
+        "The org alias or username may only contain letters, digits and . _ @ + - on Windows (A-Z, a-z, 0-9, ., _, @, +, -).",
+      );
+    }
     let stdout: string;
     try {
-      ({ stdout } = await exec(sfBin, full, { timeout: 60_000, maxBuffer: 4 * 1024 * 1024 }));
+      // On Windows, sf.cmd needs a shell. The command is fixed literals plus the checked alias.
+      ({ stdout } = isWindows
+        ? await execShell(["sf.cmd", ...full].join(" "), limits)
+        : await exec("sf", full, limits));
     } catch (error) {
       stdout = (error as { stdout?: string }).stdout ?? "";
       const message = cliMessage(stdout);
       if (message) throw new ConnectionError(`Salesforce CLI: ${message}`);
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "ENOENT" || code === "EINVAL") {
         throw new ConnectionError(
-          "Salesforce CLI (sf) not found on PATH. Install it, or set SF_INSTANCE_URL and SF_ACCESS_TOKEN.",
+          "The Salesforce CLI (sf) could not be started. Install it and make sure it is on PATH, or set SF_INSTANCE_URL and SF_ACCESS_TOKEN.",
         );
       }
       throw new ConnectionError(
