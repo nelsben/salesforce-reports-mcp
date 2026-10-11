@@ -5,7 +5,7 @@ import { ReportsApi, soqlLike, soqlString } from "./reports/api.js";
 import { combineResults, type CombineInput } from "./reports/combine.js";
 import { aggregateColumns, definitionShape, ReportDefinitionSchema, toReportMetadata, type ReportDefinition } from "./reports/definition.js";
 import { HARD_ROW_CEILING, shapeResult, type ReportResult } from "./reports/shape.js";
-import { reportUrl, summarizeReport, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
+import { reportUrl, summarizeReport, type FolderInfo, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
 
 export interface ServerOptions {
   readOnly: boolean;
@@ -232,7 +232,7 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     {
       title: "Describe a saved report",
       description:
-        "Summarize one saved report without running it: name, folder, format, report type, columns with labels, groupings, aggregates, filters in words, date filter and URL. Use it to understand a report before running or changing it. Set includeMetadata to also get the raw reportMetadata. Different from describe_report_type, which lists what is available to build with.",
+        "Summarize one saved report without running it: name, developerName, folder as {id, name, developerName, isPrivate}, format, report type, columns with labels, groupings, aggregates, filters in words, date filter and URL. Use it to understand a report before running or changing it, and to get what `sf project retrieve` needs to move it (developerName and folder.developerName; a folder with isPrivate true cannot be retrieved). Set includeMetadata to also get the raw reportMetadata. Different from describe_report_type, which lists what is available to build with.",
       inputSchema: {
         reportId,
         includeMetadata: z.boolean().optional().describe("Also return the raw reportMetadata. Default false."),
@@ -242,7 +242,8 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     async ({ reportId: id, includeMetadata }) => {
       try {
         const describe = await reports.describeReport(id);
-        return ok(summarizeReport(describe, { baseUrl: await baseUrl(), includeMetadata }));
+        const summary = summarizeReport(describe, { baseUrl: await baseUrl(), includeMetadata });
+        return ok({ ...summary, folder: await folderInfo(summary.folderId) });
       } catch (error) {
         return fail(error);
       }
@@ -351,22 +352,35 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     {
       title: "Create a report",
       description:
-        "Save a new report in Salesforce from a definition. With no folderId it lands in the user's Private Reports folder, visible only to them; the user can move or share it in Salesforce. Use it only when the user asks to save or create a report. Try the definition first with query_report. Returns the new report's id, name, folder, URL and summary.",
+        "Save a new report in Salesforce. Two ways. From scratch: give name, reportType and the definition. From an existing report: give name and fromReportId, plus only the fields to change; the saved report is copied and the changes applied, so you do not repeat its columns, groupings or filters. A list you send (filters, columns, groupings, aggregates) replaces that list in the copy. With no folderId it lands in the user's Private Reports folder, visible only to them. Use it only when the user asks to save or create a report; try the definition first with query_report, or run_report with overrides when starting from a saved report. The original is never touched; to change the original, use update_report. Returns the new report's id, name, folder, URL and summary.",
       inputSchema: {
         name: z.string().min(1).max(40).describe("Report name shown in Salesforce."),
         description: z.string().optional().describe("Optional description."),
         folderId: z.string().optional().describe("Folder id from list_report_folders. Omit to save to Private Reports."),
+        fromReportId: reportId.optional().describe("Start from this saved report: it is copied and the other fields change the copy. reportType is then not needed."),
         ...definitionShape,
       },
       annotations: WRITE,
     },
-    async ({ name, description, folderId, ...definition }) => {
+    async ({ name, description, folderId, fromReportId, ...definition }) => {
       try {
-        if (!definition.reportType) throw new InputError("create_report needs reportType. Find one with list_report_types.");
-        const mapped = toReportMetadata(definition);
-        await ensureDetailColumn(mapped);
+        let metadata: Record<string, unknown>;
+        let notes: string[];
+        if (fromReportId) {
+          const before = (await reports.describeReport(fromReportId)).reportMetadata ?? {};
+          const mapped = toReportMetadata(definition, { partial: true });
+          metadata = applyChanges(before, definition, mapped.metadata);
+          notes = mapped.notes;
+        } else {
+          if (!definition.reportType) throw new InputError("create_report needs reportType, or fromReportId to start from a saved report. Find a type with list_report_types.");
+          const mapped = toReportMetadata(definition);
+          metadata = mapped.metadata;
+          notes = mapped.notes;
+        }
+        const wrapped = { metadata, notes };
+        await ensureDetailColumn(wrapped);
         const created = await reports.create({
-          ...mapped.metadata,
+          ...metadata,
           name,
           ...(description ? { description } : {}),
           ...(folderId ? { folderId } : {}),
@@ -379,7 +393,7 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
           folderId: summary.folderId,
           url: summary.url,
           summary,
-          notes: mapped.notes,
+          notes: wrapped.notes,
         });
       } catch (error) {
         return fail(error);
@@ -476,6 +490,20 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     );
   }
 
+  async function folderInfo(id: string | null | undefined): Promise<FolderInfo | null> {
+    if (!id) return null;
+    // A private report's folder id is its owner's user id; the org-wide Public Reports folder's id is the org id.
+    if (id.startsWith("005")) return { id, name: "Private Reports", developerName: null, isPrivate: true };
+    if (id.startsWith("00D")) return { id, name: "Public Reports", developerName: "unfiled$public", isPrivate: false };
+    try {
+      const rows = await reports.soql(`SELECT Id, Name, DeveloperName FROM Folder WHERE Id = '${soqlString(id)}'`);
+      if (rows[0]) return { id, name: rows[0].Name ?? null, developerName: rows[0].DeveloperName ?? null, isPrivate: false };
+    } catch {
+      /* fall through: the folder exists but this user cannot read it */
+    }
+    return { id, name: null, developerName: null, isPrivate: false };
+  }
+
   async function folderName(id: string | null): Promise<string | undefined> {
     if (!id) return undefined;
     try {
@@ -487,6 +515,34 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
   }
 
   return server;
+}
+
+/**
+ * The saved metadata of `before`, with the given changes applied, ready to POST as a new report.
+ * Fields that identify the old report are dropped; a list in `changes` replaces the saved list.
+ */
+function applyChanges(
+  before: Record<string, any>, // eslint-disable-line @typescript-eslint/no-explicit-any
+  def: ReportDefinition,
+  changes: Record<string, unknown>,
+): Record<string, unknown> {
+  const { id: _id, developerName: _dev, folderId: _folder, name: _name, ...copy } = before;
+  void _id; void _dev; void _folder; void _name;
+  const out: Record<string, unknown> = { ...copy, ...changes };
+  // Adding groupings to a flat copy makes it a summary or matrix.
+  if (!def.format && !changes.reportFormat) {
+    const down = ((out.groupingsDown as unknown[]) ?? []).length;
+    const across = ((out.groupingsAcross as unknown[]) ?? []).length;
+    out.reportFormat = across ? "MATRIX" : down ? "SUMMARY" : before.reportFormat;
+  }
+  const grouped = new Set([...((out.groupingsDown as { name: string }[]) ?? []), ...((out.groupingsAcross as { name: string }[]) ?? [])].map((g) => g.name));
+  let columns = ((out.detailColumns as string[]) ?? []).filter((c) => !grouped.has(c));
+  if (def.aggregates) {
+    // A new aggregate needs its column among the detail columns.
+    for (const c of aggregateColumns(def.aggregates)) if (!columns.includes(c) && !grouped.has(c)) columns = [...columns, c];
+  }
+  out.detailColumns = columns;
+  return out;
 }
 
 function clip(text: string | undefined): string {
