@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- Three skills replace `skills/salesforce-reports`: `report-runner` (explore and answer, never saves), `report-designer` (change or make a report, preview, save) and `report-deploy` (move a saved report between orgs or into git with the Salesforce CLI).
+- A Claude Code plugin: `.claude-plugin/plugin.json` and `marketplace.json`, bundling the skills and the server through `npx -y github:nelsben/salesforce-reports-mcp`, with no org baked in.
+- `create_report` takes `fromReportId`: copy a saved report, apply the changes given, and save as new.
+- `describe_report` returns `developerName` and the folder as `{id, name, developerName, isPrivate}`.
+- `list_report_folders` includes the org-wide Public Reports folder (`unfiled$public`; its id is the org id).
+- `docs/experiences.md` records three live probes: standard column headers cannot be renamed through the REST API but a row-level formula column can carry a label; the Metadata API cannot retrieve a report in Private Reports; bucket fields and cross filters are accepted with the shapes listed there.
+- `docs/rehearsals/` holds headless runs of each skill.
+
 ## 0.1.0
 
 First release.

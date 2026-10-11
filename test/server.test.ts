@@ -227,6 +227,59 @@ describe("other read tools", () => {
     expect(body.reportMetadata).toBeDefined();
   });
 
+  it("describe_report returns developerName and the folder for a private report", async () => {
+    const { call } = await connect((method, path) => {
+      if (method === "GET" && path.endsWith("/describe")) {
+        const base = fixture<Record<string, any>>("summary"); // eslint-disable-line @typescript-eslint/no-explicit-any
+        return { ...base, reportMetadata: { ...base.reportMetadata, id: ID, developerName: "Pipeline_abc", folderId: "005000000000013AAA" } };
+      }
+      return routes(method, path, undefined);
+    });
+    const { body } = await call("describe_report", { reportId: ID });
+    expect(body.developerName).toBe("Pipeline_abc");
+    expect(body.folder).toEqual({ id: "005000000000013AAA", name: "Private Reports", developerName: null, isPrivate: true });
+  });
+
+  it("describe_report reads a shared folder's name and developerName", async () => {
+    const { call, requests } = await connect((method, path) => {
+      if (method === "GET" && path.endsWith("/describe")) {
+        const base = fixture<Record<string, any>>("summary"); // eslint-disable-line @typescript-eslint/no-explicit-any
+        return { ...base, reportMetadata: { ...base.reportMetadata, id: ID, developerName: "Pipeline_abc", folderId: "00l000000000001AAA" } };
+      }
+      if (path.startsWith("/query?q=")) return { records: [{ Id: "00l000000000001AAA", Name: "Sales Reports", DeveloperName: "Sales_Reports" }] };
+      return routes(method, path, undefined);
+    });
+    const { body } = await call("describe_report", { reportId: ID });
+    expect(body.folder).toEqual({ id: "00l000000000001AAA", name: "Sales Reports", developerName: "Sales_Reports", isPrivate: false });
+    expect(decodeURIComponent(requests.find((r) => r.path.startsWith("/query?q="))!.path)).toContain("FROM Folder WHERE Id = '00l000000000001AAA'");
+  });
+
+  it("list_report_folders adds the org-wide Public Reports folder", async () => {
+    const { call } = await connect((method, path) => {
+      const q = decodeURIComponent(path);
+      if (q.includes("FROM Organization")) return { records: [{ Id: "00D000000000001AAA" }] };
+      if (q.includes("FROM Folder")) return { records: [{ Id: "00l000000000001AAA", Name: "Sales Reports", DeveloperName: "Sales_Reports", AccessType: "Shared" }] };
+      return routes(method, path, undefined);
+    });
+    const { body } = await call("list_report_folders");
+    expect(body.folders[0]).toEqual({ id: "00D000000000001AAA", name: "Public Reports", developerName: "unfiled$public", accessType: "Public" });
+    expect(body.folders[1]).toMatchObject({ name: "Sales Reports", developerName: "Sales_Reports" });
+    const searched = await call("list_report_folders", { search: "sales" });
+    expect(searched.body.folders.map((f: { name: string }) => f.name)).toEqual(["Sales Reports"]);
+  });
+
+  it("describe_report names the org-wide Public Reports folder unfiled$public", async () => {
+    const { call } = await connect((method, path) => {
+      if (method === "GET" && path.endsWith("/describe")) {
+        const base = fixture<Record<string, any>>("summary"); // eslint-disable-line @typescript-eslint/no-explicit-any
+        return { ...base, reportMetadata: { ...base.reportMetadata, id: ID, folderId: "00D000000000001AAA" } };
+      }
+      return routes(method, path, undefined);
+    });
+    const { body } = await call("describe_report", { reportId: ID });
+    expect(body.folder).toEqual({ id: "00D000000000001AAA", name: "Public Reports", developerName: "unfiled$public", isPrivate: false });
+  });
+
   it("rejects a malformed report id before calling Salesforce", async () => {
     const { client, requests } = await connect(routes);
     const result = (await client.callTool({ name: "run_report", arguments: { reportId: "nope" } })) as { isError?: boolean };
@@ -287,6 +340,78 @@ describe("write tools", () => {
     expect(sent.name).toBe("Pipeline");
     expect(sent).not.toHaveProperty("folderId");
     expect(body).toMatchObject({ id: ID, name: "Pipeline", folder: "Private Reports", url: `https://example.my.salesforce.com/lightning/r/Report/${ID}/view` });
+  });
+
+  describe("fromReportId", () => {
+    const flat = () => {
+      const base = fixture<Record<string, any>>("summary"); // eslint-disable-line @typescript-eslint/no-explicit-any
+      return {
+        ...base,
+        reportMetadata: {
+          ...base.reportMetadata,
+          id: ID,
+          name: "Original",
+          developerName: "Original_abc",
+          folderId: "00l000000000001AAA",
+          reportFormat: "TABULAR",
+          groupingsDown: [],
+          aggregates: ["RowCount"],
+          detailColumns: ["OPPORTUNITY_NAME", "AMOUNT", "STAGE_NAME"],
+          reportFilters: [{ column: "AMOUNT", operator: "greaterThan", value: "1000" }],
+        },
+      };
+    };
+    const harness = () =>
+      connect((method, path) => {
+        if (method === "GET" && path === `/analytics/reports/${ID}/describe`) return flat();
+        if (method === "POST" && path === "/analytics/reports") return created();
+        if (path.startsWith("/query?q=")) return { records: [{ FolderName: "Private Reports" }] };
+        return routes(method, path, undefined);
+      });
+    const sentOf = (requests: { method: string; body: unknown }[]) =>
+      (requests.find((r) => r.method === "POST")!.body as { reportMetadata: Record<string, any> }).reportMetadata; // eslint-disable-line @typescript-eslint/no-explicit-any
+
+    it("copies the saved report and applies the changes, with no reportType given", async () => {
+      const { call, requests } = await harness();
+      const { isError, body } = await call("create_report", {
+        name: "Copy",
+        fromReportId: ID,
+        groupingsDown: [{ column: "STAGE_NAME", sortOrder: "Desc" }],
+        aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }],
+      });
+      expect(isError).toBe(false);
+      expect(requests.map((r) => `${r.method} ${r.path}`).slice(0, 2)).toEqual([`GET /analytics/reports/${ID}/describe`, "POST /analytics/reports"]);
+      const sent = sentOf(requests);
+      expect(sent.name).toBe("Copy");
+      expect(sent.reportType).toEqual({ label: "Opportunities", type: "Opportunity" });
+      expect(sent.reportFormat).toBe("SUMMARY");
+      expect(sent.groupingsDown).toEqual([{ name: "STAGE_NAME", sortOrder: "Desc", dateGranularity: "None" }]);
+      expect(sent.aggregates).toEqual(["RowCount", "s!AMOUNT"]);
+      // the old report's identity is not carried over, and a grouped column leaves the detail columns
+      expect(sent).not.toHaveProperty("id");
+      expect(sent).not.toHaveProperty("developerName");
+      expect(sent).not.toHaveProperty("folderId");
+      expect(sent.detailColumns).toEqual(["OPPORTUNITY_NAME", "AMOUNT"]);
+      // what was not changed is kept
+      expect(sent.reportFilters).toEqual([{ column: "AMOUNT", operator: "greaterThan", value: "1000" }]);
+      expect(body).toMatchObject({ id: ID, folder: "Private Reports" });
+    });
+
+    it("a list that is sent replaces the saved list, and a folder is passed on", async () => {
+      const { call, requests } = await harness();
+      await call("create_report", { name: "Copy", fromReportId: ID, folderId: "00l000000000009AAA", filters: [], columns: ["OPPORTUNITY_NAME"] });
+      const sent = sentOf(requests);
+      expect(sent.reportFilters).toEqual([]);
+      expect(sent.detailColumns).toEqual(["OPPORTUNITY_NAME"]);
+      expect(sent.reportFormat).toBe("TABULAR");
+      expect(sent.folderId).toBe("00l000000000009AAA");
+    });
+
+    it("never touches the original report", async () => {
+      const { call, requests } = await harness();
+      await call("create_report", { name: "Copy", fromReportId: ID, description: "d" });
+      expect(requests.filter((r) => r.method === "PATCH" || r.method === "DELETE")).toHaveLength(0);
+    });
   });
 
   it("create_report needs a report type", async () => {

@@ -70,6 +70,15 @@ export function describeFilters(meta: Json, maps: ColumnInfoMaps): string[] {
   return lines;
 }
 
+export interface FolderInfo {
+  id: string;
+  name: string | null;
+  /** What `sf project retrieve` calls the folder. Public Reports is `unfiled$public`. Null for Private Reports. */
+  developerName: string | null;
+  /** True for Private Reports: the folder id is the owner's user id. Such a report cannot be retrieved or deployed. */
+  isPrivate: boolean;
+}
+
 export function reportUrl(baseUrl: string | undefined, id: string | undefined | null): string | undefined {
   return baseUrl && id ? `${baseUrl}/lightning/r/Report/${id}/view` : undefined;
 }
@@ -77,6 +86,8 @@ export function reportUrl(baseUrl: string | undefined, id: string | undefined | 
 export interface ReportSummary {
   id: string | null;
   name: string | null;
+  /** The developer name Metadata API and `sf project retrieve` use, for example MyReport_abc. */
+  developerName?: string | null;
   description?: string | null;
   folderId?: string | null;
   format: string;
@@ -105,6 +116,7 @@ export function summarizeReport(
   const summary: ReportSummary = {
     id: meta.id ?? describe.attributes?.reportId ?? null,
     name: meta.name ?? null,
+    developerName: meta.developerName ?? null,
     description: meta.description ?? null,
     folderId: meta.folderId ?? null,
     format: meta.reportFormat,

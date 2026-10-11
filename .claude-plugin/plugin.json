@@ -1,0 +1,17 @@
+{
+  "name": "salesforce-reports",
+  "version": "0.1.0",
+  "description": "Explore, design and deploy Salesforce reports with Claude: three skills and an MCP server over the Reports and Dashboards REST API.",
+  "author": { "name": "nelsben" },
+  "homepage": "https://github.com/nelsben/salesforce-reports-mcp",
+  "repository": "https://github.com/nelsben/salesforce-reports-mcp",
+  "license": "MIT",
+  "keywords": ["salesforce", "reports", "mcp", "analytics"],
+  "skills": "./skills",
+  "mcpServers": {
+    "salesforce-reports": {
+      "command": "npx",
+      "args": ["-y", "github:nelsben/salesforce-reports-mcp"]
+    }
+  }
+}

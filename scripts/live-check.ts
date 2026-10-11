@@ -94,6 +94,12 @@ try {
     expect(out.filterOperators.string?.includes("equals"), "no string operators");
   });
 
+  await step("2b. list_report_folders includes the org-wide Public Reports folder", async () => {
+    const out = await call("list_report_folders");
+    const pub = out.folders.find((f: Json) => f.developerName === "unfiled$public");
+    expect(pub && /^00D/.test(pub.id), `folders ${JSON.stringify(out.folders.map((f: Json) => f.name))}`);
+  });
+
   await step("3a. query a summary report with every aggregate", async () => {
     const out = await call("query_report", {
       reportType: "Opportunity",
@@ -165,6 +171,8 @@ try {
     const out = await call("describe_report", { reportId: firstId });
     expect(out.name === `${prefix}-a-${stamp}` && out.format === "SUMMARY", "unexpected summary");
     expect(out.filters.some((f: string) => /Amount/.test(f)), `filters ${JSON.stringify(out.filters)}`);
+    expect(typeof out.developerName === "string" && out.developerName.length > 0, `developerName ${out.developerName}`);
+    expect(out.folder?.isPrivate === true && out.folder.name === "Private Reports" && out.folder.id === out.folderId, `folder ${JSON.stringify(out.folder)}`);
   });
 
   await step("4c. update its name and filters", async () => {
@@ -193,6 +201,40 @@ try {
     expect(out.folder === "Private Reports", `folder ${out.folder}`);
   });
 
+  await step("5b. create_report fromReportId: a flat copy, then a grouped copy of that", async () => {
+    // Start from the grouped report: drop its filters, keep its grouping, change the name only.
+    const same = await call("create_report", { name: `${prefix}-c-${stamp}`, fromReportId: firstId, filters: [] });
+    created.push(same.id);
+    expect(same.id !== firstId && /^00O/.test(same.id), "no new id");
+    expect(same.summary.format === "SUMMARY" && same.summary.groupingsDown.length === 1, `copy lost its grouping: ${JSON.stringify(same.summary.groupingsDown)}`);
+    expect(!same.summary.filters.some((f: string) => /^Amount/.test(f)), `filters ${JSON.stringify(same.summary.filters)}`);
+    expect(same.folder === "Private Reports", `folder ${same.folder}`);
+    // A flat report, then a copy of it with a grouping added: format and detail columns follow.
+    const flat = await call("create_report", {
+      name: `${prefix}-d-${stamp}`,
+      reportType: "Opportunity",
+      columns: ["OPPORTUNITY_NAME", "AMOUNT", "STAGE_NAME"],
+      dateFilter: { column: "CLOSE_DATE", duration: "THIS_YEAR" },
+    });
+    created.push(flat.id);
+    expect(flat.summary.format === "TABULAR", `flat format ${flat.summary.format}`);
+    const grouped = await call("create_report", {
+      name: `${prefix}-e-${stamp}`,
+      fromReportId: flat.id,
+      groupingsDown: [{ column: "STAGE_NAME" }],
+      aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }],
+    });
+    created.push(grouped.id);
+    expect(grouped.summary.format === "SUMMARY", `grouped format ${grouped.summary.format}`);
+    expect(grouped.summary.groupingsDown[0]?.name === "STAGE_NAME", "grouping missing");
+    expect(grouped.summary.filters.some((f: string) => /Close Date/.test(f)), `the copy lost the date filter: ${JSON.stringify(grouped.summary.filters)}`);
+    // The originals are untouched.
+    const original = await call("describe_report", { reportId: flat.id });
+    expect(original.format === "TABULAR" && original.groupingsDown.length === 0, "the original changed");
+    const run = await call("run_report", { reportId: grouped.id });
+    expect(run.groups.rows.length >= 0 && run.report.id === grouped.id, "the copy does not run");
+  });
+
   await step("6a. combine with stack (this year against last 30 days)", async () => {
     const out = await call("combine_reports", {
       mode: "stack",
@@ -218,7 +260,7 @@ try {
     expect(out.groups.rows.length > 0, "no joined rows");
   });
 
-  await step("7. delete both", async () => {
+  await step("7. delete everything the check created", async () => {
     for (const id of [...created]) {
       await call("delete_report", { reportId: id });
       created.splice(created.indexOf(id), 1);

@@ -1,0 +1,13 @@
+{
+  "name": "salesforce-reports",
+  "owner": { "name": "nelsben" },
+  "description": "Salesforce reports for Claude.",
+  "plugins": [
+    {
+      "name": "salesforce-reports",
+      "source": "./",
+      "description": "Explore, design and deploy Salesforce reports with Claude.",
+      "category": "productivity"
+    }
+  ]
+}
