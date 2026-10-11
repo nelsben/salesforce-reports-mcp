@@ -128,6 +128,51 @@ Every run returns the same shape: the filters that were applied (including Sales
 - **Joined reports are not supported.** Tabular, summary and matrix are.
 - Salesforce applies default filters to some report types (for Opportunity, the current fiscal quarter and probability above 0). They are listed in the result's `filters`, so check them against the question.
 
+## In the org
+
+There are three doors to the same tools. Each takes the same tool names and inputs and returns the same JSON.
+
+| Door | What runs | Who uses it | Tools |
+| --- | --- | --- | --- |
+| Local MCP | This Node server, on your machine | Claude Code, Claude Desktop, any MCP client that starts a process | All 12 |
+| In-org REST | The Apex class `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce, other agents | The six read tools |
+| In-org MCP | Salesforce hosted MCP over `ReportsApi`, server `SalesforceReports` | claude.ai and other remote MCP clients, with nothing to host | The six read tools |
+
+The six read tools are `search_reports`, `list_report_folders`, `describe_report`, `describe_report_type`, `run_report` and `combine_reports`. The package is in `salesforce/`, and its README covers the REST door. Hosted MCP needs API 67.0 or later.
+
+To set up the MCP door, an admin does this once per org. Replace `<alias>` with a Salesforce CLI alias, and `<user>` with a username.
+
+1. Deploy the package: the Apex classes, the API Catalog entry `ReportsApi`, the MCP server with its six tools, and the permission set. Run it from `salesforce/`. Add `--ignore-conflicts` if a scratch org reports source conflicts.
+
+   ```bash
+   sf project deploy start -d force-app -o <alias>
+   ```
+
+2. Give each user the permission set.
+
+   ```bash
+   sf org assign permset -n Salesforce_Reports_MCP -o <alias> --on-behalf-of <user>
+   ```
+
+3. Run the setup script from the repo root. It writes the six tool rows if they are missing, turns the server on, and prints the server's URL. It only runs against the aliases listed in `ALLOWED_ORGS` in `salesforce/scripts/org.ts`, so add yours there first.
+
+   ```bash
+   npm run mcp:setup -- <alias>
+   ```
+
+4. If the script says operations are inactive and a tool call fails, open Setup, go to API Catalog, open `ReportsApi`, select its six operations, and click Activate. No API does this.
+5. Deploy the External Client App that Claude signs in through. It is a public client with PKCE and the `mcp_api` and `refresh_token` scopes. Then read its consumer key: run the query, then pass the Id it prints to the third command. Run all three from `salesforce/`.
+
+   ```bash
+   sf project deploy start -d eca -o <alias>
+   sf data query -t -q "SELECT Id FROM ExternalClientApplication WHERE DeveloperName = 'SalesforceReportsMcp'" -o <alias>
+   sf api request rest "/services/data/v68.0/apps/oauth/credentials/<app id>" -o <alias>
+   ```
+
+6. Connect Claude. In claude.ai, open Settings, then Connectors, then Add custom connector. Paste the URL from step 3. Under Advanced settings, paste the consumer key as the OAuth Client ID. Click Add, then Connect, and sign in to the org. A sandbox or scratch org uses `https://api.salesforce.com/platform/mcp/v1/sandbox/custom/SalesforceReports`. Production and Developer Edition use the same URL without `sandbox/`.
+
+Each user signs in as themselves, so sharing, folder access and field-level security apply. To check the door from a terminal, run `SF_MCP_TOKEN=<token> npm run mcp-check -- --org <alias>` with an access token from that sign-in. It lists the tools and runs `search_reports` and `run_report`. To remove the door, run `npm run mcp:teardown -- <alias>`, then use the removal command in `salesforce/README.md`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy again.
+
 ## The skills
 
 The skills live in `skills/`: `report-runner`, `report-designer` and `report-deploy`. Each has a `description` that makes Claude pick it for its own experience, and the designer and runner keep a `reference.md` with the definition grammar and how to read a result. The plugin installs all three.
