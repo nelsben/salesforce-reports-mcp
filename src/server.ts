@@ -40,7 +40,7 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     { name: "salesforce-reports", version: options.version ?? "0.1.0" },
     {
       instructions:
-        "Find, define, run, save and combine Salesforce reports. To answer a data question without saving anything, use query_report. To re-run an existing report, use search_reports then run_report. Save a report (create_report) only when the user asks for one.",
+        "Find, define, run, save and combine Salesforce reports. To answer a data question without saving anything, use query_report. To re-run an existing report, use search_reports then run_report. Save a report (create_report, optionally with fromReportId to start from a saved one) only when the user asks for one.",
     },
   );
 

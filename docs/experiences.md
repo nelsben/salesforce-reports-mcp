@@ -15,10 +15,14 @@ v0.1 gave Claude the tools. This document says how a person uses them. There are
 From probes and the Salesforce v68.0 guides, checked 2026-10-11.
 
 - **Saving needs no deploy.** The Reports REST API saves a report in the user's own org in one call. The Metadata API is for moving a report between orgs and keeping it in source control.
-- **The REST API can set** charts, row-level formulas, custom summary formulas, historical trending and the folder. The guide lists bucket fields and cross filters too, but neither is tested yet.
+- **The REST API can set** charts, row-level formulas, custom summary formulas, historical trending, bucket fields, cross filters and the folder. Probed on dev-frontend-2 (API v62.0, 2026-10-11): row-level formulas, bucket fields and cross filters (below). Charts, custom summary formulas and trending are from the guide and untested.
 - **Only the Metadata API or the Report Builder UI can set** conditional highlighting and joined-report blocks. When a request needs one of these, the designer says so and links to Report Builder.
-- **Standard column headers cannot be renamed** as far as we know. A row-level formula column can carry any label. This needs a probe (task 3 below).
-- **The Metadata API reads only reports in shared folders**, as far as we know. A report in Private Reports would have to move to a shared folder before it can be deployed. This needs a probe (task 3).
+- **Standard column headers cannot be renamed through the REST API.** Probe 1: there is no field for it, and sending an unknown key (`detailColumnLabels`) fails with JSON_PARSER_ERROR. A row-level formula column can carry any label: `customDetailFormula: {"CDF1": {label, formula: "AMOUNT*1", formulaType: "number", decimalPlaces: 2}}` plus `"CDF1"` in `detailColumns` was accepted on create. Only the lowercase `formulaType` `number` worked for a number; `Number`, `currency` and `percent` were rejected as invalid row-level formula types, and a text formula needs `text` and a text result. The formula refers to columns by API name (`AMOUNT`, not `Amount`).
+- **The Metadata API reads a report only from a shared folder.** Probe 2: a report in Private Reports cannot be retrieved. `sf project retrieve start --metadata Report:<developerName>` and the `unfiled$public/` and `Private_Reports/` forms all answer "Entity of type 'Report' named ... cannot be found", and nothing is retrieved. Once the same report was moved to Public Reports (`update_report` with the org id as `folderId`), `Report:unfiled$public/<developerName>` retrieved it. Public Reports is the org-wide root folder: its id is the org id (starts `00D`), it has no `Folder` row, and its metadata folder name is `unfiled$public`. A private report's `folderId` is its owner's user id (starts `005`). `describe_report` now returns the `developerName` and the folder as `{id, name, developerName, isPrivate}` for exactly this.
+- **Bucket fields and cross filters are accepted by a REST create** (probe 3), but with shapes that differ from the older guide:
+  - Cross filter: `crossFilters: [{criteria: [], includesObject: true, primaryEntityField: "OPPORTUNITY_ID", relatedEntity: "OpportunityCompetitor", relatedEntityJoinField: "OpportunityId"}]`. The three names come from the report type's `objectRelationships`; guessed names fail with "does not correspond to a valid join table". `includesObject: false` means "without".
+  - Bucket field: `buckets: [{bucketType: "picklist", developerName: "BucketField_1", label, sourceColumnName: "STAGE_NAME", values: [{label, sourceDimensionValues: ["Prospecting", "Qualification"]}]}]`, and `"BucketField_1"` among the detail columns. A number bucket uses `values: [{label, rangeUpperBound: 1000}, {label, rangeUpperBound: null}]`. The names `devName`, `useOther`, `nullTreatment` and `sourceValues` are rejected.
+  - The tool definition fields do not cover either, so the designer passes them in `reportMetadata`. Neither is shown by `describe_report_type` yet (its `objectRelationships` are not summarised), which is a gap.
 
 ## Runner
 
@@ -50,7 +54,7 @@ From probes and the Salesforce v68.0 guides, checked 2026-10-11.
    - **New report:** `create_report`. Starting from an existing report, pass `fromReportId` (task 2) so the saved definition is copied and the changes applied in one call. With no folder it lands in Private Reports. Offer `list_report_folders` when the user wants it shared.
    - **Overwrite the original:** `update_report`. Only when the user asks for it by name and owns it, or can edit it. Restate what will change first.
 5. **After saving,** give the link. Name anything the API could not set, such as conditional highlighting, and point to Report Builder for it.
-6. **Header renames.** Say that Salesforce does not rename standard column headers. If the user still wants a different label, offer a row-level formula column with that label, if the probe in task 3 shows the REST API accepts one.
+6. **Header renames.** Say that Salesforce does not rename standard column headers. If the user still wants a different label, offer a row-level formula column with that label (the probe showed the REST API accepts one).
 
 ## Deploy
 

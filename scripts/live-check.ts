@@ -254,7 +254,7 @@ try {
     expect(out.groups.rows.length > 0, "no joined rows");
   });
 
-  await step("7. delete both", async () => {
+  await step("7. delete everything the check created", async () => {
     for (const id of [...created]) {
       await call("delete_report", { reportId: id });
       created.splice(created.indexOf(id), 1);
