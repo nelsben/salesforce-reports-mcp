@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExternalServiceRegistration xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Probe, OpenAPI document for ReportsProbeApi</description>
+    <label>ReportsProbeApi</label>
+    <operations>
+        <active>true</active>
+        <name>runx5freportx5fprobe</name>
+    </operations>
+    <registrationProviderAsset>ReportsProbeApi</registrationProviderAsset>
+    <registrationProviderType>ApexRest</registrationProviderType>
+    <schema>openapi: 3.0.0
+info:
+  title: ReportsProbeApi
+  version: 1.0.0
+  description: Probe, one-method Apex REST class
+servers:
+  - url: /services/apexrest
+paths:
+  /reportsprobe/v1/:
+    get:
+      operationId: run_report_probe
+      summary: Returns pong and the running user name
+      description: Probe tool named by us through operationId.
+      responses:
+        &#x27;200&#x27;:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  userName:
+                    type: string
+</schema>
+    <schemaType>OpenApi3</schemaType>
+    <systemVersion>3</systemVersion>
+</ExternalServiceRegistration>
