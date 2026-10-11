@@ -1,6 +1,6 @@
 # Design: salesforce-reports-mcp v0.1
 
-An MCP server that lets Claude find, define, run, save and combine Salesforce reports, and hands the results back in a shape Claude can analyse. This document is the build contract for v0.1.
+An MCP server that lets Claude find, define, run, save and combine Salesforce reports, and hands the results back in a shape Claude can analyse. This document is the build contract for v0.1, and the plan for v0.2's in-org doors (last section).
 
 ## Facts this design rests on
 
@@ -168,9 +168,74 @@ The result is a `ReportResult` with `report.name` set to `combined: <aliases>`, 
 
   It prints a pass or fail line per step and exits non-zero on any failure. It must leave no report behind, and it checks that with `search_reports` at the end.
 
-## Out of scope for v0.1, planned
+## Planned after v0.1
 
-- **v0.2, the in-org door.** An Apex `@RestResource` class over `Reports.ReportManager` for describe and run, an `ExternalServiceRegistration`, and an `McpServerDefinition`. claude.ai would then reach reports through Salesforce's hosted MCP, signing in with an External Client App, with nothing to host. It keeps the same tool names and the same `ReportResult` shape, and passes the same fixtures. Saving from Apex needs a call back into the org's own REST API, so it waits on a probe that this works under a hosted-MCP token.
+- **v0.2, the in-org doors.** A REST endpoint and a hosted MCP server inside the org, so people choose how they connect. See the next section.
 - Dashboards (`/analytics/dashboards`): list, describe, refresh, read component data.
 - Joined reports, report charts, and subscriptions.
 - Publishing to npm.
+
+## v0.2: the in-org doors (planned)
+
+v0.1 runs on the user's machine and needs nothing in the org. v0.2 adds two ways in that live in the org itself. All three doors offer the same tool names, the same inputs and the same `ReportResult`, so the three skills work unchanged on any of them.
+
+| Door | What runs | For | Setup |
+| --- | --- | --- | --- |
+| Local MCP (v0.1) | This Node server, over the Reports and Dashboards REST API | Claude Code, Claude Desktop, any MCP client that can start a process | `npx`, plus the `sf` CLI or a token. Nothing in the org. |
+| In-org REST | An Apex `@RestResource` class, `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce actions, other agents | Deploy the package and assign its permission set. |
+| In-org MCP | Salesforce hosted MCP, exposing the same Apex class as tools through an `McpServerDefinition` | claude.ai and other remote MCP clients, with nothing to host | The package, an admin enabling the server, and an External Client App for sign-in. Hosted MCP is for Enterprise Edition and above; whether a scratch org can run it is probe 1. |
+
+One Apex class backs both in-org doors: a hosted MCP custom server wraps an Apex REST resource, so the MCP door is the REST door with one more layer. The local server never calls the Apex door, and the Apex door never needs the local server. "Nothing to host" is not "nothing to set up": the README says what an admin does.
+
+### One contract, two implementations
+
+- Tool names, input schemas and `ReportResult` are defined once, in this document. The TypeScript and Apex tests both cite it.
+- `scripts/parity-check.ts` runs each fixture report through the local server and through the REST door, and diffs the JSON. The live check gains `--door apex` and runs its steps through the REST door.
+- A door that lacks a tool leaves it out of its tool list. The skills look at the tool list, never at the transport. When `query_report` is missing, the runner says so and offers the nearest saved report instead.
+- The skills name tools by their bare names (`run_report`), which still match when a client puts a server prefix in front.
+
+### What Apex can do without a callout
+
+`Reports.ReportManager` can describe a report and run it with changed filters, groupings and columns, but cannot save one. Everything else needs a call from Apex back into the org's own REST API.
+
+| Tool | Apex alone | With a callout to the org's REST API |
+| --- | --- | --- |
+| `search_reports` | SOQL on `Report` | |
+| `list_report_folders` | SOQL on `Folder` | |
+| `describe_report` | `ReportManager.describeReport` | |
+| `run_report` | `ReportManager.runReport` with `ReportMetadata` overrides, `runAsyncReport` on a timeout | |
+| `combine_reports` | Built on `run_report`, a port of `combine.ts` | Also over `query_report` |
+| `describe_report_type` | Only through a saved report of that type, from `ReportDescribeResult.getReportTypeMetadata()` (probe 5) | `GET /analytics/reportTypes/{type}` |
+| `list_report_types` | No | `GET /analytics/reportTypes` |
+| `query_report` | No: it needs a saved report behind it | `POST /analytics/reports/query` |
+| `create_report`, `update_report`, `clone_report` | No: Apex cannot save a report | `POST` and `PATCH /analytics/reports` |
+| `delete_report` | Not offered in the org | |
+
+### Phase 0: probes
+
+Each answer is written down in `docs/probes/v0.2-phase0.md` before phase 1 starts. Probe source lives in `probes/v0.2-hosted-mcp/`, a separate SFDX project, and everything deployed for a probe is removed afterwards. Probes run against a scratch org.
+
+1. **Hosted MCP on a scratch org.** Do the hosted MCP metadata types exist in the org, and does a hello-world custom server over a one-method Apex REST class deploy and show up? If a scratch org cannot run hosted MCP, the MCP door cannot be tested in a dev org, and the REST door goes ahead alone.
+2. **From Apex class to tools.** What turns the class into tools (the OpenAPI document Salesforce generates for Apex REST, an API Catalog entry, an `ExternalServiceRegistration`), and which tool names and input schemas come out. Can the names match the local server's?
+3. **A callout to the org's own REST API.** From Apex, with the running user's session, under a token from the `sf` CLI: `GET /analytics/reportTypes`, `POST /analytics/reports/query`, and a report created and then deleted. Which is needed: a Remote Site Setting, or a Named Credential. Then the same under a hosted MCP sign-in, or a plain note that this needs an interactive sign-in and is still open.
+4. **Heap and CPU.** Shape a run into a `ReportResult` in Apex, measure heap and CPU per row, and estimate a 2,000-row, 100-column run against the synchronous limits. The in-org `maxRows` default stays at 200, and the in-org ceiling comes from this.
+5. **Report type columns without a callout.** Does `describeReport` on a saved report return its report type's columns, by section, with enough to answer `describe_report_type`?
+
+### Phases
+
+| Phase | Work | Done when |
+| --- | --- | --- |
+| 0. Probes | The five above | All five answered in `docs/probes/v0.2-phase0.md` |
+| 1. REST door, runner tools | `ReportsApi` with `search_reports`, `list_report_folders`, `describe_report`, `run_report`, `combine_reports`, and `describe_report_type` if probe 5 allows; the shaper ported from `shape.ts`; Apex tests; `scripts/parity-check.ts` | Parity on every fixture, and the live check's read steps pass with `--door apex` |
+| 2. MCP door | The `McpServerDefinition`, the permission set, the admin steps in the README; the runner skill rehearsed against hosted MCP | The in-org runner rehearsal matches the local one |
+| 3. Saves and `query_report` | Only if probe 3 works: the callout tools, behind a custom permission. Otherwise a Named Credential the admin sets up, or saving stays local-only. | The designer rehearsal passes in the org |
+| 4. Docs and skills | The README's three doors, the changelog, the runner's fallback when `query_report` is missing | The skills read the same on every door |
+
+`report-deploy` stays local-only: it needs the `sf` CLI, and its description already says so.
+
+### Safety in the org
+
+- `ReportsApi` is `with sharing` and runs as the signed-in user, so sharing, folder access and field-level security stay Salesforce's own.
+- The permission set grants the Apex class and nothing else.
+- The write tools check a custom permission, `Reports_MCP_Write`, held by a second permission set. Without it they are left out, as `--read-only` does locally.
+- No `delete_report` in the org.
