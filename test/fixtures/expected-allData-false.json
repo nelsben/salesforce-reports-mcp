@@ -1,0 +1,140 @@
+{
+  "report": {
+    "id": null,
+    "name": "Unsaved report",
+    "format": "TABULAR",
+    "reportType": "Opportunity"
+  },
+  "filters": [
+    "Close Date: THIS_YEAR",
+    "Scope: organization",
+    "Standard filter open: all",
+    "Standard filter probability: >0"
+  ],
+  "notes": [
+    "Salesforce stopped at 2,000 rows (allData is false), so the results are incomplete. Narrow the filters."
+  ],
+  "totals": {
+    "measures": [
+      "RowCount"
+    ],
+    "values": [
+      8
+    ]
+  },
+  "detail": {
+    "columns": [
+      {
+        "name": "OPPORTUNITY_NAME",
+        "label": "Opportunity Name",
+        "dataType": "string"
+      },
+      {
+        "name": "ACCOUNT_NAME",
+        "label": "Account Name",
+        "dataType": "string"
+      },
+      {
+        "name": "AMOUNT",
+        "label": "Amount",
+        "dataType": "currency"
+      },
+      {
+        "name": "PROBABILITY",
+        "label": "Probability (%)",
+        "dataType": "percent"
+      },
+      {
+        "name": "STAGE_NAME",
+        "label": "Stage",
+        "dataType": "picklist"
+      },
+      {
+        "name": "CLOSE_DATE",
+        "label": "Close Date",
+        "dataType": "date"
+      },
+      {
+        "name": "CLOSED",
+        "label": "Closed",
+        "dataType": "boolean"
+      }
+    ],
+    "rows": [
+      [
+        "Opportunity 1",
+        "Account 1",
+        900000,
+        90,
+        "Negotiation/Review",
+        "2026-12-15",
+        false
+      ],
+      [
+        "Opportunity 2",
+        "Account 1",
+        640000,
+        75,
+        "Proposal/Price Quote",
+        "2026-12-10",
+        false
+      ],
+      [
+        "Opportunity 3",
+        "Account 1",
+        480000,
+        60,
+        "Id. Decision Makers",
+        "2026-12-18",
+        false
+      ],
+      [
+        "Opportunity 4",
+        "Account 1",
+        420000,
+        50,
+        "Value Proposition",
+        "2026-12-04",
+        false
+      ],
+      [
+        "Opportunity 5",
+        "Account 1",
+        360000,
+        20,
+        "Needs Analysis",
+        "2026-12-22",
+        false
+      ],
+      [
+        "Opportunity 6",
+        "Account 2",
+        234000,
+        90,
+        "Negotiation/Review",
+        "2026-11-11",
+        false
+      ],
+      [
+        "Opportunity 7",
+        "Account 3",
+        57000,
+        90,
+        "Negotiation/Review",
+        "2026-10-20",
+        false
+      ],
+      [
+        "Opportunity 8",
+        "Account 4",
+        null,
+        10,
+        "Prospecting",
+        "2026-12-31",
+        false
+      ]
+    ],
+    "rowCount": 8,
+    "truncated": true
+  }
+}

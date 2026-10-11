@@ -1,0 +1,264 @@
+{
+  "attributes": {
+    "describeUrl": "/services/data/v62.0/analytics/reports/null/describe",
+    "instancesUrl": "/services/data/v62.0/analytics/reports/null/instances",
+    "reportId": null,
+    "reportName": null,
+    "type": "Report"
+  },
+  "allData": true,
+  "factMap": {
+    "0!T": {
+      "aggregates": [
+        {
+          "label": "$291,000.00",
+          "value": 291000
+        },
+        {
+          "label": "2",
+          "value": 2
+        }
+      ],
+      "rows": [
+        {
+          "dataCells": [
+            {
+              "label": "$57,000.00",
+              "value": {
+                "amount": 57000,
+                "currency": null
+              }
+            }
+          ]
+        },
+        {
+          "dataCells": [
+            {
+              "label": "$234,000.00",
+              "value": {
+                "amount": 234000,
+                "currency": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "1!T": {
+      "aggregates": [
+        {
+          "label": "$2,800,000.00",
+          "value": 2800000
+        },
+        {
+          "label": "6",
+          "value": 6
+        }
+      ],
+      "rows": [
+        {
+          "dataCells": [
+            {
+              "label": "$360,000.00",
+              "value": {
+                "amount": 360000,
+                "currency": null
+              }
+            }
+          ]
+        },
+        {
+          "dataCells": [
+            {
+              "label": "$420,000.00",
+              "value": {
+                "amount": 420000,
+                "currency": null
+              }
+            }
+          ]
+        },
+        {
+          "dataCells": [
+            {
+              "label": "$480,000.00",
+              "value": {
+                "amount": 480000,
+                "currency": null
+              }
+            }
+          ]
+        },
+        {
+          "dataCells": [
+            {
+              "label": "$640,000.00",
+              "value": {
+                "amount": 640000,
+                "currency": null
+              }
+            }
+          ]
+        },
+        {
+          "dataCells": [
+            {
+              "label": "$900,000.00",
+              "value": {
+                "amount": 900000,
+                "currency": null
+              }
+            }
+          ]
+        },
+        {
+          "dataCells": [
+            {
+              "label": "-",
+              "value": null
+            }
+          ]
+        }
+      ]
+    },
+    "T!T": {
+      "aggregates": [
+        {
+          "label": "$3,091,000.00",
+          "value": 3091000
+        },
+        {
+          "label": "8",
+          "value": 8
+        }
+      ],
+      "rows": []
+    }
+  },
+  "groupingsAcross": {
+    "groupings": []
+  },
+  "groupingsDown": {
+    "groupings": [
+      {
+        "groupings": [],
+        "key": "0",
+        "label": "User 1",
+        "value": "User 1"
+      },
+      {
+        "groupings": [],
+        "key": "1",
+        "label": "User 2",
+        "value": "User 2"
+      }
+    ]
+  },
+  "hasDetailRows": true,
+  "hasExceededTabularRowLimit": false,
+  "picklistColors": {},
+  "reportExtendedMetadata": {
+    "aggregateColumnInfo": {
+      "s!AMOUNT": {
+        "dataType": "currency",
+        "label": "Sum of Amount"
+      },
+      "RowCount": {
+        "dataType": "int",
+        "label": "Record Count"
+      }
+    },
+    "availableDashboardSettings": null,
+    "detailColumnInfo": {
+      "AMOUNT": {
+        "dataType": "currency",
+        "entityColumnName": "Opportunity.Amount",
+        "filterValues": [],
+        "filterable": true,
+        "fullyQualifiedName": "Opportunity.Amount",
+        "inactiveFilterValues": [],
+        "isLookup": false,
+        "label": "Amount",
+        "uniqueCountable": true
+      }
+    },
+    "groupingColumnInfo": {
+      "FULL_NAME": {
+        "dataType": "string",
+        "entityColumnName": "User.Name",
+        "filterValues": [],
+        "filterable": true,
+        "fullyQualifiedName": "Opportunity.Owner.Name",
+        "groupingLevel": 0,
+        "inactiveFilterValues": [],
+        "isLookup": true,
+        "label": "Opportunity Owner",
+        "uniqueCountable": true
+      }
+    }
+  },
+  "reportMetadata": {
+    "aggregates": [
+      "s!AMOUNT",
+      "RowCount"
+    ],
+    "chart": null,
+    "crossFilters": [],
+    "currency": null,
+    "dashboardSetting": null,
+    "description": null,
+    "detailColumns": [
+      "AMOUNT"
+    ],
+    "developerName": null,
+    "division": null,
+    "folderId": "005000000000013AAA",
+    "groupingsAcross": [],
+    "groupingsDown": [
+      {
+        "dateGranularity": "None",
+        "name": "FULL_NAME",
+        "sortAggregate": null,
+        "sortOrder": "Asc"
+      }
+    ],
+    "hasDetailRows": true,
+    "hasRecordCount": true,
+    "historicalSnapshotDates": [],
+    "id": null,
+    "name": null,
+    "presentationOptions": {
+      "hasStackedSummaries": true
+    },
+    "reportBooleanFilter": null,
+    "reportFilters": [],
+    "reportFormat": "SUMMARY",
+    "reportType": {
+      "label": "Opportunities",
+      "type": "Opportunity"
+    },
+    "saveRoleHierarchy": false,
+    "scope": "organization",
+    "showGrandTotal": true,
+    "showSubtotals": true,
+    "sortBy": [],
+    "standardDateFilter": {
+      "column": "CLOSE_DATE",
+      "durationValue": "THIS_YEAR",
+      "endDate": "2026-12-31",
+      "startDate": "2026-01-01"
+    },
+    "standardFilters": [
+      {
+        "name": "open",
+        "value": "all"
+      },
+      {
+        "name": "probability",
+        "value": ">0"
+      }
+    ],
+    "supportsRoleHierarchy": true,
+    "userOrHierarchyFilterId": null
+  }
+}

@@ -1,0 +1,569 @@
+{
+  "attributes": {
+    "describeUrl": "/services/data/v62.0/analytics/reports/null/describe",
+    "instancesUrl": "/services/data/v62.0/analytics/reports/null/instances",
+    "reportId": null,
+    "reportName": null,
+    "type": "Report"
+  },
+  "allData": true,
+  "factMap": {
+    "1!0": {
+      "aggregates": [
+        {
+          "label": "$360,000.00",
+          "value": 360000
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": [
+        {
+          "dataCells": [
+            {
+              "label": "Opportunity 5",
+              "recordId": "006000000000006AAA",
+              "value": "006000000000006AAA"
+            },
+            {
+              "label": "$360,000.00",
+              "value": {
+                "amount": 360000,
+                "currency": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "2!0": {
+      "aggregates": [
+        {
+          "label": "$420,000.00",
+          "value": 420000
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": [
+        {
+          "dataCells": [
+            {
+              "label": "Opportunity 4",
+              "recordId": "006000000000005AAA",
+              "value": "006000000000005AAA"
+            },
+            {
+              "label": "$420,000.00",
+              "value": {
+                "amount": 420000,
+                "currency": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "3!0": {
+      "aggregates": [
+        {
+          "label": "$480,000.00",
+          "value": 480000
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": [
+        {
+          "dataCells": [
+            {
+              "label": "Opportunity 3",
+              "recordId": "006000000000004AAA",
+              "value": "006000000000004AAA"
+            },
+            {
+              "label": "$480,000.00",
+              "value": {
+                "amount": 480000,
+                "currency": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "T!0": {
+      "aggregates": [
+        {
+          "label": "$3,091,000.00",
+          "value": 3091000
+        },
+        {
+          "label": "8",
+          "value": 8
+        }
+      ],
+      "rows": []
+    },
+    "0!T": {
+      "aggregates": [
+        {
+          "label": "$0.00",
+          "value": 0
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": []
+    },
+    "4!0": {
+      "aggregates": [
+        {
+          "label": "$640,000.00",
+          "value": 640000
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": [
+        {
+          "dataCells": [
+            {
+              "label": "Opportunity 2",
+              "recordId": "006000000000003AAA",
+              "value": "006000000000003AAA"
+            },
+            {
+              "label": "$640,000.00",
+              "value": {
+                "amount": 640000,
+                "currency": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "1!T": {
+      "aggregates": [
+        {
+          "label": "$360,000.00",
+          "value": 360000
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": []
+    },
+    "5!0": {
+      "aggregates": [
+        {
+          "label": "$1,191,000.00",
+          "value": 1191000
+        },
+        {
+          "label": "3",
+          "value": 3
+        }
+      ],
+      "rows": [
+        {
+          "dataCells": [
+            {
+              "label": "Opportunity 6",
+              "recordId": "006000000000007AAA",
+              "value": "006000000000007AAA"
+            },
+            {
+              "label": "$234,000.00",
+              "value": {
+                "amount": 234000,
+                "currency": null
+              }
+            }
+          ]
+        },
+        {
+          "dataCells": [
+            {
+              "label": "Opportunity 1",
+              "recordId": "006000000000001AAA",
+              "value": "006000000000001AAA"
+            },
+            {
+              "label": "$900,000.00",
+              "value": {
+                "amount": 900000,
+                "currency": null
+              }
+            }
+          ]
+        },
+        {
+          "dataCells": [
+            {
+              "label": "Opportunity 7",
+              "recordId": "006000000000009AAA",
+              "value": "006000000000009AAA"
+            },
+            {
+              "label": "$57,000.00",
+              "value": {
+                "amount": 57000,
+                "currency": null
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "2!T": {
+      "aggregates": [
+        {
+          "label": "$420,000.00",
+          "value": 420000
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": []
+    },
+    "T!T": {
+      "aggregates": [
+        {
+          "label": "$3,091,000.00",
+          "value": 3091000
+        },
+        {
+          "label": "8",
+          "value": 8
+        }
+      ],
+      "rows": []
+    },
+    "3!T": {
+      "aggregates": [
+        {
+          "label": "$480,000.00",
+          "value": 480000
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": []
+    },
+    "4!T": {
+      "aggregates": [
+        {
+          "label": "$640,000.00",
+          "value": 640000
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": []
+    },
+    "5!T": {
+      "aggregates": [
+        {
+          "label": "$1,191,000.00",
+          "value": 1191000
+        },
+        {
+          "label": "3",
+          "value": 3
+        }
+      ],
+      "rows": []
+    },
+    "0!0": {
+      "aggregates": [
+        {
+          "label": "$0.00",
+          "value": 0
+        },
+        {
+          "label": "1",
+          "value": 1
+        }
+      ],
+      "rows": [
+        {
+          "dataCells": [
+            {
+              "label": "Opportunity 8",
+              "recordId": "006000000000011AAA",
+              "value": "006000000000011AAA"
+            },
+            {
+              "label": "-",
+              "value": null
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "groupingsAcross": {
+    "groupings": [
+      {
+        "groupings": [],
+        "key": "0",
+        "label": "Q4 CY2026",
+        "value": "2026-10-01"
+      }
+    ]
+  },
+  "groupingsDown": {
+    "groupings": [
+      {
+        "groupings": [],
+        "key": "0",
+        "label": "Prospecting",
+        "value": "Prospecting"
+      },
+      {
+        "groupings": [],
+        "key": "1",
+        "label": "Needs Analysis",
+        "value": "Needs Analysis"
+      },
+      {
+        "groupings": [],
+        "key": "2",
+        "label": "Value Proposition",
+        "value": "Value Proposition"
+      },
+      {
+        "groupings": [],
+        "key": "3",
+        "label": "Id. Decision Makers",
+        "value": "Id. Decision Makers"
+      },
+      {
+        "groupings": [],
+        "key": "4",
+        "label": "Proposal/Price Quote",
+        "value": "Proposal/Price Quote"
+      },
+      {
+        "groupings": [],
+        "key": "5",
+        "label": "Negotiation/Review",
+        "value": "Negotiation/Review"
+      }
+    ]
+  },
+  "hasDetailRows": true,
+  "hasExceededTabularRowLimit": false,
+  "picklistColors": {},
+  "reportExtendedMetadata": {
+    "aggregateColumnInfo": {
+      "s!AMOUNT": {
+        "dataType": "currency",
+        "label": "Sum of Amount"
+      },
+      "RowCount": {
+        "dataType": "int",
+        "label": "Record Count"
+      }
+    },
+    "availableDashboardSettings": null,
+    "detailColumnInfo": {
+      "OPPORTUNITY_NAME": {
+        "dataType": "string",
+        "entityColumnName": "Opportunity.Name",
+        "fieldInfo": {
+          "entityName": "Opportunity",
+          "fieldName": "Name",
+          "lookupEntityName": "Opportunity"
+        },
+        "filterValues": [],
+        "filterable": true,
+        "fullyQualifiedName": "Opportunity.Name",
+        "inactiveFilterValues": [],
+        "isLookup": true,
+        "label": "Opportunity Name",
+        "uniqueCountable": true
+      },
+      "AMOUNT": {
+        "dataType": "currency",
+        "entityColumnName": "Opportunity.Amount",
+        "filterValues": [],
+        "filterable": true,
+        "fullyQualifiedName": "Opportunity.Amount",
+        "inactiveFilterValues": [],
+        "isLookup": false,
+        "label": "Amount",
+        "uniqueCountable": true
+      }
+    },
+    "groupingColumnInfo": {
+      "STAGE_NAME": {
+        "dataType": "picklist",
+        "entityColumnName": "Opportunity.StageName",
+        "filterValues": [
+          {
+            "apiName": "Prospecting",
+            "label": "Prospecting",
+            "name": "Prospecting"
+          },
+          {
+            "apiName": "Qualification",
+            "label": "Qualification",
+            "name": "Qualification"
+          },
+          {
+            "apiName": "Needs Analysis",
+            "label": "Needs Analysis",
+            "name": "Needs Analysis"
+          },
+          {
+            "apiName": "Value Proposition",
+            "label": "Value Proposition",
+            "name": "Value Proposition"
+          },
+          {
+            "apiName": "Id. Decision Makers",
+            "label": "Id. Decision Makers",
+            "name": "Id. Decision Makers"
+          },
+          {
+            "apiName": "Perception Analysis",
+            "label": "Perception Analysis",
+            "name": "Perception Analysis"
+          },
+          {
+            "apiName": "Proposal/Price Quote",
+            "label": "Proposal/Price Quote",
+            "name": "Proposal/Price Quote"
+          },
+          {
+            "apiName": "Negotiation/Review",
+            "label": "Negotiation/Review",
+            "name": "Negotiation/Review"
+          },
+          {
+            "apiName": "Closed Won",
+            "label": "Closed Won",
+            "name": "Closed Won"
+          },
+          {
+            "apiName": "Closed Lost",
+            "label": "Closed Lost",
+            "name": "Closed Lost"
+          }
+        ],
+        "filterable": true,
+        "fullyQualifiedName": "Opportunity.StageName",
+        "groupingLevel": 0,
+        "inactiveFilterValues": [],
+        "isLookup": false,
+        "label": "Stage",
+        "uniqueCountable": true
+      },
+      "CLOSE_DATE": {
+        "dataType": "date",
+        "entityColumnName": "Opportunity.CloseDate",
+        "filterValues": [],
+        "filterable": true,
+        "fullyQualifiedName": "Opportunity.CloseDate",
+        "groupingLevel": 0,
+        "inactiveFilterValues": [],
+        "isLookup": false,
+        "label": "Close Date",
+        "uniqueCountable": true
+      }
+    }
+  },
+  "reportMetadata": {
+    "aggregates": [
+      "s!AMOUNT",
+      "RowCount"
+    ],
+    "chart": null,
+    "crossFilters": [],
+    "currency": null,
+    "dashboardSetting": null,
+    "description": null,
+    "detailColumns": [
+      "OPPORTUNITY_NAME",
+      "AMOUNT"
+    ],
+    "developerName": null,
+    "division": null,
+    "folderId": "005000000000013AAA",
+    "groupingsAcross": [
+      {
+        "dateGranularity": "Quarter",
+        "name": "CLOSE_DATE",
+        "sortAggregate": null,
+        "sortOrder": "Asc"
+      }
+    ],
+    "groupingsDown": [
+      {
+        "dateGranularity": "None",
+        "name": "STAGE_NAME",
+        "sortAggregate": null,
+        "sortOrder": "Asc"
+      }
+    ],
+    "hasDetailRows": true,
+    "hasRecordCount": true,
+    "historicalSnapshotDates": [],
+    "id": null,
+    "name": null,
+    "presentationOptions": {
+      "hasStackedSummaries": true
+    },
+    "reportBooleanFilter": null,
+    "reportFilters": [],
+    "reportFormat": "MATRIX",
+    "reportType": {
+      "label": "Opportunities",
+      "type": "Opportunity"
+    },
+    "saveRoleHierarchy": false,
+    "scope": "organization",
+    "showGrandTotal": true,
+    "showSubtotals": true,
+    "sortBy": [],
+    "standardDateFilter": {
+      "column": "CLOSE_DATE",
+      "durationValue": "THIS_YEAR",
+      "endDate": "2026-12-31",
+      "startDate": "2026-01-01"
+    },
+    "standardFilters": [
+      {
+        "name": "open",
+        "value": "all"
+      },
+      {
+        "name": "probability",
+        "value": ">0"
+      }
+    ],
+    "supportsRoleHierarchy": true,
+    "userOrHierarchyFilterId": null
+  }
+}

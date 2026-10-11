@@ -1,0 +1,167 @@
+/**
+ * Captures real API responses into test/fixtures, anonymised.
+ * Usage: npm run capture -- --org <alias>
+ * Read-only: it runs ad hoc queries and describes; it saves nothing in the org.
+ */
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
+import { ReportsApi } from "../src/reports/api.js";
+import { toReportMetadata } from "../src/reports/definition.js";
+import { createClient } from "../src/salesforce/client.js";
+import { resolveConnection } from "../src/salesforce/connection.js";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Json = any;
+
+const { values } = parseArgs({ options: { org: { type: "string" } }, strict: true });
+if (!values.org) {
+  console.error("Pass --org <alias>.");
+  process.exit(2);
+}
+const api = new ReportsApi(createClient(resolveConnection({ org: values.org })));
+const out = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "fixtures");
+mkdirSync(out, { recursive: true });
+
+// ---- anonymisation ----
+
+const KINDS: Record<string, string> = { Opportunity: "Opportunity", Account: "Account", Contact: "Contact", User: "User", Lead: "Lead" };
+const counters = new Map<string, Map<string, string>>();
+function neutral(kind: string, original: string): string {
+  let names = counters.get(kind);
+  if (!names) counters.set(kind, (names = new Map()));
+  let name = names.get(original);
+  if (!name) names.set(original, (name = `${kind} ${names.size + 1}`));
+  return name;
+}
+
+const ids = new Map<string, string>();
+const ID = /^(?:00[0-9A-Za-z]|0[0-9][0-9A-Za-z])[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/;
+function fakeId(id: string): string {
+  let fake = ids.get(id);
+  if (!fake) {
+    const n = String(ids.size + 1).padStart(12, "0");
+    fake = `${id.slice(0, 3)}${n}${id.length === 18 ? "AAA" : ""}`;
+    ids.set(id, fake);
+  }
+  return fake;
+}
+
+function nameKind(info: Json | undefined): string | undefined {
+  const match = /^(\w+)\.(Name|FirstName|LastName|Alias|Username|Email)$/.exec(info?.entityColumnName ?? "");
+  return match ? KINDS[match[1]!] : undefined;
+}
+
+function anonymiseReport(raw: Json): Json {
+  const copy: Json = JSON.parse(JSON.stringify(raw));
+  const ext = copy.reportExtendedMetadata ?? {};
+  const detailNames: string[] = copy.reportMetadata?.detailColumns ?? [];
+  const kinds = detailNames.map((n) => nameKind(ext.detailColumnInfo?.[n]));
+  for (const fact of Object.values<Json>(copy.factMap ?? {})) {
+    for (const row of fact.rows ?? []) {
+      row.dataCells.forEach((c: Json, i: number) => {
+        const kind = kinds[i];
+        if (kind && typeof c.label === "string" && c.label !== "-") {
+          const name = neutral(kind, c.label);
+          if (c.value === c.label) c.value = name;
+          c.label = name;
+        }
+      });
+    }
+  }
+  const walkGroups = (nodes: Json[], names: string[], depth: number) => {
+    for (const g of nodes ?? []) {
+      const kind = nameKind(ext.groupingColumnInfo?.[names[depth] ?? ""]);
+      if (kind && g.label !== "-") {
+        const name = neutral(kind, g.label);
+        g.label = name;
+        g.value = name;
+      }
+      walkGroups(g.groupings, names, depth + 1);
+    }
+  };
+  walkGroups(copy.groupingsDown?.groupings, (copy.reportMetadata?.groupingsDown ?? []).map((g: Json) => g.name), 0);
+  walkGroups(copy.groupingsAcross?.groupings, (copy.reportMetadata?.groupingsAcross ?? []).map((g: Json) => g.name), 0);
+  return scrub(copy);
+}
+
+/** Final pass over every string: ids and instance URLs. */
+function scrub(value: Json): Json {
+  if (typeof value === "string") {
+    if (ID.test(value)) return fakeId(value);
+    return value
+      .replace(/https:\/\/[a-z0-9.-]+\.salesforce\.com/gi, "https://example.my.salesforce.com")
+      .replace(/\/services\/data\/v[\d.]+\/analytics\/reports\/(00O[A-Za-z0-9]{12,15})/g, (_m, id) => `/services/data/v62.0/analytics/reports/${fakeId(id)}`);
+  }
+  if (Array.isArray(value)) return value.map(scrub);
+  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrub(v)]));
+  return value;
+}
+
+function save(name: string, data: Json): void {
+  writeFileSync(join(out, `${name}.json`), `${JSON.stringify(data, null, 2)}\n`);
+  console.log(`wrote test/fixtures/${name}.json`);
+}
+
+// ---- captures ----
+
+const dateFilter = { column: "CLOSE_DATE", duration: "THIS_YEAR" };
+
+const tabular = toReportMetadata({
+  reportType: "Opportunity",
+  columns: ["OPPORTUNITY_NAME", "ACCOUNT_NAME", "AMOUNT", "PROBABILITY", "STAGE_NAME", "CLOSE_DATE", "CLOSED"],
+  sortBy: [{ column: "AMOUNT", order: "Desc" }],
+  dateFilter,
+}).metadata;
+const tabularRaw = await api.query(tabular, true);
+const tabularFixture = anonymiseReport(tabularRaw);
+save("tabular", tabularFixture);
+
+// Salesforce cuts at 2,000 rows; the seeded org is far too small to reach that, so the cut is simulated.
+save("tabular-all-data-false", { ...tabularFixture, allData: false });
+
+const summary = toReportMetadata({
+  reportType: "Opportunity",
+  columns: ["OPPORTUNITY_NAME", "AMOUNT"],
+  groupingsDown: [{ column: "STAGE_NAME" }, { column: "CLOSE_DATE", dateGranularity: "Month" }],
+  aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }],
+  dateFilter,
+}).metadata;
+save("summary", anonymiseReport(await api.query(summary, true)));
+
+const matrix = toReportMetadata({
+  reportType: "Opportunity",
+  columns: ["OPPORTUNITY_NAME", "AMOUNT"],
+  groupingsDown: [{ column: "STAGE_NAME" }],
+  groupingsAcross: [{ column: "CLOSE_DATE", dateGranularity: "Quarter" }],
+  aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }],
+  dateFilter,
+}).metadata;
+save("matrix", anonymiseReport(await api.query(matrix, true)));
+
+const ownerSummary = toReportMetadata({
+  reportType: "Opportunity",
+  columns: ["AMOUNT"],
+  groupingsDown: [{ column: "FULL_NAME" }],
+  aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }],
+  dateFilter,
+}).metadata;
+save("summary-by-owner", anonymiseReport(await api.query(ownerSummary, false)));
+
+// Report types: keep two categories, and in the type description two sections of a few fields.
+const types = await api.reportTypes();
+// Types built on this org's custom fields (they contain "@") are left out.
+const standardTypes = types.slice(0, 2).map((c: Json) => ({ ...c, reportTypes: c.reportTypes.filter((t: Json) => !String(t.type).includes("@")) }));
+save("report-types", scrub(standardTypes));
+const oppType = await api.describeReportType("Opportunity");
+const trimmed: Json = JSON.parse(JSON.stringify(oppType));
+trimmed.reportTypeMetadata.categories = trimmed.reportTypeMetadata.categories.slice(0, 2).map((c: Json) => ({
+  ...c,
+  columns: Object.fromEntries(Object.entries(c.columns).slice(0, 6)),
+}));
+trimmed.reportExtendedMetadata = { detailColumnInfo: {}, groupingColumnInfo: {}, aggregateColumnInfo: {} };
+trimmed.reportTypeMetadata.objects = undefined;
+trimmed.reportTypeMetadata.objectRelationships = undefined;
+save("report-type-opportunity", scrub(trimmed));
+console.log("Done. Review the fixtures before committing.");

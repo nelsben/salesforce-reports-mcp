@@ -1,0 +1,265 @@
+[
+  {
+    "label": "Accounts & Contacts",
+    "reportTypes": [
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/AccountList",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Accounts",
+        "supportsJoinedFormat": true,
+        "type": "AccountList"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/ContactList",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Contacts & Accounts",
+        "supportsJoinedFormat": true,
+        "type": "ContactList"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/AccountPartner",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Accounts with Partners",
+        "supportsJoinedFormat": true,
+        "type": "AccountPartner"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/AccountTeam",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Account with Account Teams",
+        "supportsJoinedFormat": true,
+        "type": "AccountTeam"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/AccountContactRole",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Accounts with Contact Roles",
+        "supportsJoinedFormat": true,
+        "type": "AccountContactRole"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/AccountAsset",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Accounts with Assets",
+        "supportsJoinedFormat": true,
+        "type": "AccountAsset"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/ContactAsset",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Contacts with Assets",
+        "supportsJoinedFormat": true,
+        "type": "ContactAsset"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/AccountCustomEntity$Account_Intelligence__c",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Accounts with Account Intelligence",
+        "supportsJoinedFormat": true,
+        "type": "AccountCustomEntity$Account_Intelligence__c"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/ContactCustomEntity$Stakeholder_Profile__c",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Contacts with Stakeholder Profiles",
+        "supportsJoinedFormat": true,
+        "type": "ContactCustomEntity$Stakeholder_Profile__c"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/AccountAuditHistory",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Account History",
+        "supportsJoinedFormat": false,
+        "type": "AccountAuditHistory"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/ContactAuditHistory",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Contact History",
+        "supportsJoinedFormat": false,
+        "type": "ContactAuditHistory"
+      }
+    ]
+  },
+  {
+    "label": "Opportunities",
+    "reportTypes": [
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/Opportunity",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities",
+        "supportsJoinedFormat": true,
+        "type": "Opportunity"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityProduct",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities with Products",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityProduct"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityContact",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities with Contact Roles",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityContact"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityPartner",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities with Partners",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityPartner"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityCompetitor",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities with Competitors",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityCompetitor"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityHistory",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunity History",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityHistory"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityFieldAuditHistory",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunity Field History",
+        "supportsJoinedFormat": false,
+        "type": "OpportunityFieldAuditHistory"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityTrend",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunity Trends",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityTrend"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityContactProduct",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities with Contact Roles and Products",
+        "supportsJoinedFormat": false,
+        "type": "OpportunityContactProduct"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityCustomEntity$Deal_Action_Plan__c",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities with Deal Action Plans",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityCustomEntity$Deal_Action_Plan__c"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityCustomEntity$Deal_Strategy_Brief__c",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities with Deal Strategy Briefs",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityCustomEntity$Deal_Strategy_Brief__c"
+      },
+      {
+        "describeUrl": "/services/data/v62.0/analytics/report-types/OpportunityCustomEntity$Detected_Signal__c",
+        "description": null,
+        "isCustomReportType": false,
+        "isDataCloudReportType": false,
+        "isHidden": false,
+        "isHistorical": false,
+        "label": "Opportunities with Detected Signals",
+        "supportsJoinedFormat": true,
+        "type": "OpportunityCustomEntity$Detected_Signal__c"
+      }
+    ]
+  }
+]
