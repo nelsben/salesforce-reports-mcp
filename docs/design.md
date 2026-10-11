@@ -79,7 +79,7 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 | --- | --- | --- |
 | `reportType` | `reportType.type` | For example `Opportunity`. Required for `query_report` and `create_report`. |
 | `format` | `reportFormat` | `TABULAR`, `SUMMARY` or `MATRIX`. Joined reports are out of scope. |
-| `columns` | `detailColumns` | Column API names from `describe_report_type`, for example `AMOUNT`. |
+| `columns` | `detailColumns` | Column API names from `describe_report_type`, for example `AMOUNT`. A column that is also a grouping is dropped from the list, and the source column of every aggregate is added to it (see "Live findings"). |
 | `groupingsDown` | `groupingsDown` | Up to 3 of `{column, sortOrder?, dateGranularity?}`. `sortOrder` defaults to `Asc`, `dateGranularity` to `None`. |
 | `groupingsAcross` | `groupingsAcross` | Up to 2. `MATRIX` only. |
 | `aggregates` | `aggregates` | `RowCount`, or `{fn, column}` where `fn` is `sum`, `avg`, `min`, `max` or `unique`, mapped to the prefixes `s!`, `a!`, `m!`, `mx!` and `u!`. A raw string such as `s!AMOUNT` is passed through. Defaults to `["RowCount"]`. |
@@ -90,7 +90,17 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 | `topRows` | `topRows` | `{rowLimit, direction}`. |
 | `scope` | `scope` | For example `user` or `organization`. |
 
-Check the aggregate prefixes and the date-granularity values against a live org in `scripts/live-check.ts`. Correct this table if they differ.
+### Live findings (checked 2026-10-11, API v62.0, `scripts/live-check.ts`)
+
+- **Aggregate prefixes are right.** `s!`, `a!`, `m!`, `mx!` and `u!` all work. `m!` is "Smallest" (min) and `mx!` is "Largest" (max). A `u!` measure is a unique count and is an `int`.
+- **`dateGranularity` accepts exactly these values:** `None`, `Day`, `Week`, `Month`, `Quarter`, `Year`, `FiscalPeriod`, `FiscalQuarter`, `FiscalWeek`, `FiscalYear`, `MonthInYear`, `DayInMonth`. Any other value is **silently turned into `None`** with no error, so the input schema is an enum. A report type's own `dateGranularityInfos` lists the first nine; `FiscalPeriod` and `FiscalWeek` are accepted too.
+- **A grouped column cannot be a detail column.** Salesforce answers `You can't include groupings in the selected columns list`. The server drops it from `columns`.
+- **Every aggregated column must be a detail column.** `s!AMOUNT` fails with `not a valid aggregate because it was not selected in the detail columns` unless `AMOUNT` is in `detailColumns`. The server adds it.
+- **A grouped report needs at least one detail column, and an empty list is read as "all columns"** (which then fails the 100-column limit). When the caller gives none, the server takes the first of the report type's default columns that is not a grouping.
+- **The API applies defaults a caller did not ask for.** An Opportunity report with no date filter gets `THIS_FISCAL_QUARTER`, and the standard filters `open: all` and `probability: >0` (which hides Closed Lost). `ReportResult.filters` lists them so the caller sees what was applied. `reportMetadata` can override them.
+- **Lookup cells carry the record id in `value` and the readable name in `label`**; percent cells are numbers (`90` for `90%`); currency cells are `{amount, currency}`; booleans are booleans.
+- **`GET /analytics/reportTypes/{type}` and `GET /analytics/report-types/{type}` both work.** The server uses the first, as designed.
+- **`DELETE` returns 204; `POST /analytics/reports?cloneId=` with `{"reportMetadata":{"name":…}}` clones into Private Reports.**
 
 ### ReportResult (output)
 
