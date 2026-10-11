@@ -231,6 +231,10 @@ Answered on 2026-10-11 in `docs/probes/v0.2-phase0.md`; the results are under "P
 | 4 | Estimated | A 2,000 by 100 run needs about 20 MB of heap against 6 MB. The in-org row cap is `min(2000, floor(50000 / columns))`; the default stays 200. Re-measure on a seeded org in phase 1. |
 | 5 | Yes, through a saved report | `describeReport(...).getReportTypeMetadata()` gives the same columns as REST, by section, with name, label and data type (`STRING_DATA` becomes `string`). It has no filter operators, and a type with no saved report needs the callout. |
 
+### Phase 1 result
+
+Done 2026-10-11 (`docs/probes/v0.2-phase1.md`, `salesforce/README.md`). `ReportsApi` matches the local server on all 27 parity cases on a seeded scratch org, and the live check's read steps pass with `--door apex`. Differences: `describe_report_type` reads the type through a saved report of it and has no filter operators; `describe_report` with `includeMetadata` returns only the fields Apex exposes; a run too large for Apex returns `RESULT_TOO_LARGE` instead of going async. The cell cap held, and CPU, not heap, is what stops a larger run. A 200-row measurement still needs an org with more data.
+
 ### Phases
 
 | Phase | Work | Done when |
