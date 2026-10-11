@@ -213,7 +213,7 @@ One Apex class backs both in-org doors: a hosted MCP custom server wraps an Apex
 
 ### Phase 0: probes
 
-Each answer is written down in `docs/probes/v0.2-phase0.md` before phase 1 starts. Probe source lives in `probes/v0.2-hosted-mcp/`, a separate SFDX project, and everything deployed for a probe is removed afterwards. Probes run against a scratch org.
+Answered on 2026-10-11 in `docs/probes/v0.2-phase0.md`; the results are under "Phase 0 results" below. Probe source lives in `probes/v0.2-hosted-mcp/`, a separate SFDX project, and everything deployed for a probe is removed afterwards. Probes run against a scratch org.
 
 1. **Hosted MCP on a scratch org.** Do the hosted MCP metadata types exist in the org, and does a hello-world custom server over a one-method Apex REST class deploy and show up? If a scratch org cannot run hosted MCP, the MCP door cannot be tested in a dev org, and the REST door goes ahead alone.
 2. **From Apex class to tools.** What turns the class into tools (the OpenAPI document Salesforce generates for Apex REST, an API Catalog entry, an `ExternalServiceRegistration`), and which tool names and input schemas come out. Can the names match the local server's?
@@ -221,13 +221,23 @@ Each answer is written down in `docs/probes/v0.2-phase0.md` before phase 1 start
 4. **Heap and CPU.** Shape a run into a `ReportResult` in Apex, measure heap and CPU per row, and estimate a 2,000-row, 100-column run against the synchronous limits. The in-org `maxRows` default stays at 200, and the in-org ceiling comes from this.
 5. **Report type columns without a callout.** Does `describeReport` on a saved report return its report type's columns, by section, with enough to answer `describe_report_type`?
 
+### Phase 0 results
+
+| # | Answer | What changes |
+| --- | --- | --- |
+| 1 | Yes for the metadata, open for a live call | `McpServerDefinition` deploys on a Developer Edition scratch org (API 68.0). A CLI token gets 401 at the hosted endpoint, so a live call needs an External Client App and an interactive sign-in. |
+| 2 | Open, leaning yes | An `ExternalServiceRegistration` (provider type `ApexRest`, inline OpenAPI, `systemVersion` 3, base path `/services/apexrest`) names operations from our `operationId`, so `run_report` is ours to set. Tools are `McpServerToolDefinition` rows, which are data, not metadata: an admin adds them in Setup, or a setup script writes them. |
+| 3 | Yes under a user session | Apex reached `/analytics/reportTypes`, `/analytics/reports/query`, and created and deleted a report, with no Remote Site Setting or Named Credential. Under a hosted MCP sign-in it is open. |
+| 4 | Estimated | A 2,000 by 100 run needs about 20 MB of heap against 6 MB. The in-org row cap is `min(2000, floor(50000 / columns))`; the default stays 200. Re-measure on a seeded org in phase 1. |
+| 5 | Yes, through a saved report | `describeReport(...).getReportTypeMetadata()` gives the same columns as REST, by section, with name, label and data type (`STRING_DATA` becomes `string`). It has no filter operators, and a type with no saved report needs the callout. |
+
 ### Phases
 
 | Phase | Work | Done when |
 | --- | --- | --- |
 | 0. Probes | The five above | All five answered in `docs/probes/v0.2-phase0.md` |
-| 1. REST door, runner tools | `ReportsApi` with `search_reports`, `list_report_folders`, `describe_report`, `run_report`, `combine_reports`, and `describe_report_type` if probe 5 allows; the shaper ported from `shape.ts`; Apex tests; `scripts/parity-check.ts` | Parity on every fixture, and the live check's read steps pass with `--door apex` |
-| 2. MCP door | The `McpServerDefinition`, the permission set, the admin steps in the README; the runner skill rehearsed against hosted MCP | The in-org runner rehearsal matches the local one |
+| 1. REST door, runner tools | `ReportsApi` with `search_reports`, `list_report_folders`, `describe_report`, `run_report`, `combine_reports`, and `describe_report_type` through a saved report of the type; the shaper ported from `shape.ts`, with the cell cap from probe 4; Apex tests; `scripts/parity-check.ts` | Parity on every fixture, and the live check's read steps pass with `--door apex` |
+| 2. MCP door | The `McpServerDefinition`, the `ExternalServiceRegistration`, the permission set, and the admin steps in the README (External Client App, tool rows, sign-in); the runner skill rehearsed against hosted MCP, with Ben signing in once | The in-org runner rehearsal matches the local one |
 | 3. Saves and `query_report` | Only if probe 3 works: the callout tools, behind a custom permission. Otherwise a Named Credential the admin sets up, or saving stays local-only. | The designer rehearsal passes in the org |
 | 4. Docs and skills | The README's three doors, the changelog, the runner's fallback when `query_report` is missing | The skills read the same on every door |
 
