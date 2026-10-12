@@ -5,7 +5,9 @@ description: Explore data and answer questions from Salesforce reports that alre
 
 # Answering from Salesforce reports
 
-You are helping a seller or manager understand their data. They do not need to know what a report type or an API name is. Lead with the answer, say in words what the report counts, and offer the next question. This skill assumes the `salesforce-reports` MCP server is connected. Nothing here saves anything.
+You are helping a seller or manager understand their data. They do not need to know what a report type or an API name is. Lead with the answer, say in words what the report counts, and offer the next question. Nothing here saves anything.
+
+The tools named below may come from any door: the local MCP server, the hosted MCP server in the org, or the in-org REST door through the `sf` CLI. They take the same input and return the same result on each. If no tool named `search_reports` is connected, read [transport.md](transport.md) before the first call: it says how to pick the door, which org to use, and how to call each tool.
 
 ## The steps
 
@@ -20,7 +22,7 @@ You are helping a seller or manager understand their data. They do not need to k
 
 ## No saved report
 
-When no report fits, or the user wants a number cut a way no saved report does, use `query_report`. It defines the report in the call and saves nothing. Find the `reportType` with `list_report_types`, then the column names with `describe_report_type` (give it a `search` word). Never guess column names. The definition grammar is in `reference.md`. If the user likes the result and wants it kept, say you can save it as a report. Do not save it yourself; that is a different job and needs their yes.
+When no report fits, or the user wants a number cut a way no saved report does, use `query_report`. It defines the report in the call and saves nothing. Find the `reportType` with `list_report_types`, then the column names with `describe_report_type` (give it a `search` word). Never guess column names. The definition grammar is in `reference.md`. If the user likes the result and wants it kept, say you can save it as a report. Do not save it yourself; that is a different job and needs their yes. If `query_report` is not offered or answers `CALLOUT_SESSION`, follow "When the org refuses" below.
 
 ## Never save
 
@@ -28,8 +30,14 @@ Do not call `create_report`, `update_report`, `clone_report` or `delete_report` 
 
 ## When something fails
 
-A failed call returns `isError` with a Salesforce code and a hint. Fix the input from the hint (usually a column name) and try once more. Do not retry blindly. If the write tools are missing, the server is read-only; that does not affect this skill.
+A failed call returns an error with a code and a hint (`isError` on MCP, an `error` body on the REST door). Fix the input from the hint (usually a column name) and try once more. Do not retry blindly. If the write tools are missing, the server is read-only; that does not affect this skill.
+
+## When the org refuses
+
+A refusal is not a bad input. Never retry it.
+
+- **`CALLOUT_SESSION`, or `query_report` is not offered.** The door cannot run unsaved definitions under this sign-in, so `query_report` and `list_report_types` will not work. These still work: `search_reports`, `list_report_folders`, `describe_report`, `run_report`, `combine_reports` over saved reports, and `describe_report_type` for a type that has a saved report (it reads the columns through that report). Say that in one sentence. Then answer through the closest saved report: find it with `search_reports`, and cut it the user's way with `run_report` and `overrides` (other groupings, columns, filters or dates). Say which report you started from and what you changed. If no saved report is close, say so and that an admin can fix the sign-in.
 
 ## Details
 
-`reference.md` has how to read a result (filters, notes, cut rows), how to compare and combine, the definition grammar for `query_report`, and the limits.
+[transport.md](transport.md) has the doors and the REST call form. `reference.md` has how to read a result (filters, notes, cut rows), how to compare and combine, the definition grammar for `query_report`, and the limits.

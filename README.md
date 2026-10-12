@@ -183,6 +183,8 @@ Each user signs in as themselves, so sharing, folder access and field-level secu
 
 The skills live in `skills/`: `report-runner`, `report-designer` and `report-deploy`. Each has a `description` that makes Claude pick it for its own experience, and the designer and runner keep a `reference.md` with the definition grammar and how to read a result. The plugin installs all three.
 
+The runner and designer work over any door: the local MCP server, the hosted MCP server, or the in-org REST door. The REST door needs no MCP server, only the `sf` CLI signed in to the org and the package from `salesforce/` deployed there, so it suits Claude Code and any agent with a shell. Each skill's [transport.md](skills/report-runner/transport.md) says how to tell which door is there, how to call each tool through `sf api request rest`, and what the refusals `WRITE_NOT_ALLOWED` and `CALLOUT_SESSION` mean.
+
 ## Develop
 
 ```

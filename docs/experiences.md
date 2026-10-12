@@ -24,6 +24,10 @@ From probes and the Salesforce v68.0 guides, checked 2026-10-11.
   - Bucket field: `buckets: [{bucketType: "picklist", developerName: "BucketField_1", label, sourceColumnName: "STAGE_NAME", values: [{label, sourceDimensionValues: ["Prospecting", "Qualification"]}]}]`, and `"BucketField_1"` among the detail columns. A number bucket uses `values: [{label, rangeUpperBound: 1000}, {label, rangeUpperBound: null}]`. The names `devName`, `useOther`, `nullTreatment` and `sourceValues` are rejected.
   - The tool definition fields do not cover either, so the designer passes them in `reportMetadata`. Neither is shown by `describe_report_type` yet (its `objectRelationships` are not summarised), which is a gap.
 
+## How the skills connect
+
+The runner and designer name tools, not a transport, so the same skill text works over the local MCP server, the hosted MCP server in the org, and the in-org REST door. The REST door needs only the `sf` CLI signed in to the org and the package from `salesforce/`: each tool is a POST to `/services/apexrest/reports/v1/<tool>` with the tool's input as the body, made through `sf api request rest`, and it answers the same JSON. Each skill carries the same [transport.md](../skills/report-runner/transport.md) with the call form, the org rule (ask for the CLI alias once, never fall back to a default org silently), and what the refusals `WRITE_NOT_ALLOWED` and `CALLOUT_SESSION` mean. The REST door has no `delete_report`. Deploy stays on the `sf` CLI.
+
 ## Runner
 
 1. **Find.** `search_reports` with the user's words. With several matches, show up to three, each with its folder and last run date, and ask which one. With none, say so and offer the designer.
