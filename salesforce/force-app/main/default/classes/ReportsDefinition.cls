@@ -1,6 +1,7 @@
 /**
- * The friendly ReportDefinition behind run_report's `overrides`, mapped to REST-shaped reportMetadata
- * exactly as src/reports/definition.ts does, then onto a Reports.ReportMetadata for ReportManager.runReport.
+ * Core layer: the friendly ReportDefinition behind run_report's `overrides`, query_report and the save tools, mapped to
+ * REST-shaped reportMetadata exactly as src/reports/definition.ts does, then onto a Reports.ReportMetadata for
+ * ReportManager.runReport. It reads its input through ReportsInput and refuses with ReportsException.
  */
 public with sharing class ReportsDefinition {
     /** Checked against a live org: the API silently turns any other value into None. */
@@ -23,14 +24,14 @@ public with sharing class ReportsDefinition {
         Mapped out = new Mapped();
         Map<String, Object> meta = out.metadata;
 
-        String reportType = ReportsApi.optString(def, 'reportType');
+        String reportType = ReportsInput.optString(def, 'reportType');
         if (String.isNotEmpty(reportType)) meta.put('reportType', new Map<String, Object>{ 'type' => reportType });
 
         List<Map<String, Object>> down = groupings(def, 'groupingsDown', 3);
         List<Map<String, Object>> across = groupings(def, 'groupingsAcross', 2);
-        String format = ReportsApi.optString(def, 'format');
+        String format = ReportsInput.optString(def, 'format');
         if (format != null && !new Set<String>{ 'TABULAR', 'SUMMARY', 'MATRIX' }.contains(format)) {
-            throw ReportsApi.inputError('format must be TABULAR, SUMMARY or MATRIX.');
+            throw ReportsException.invalidInput('format must be TABULAR, SUMMARY or MATRIX.');
         }
         if (format == null && !partial) format = across != null && !across.isEmpty() ? 'MATRIX' : (down != null && !down.isEmpty() ? 'SUMMARY' : 'TABULAR');
         if (format != null) meta.put('reportFormat', format);
@@ -38,10 +39,10 @@ public with sharing class ReportsDefinition {
         if (across != null) meta.put('groupingsAcross', across);
 
         // Salesforce requires every aggregated column to be a detail column too.
-        List<Object> aggregatesIn = ReportsApi.optList(def, 'aggregates');
+        List<Object> aggregatesIn = ReportsInput.optList(def, 'aggregates');
         List<String> aggregateNames = aggregatesIn == null ? null : mapAggregates(aggregatesIn);
         List<String> aggregated = aggregateColumns(aggregateNames);
-        List<String> columns = ReportsApi.optStringList(def, 'columns');
+        List<String> columns = ReportsInput.optStringList(def, 'columns');
         if (columns == null && !aggregated.isEmpty() && !partial) columns = new List<String>();
         if (columns != null) {
             Set<String> grouped = new Set<String>();
@@ -68,28 +69,28 @@ public with sharing class ReportsDefinition {
         if (aggregateNames != null) meta.put('aggregates', aggregateNames);
         else if (!partial) meta.put('aggregates', new List<String>{ 'RowCount' });
 
-        List<Object> filters = ReportsApi.optList(def, 'filters');
+        List<Object> filters = ReportsInput.optList(def, 'filters');
         if (filters != null) {
             List<Object> mapped = new List<Object>();
             for (Object o : filters) {
-                Map<String, Object> f = ReportsApi.asMap(o, 'filters');
+                Map<String, Object> f = ReportsInput.asMap(o, 'filters');
                 mapped.add(new Map<String, Object>{
-                    'column' => ReportsApi.reqString(f, 'column'),
-                    'operator' => ReportsApi.reqString(f, 'operator'),
+                    'column' => ReportsInput.reqString(f, 'column'),
+                    'operator' => ReportsInput.reqString(f, 'operator'),
                     'value' => filterValue(f.get('value'))
                 });
             }
             meta.put('reportFilters', mapped);
         }
-        String filterLogic = ReportsApi.optString(def, 'filterLogic');
+        String filterLogic = ReportsInput.optString(def, 'filterLogic');
         if (filterLogic != null) meta.put('reportBooleanFilter', filterLogic);
 
-        Map<String, Object> dateFilter = ReportsApi.optMap(def, 'dateFilter');
+        Map<String, Object> dateFilter = ReportsInput.optMap(def, 'dateFilter');
         if (dateFilter != null) {
-            String duration = ReportsApi.optString(dateFilter, 'duration');
-            String startDate = ReportsApi.optString(dateFilter, 'startDate');
-            String endDate = ReportsApi.optString(dateFilter, 'endDate');
-            Map<String, Object> filterOut = new Map<String, Object>{ 'column' => ReportsApi.reqString(dateFilter, 'column') };
+            String duration = ReportsInput.optString(dateFilter, 'duration');
+            String startDate = ReportsInput.optString(dateFilter, 'startDate');
+            String endDate = ReportsInput.optString(dateFilter, 'endDate');
+            Map<String, Object> filterOut = new Map<String, Object>{ 'column' => ReportsInput.reqString(dateFilter, 'column') };
             String durationValue = duration != null ? duration : (String.isNotEmpty(startDate) || String.isNotEmpty(endDate) ? 'CUSTOM' : null);
             if (String.isNotEmpty(durationValue)) filterOut.put('durationValue', durationValue);
             if (String.isNotEmpty(startDate)) filterOut.put('startDate', startDate);
@@ -97,26 +98,26 @@ public with sharing class ReportsDefinition {
             meta.put('standardDateFilter', filterOut);
         }
 
-        List<Object> sortBy = ReportsApi.optList(def, 'sortBy');
+        List<Object> sortBy = ReportsInput.optList(def, 'sortBy');
         if (sortBy != null) {
             List<Object> mapped = new List<Object>();
             for (Object o : sortBy) {
-                Map<String, Object> s = ReportsApi.asMap(o, 'sortBy');
-                mapped.add(new Map<String, Object>{ 'sortColumn' => ReportsApi.reqString(s, 'column'), 'sortOrder' => sortOrder(ReportsApi.reqString(s, 'order')) });
+                Map<String, Object> s = ReportsInput.asMap(o, 'sortBy');
+                mapped.add(new Map<String, Object>{ 'sortColumn' => ReportsInput.reqString(s, 'column'), 'sortOrder' => sortOrder(ReportsInput.reqString(s, 'order')) });
             }
             meta.put('sortBy', mapped);
         }
-        Map<String, Object> topRows = ReportsApi.optMap(def, 'topRows');
+        Map<String, Object> topRows = ReportsInput.optMap(def, 'topRows');
         if (topRows != null) {
             meta.put('topRows', new Map<String, Object>{
-                'rowLimit' => ReportsApi.optInt(topRows, 'rowLimit', 1, 2147483647),
-                'direction' => sortOrder(ReportsApi.reqString(topRows, 'direction'))
+                'rowLimit' => ReportsInput.optInt(topRows, 'rowLimit', 1, 2147483647),
+                'direction' => sortOrder(ReportsInput.reqString(topRows, 'direction'))
             });
         }
-        String scope = ReportsApi.optString(def, 'scope');
+        String scope = ReportsInput.optString(def, 'scope');
         if (String.isNotEmpty(scope)) meta.put('scope', scope);
 
-        Map<String, Object> raw = ReportsApi.optMap(def, 'reportMetadata');
+        Map<String, Object> raw = ReportsInput.optMap(def, 'reportMetadata');
         if (raw != null) meta.putAll(raw);
         return out;
     }
@@ -140,9 +141,9 @@ public with sharing class ReportsDefinition {
             try {
                 switch on key {
                     when 'reportType' {
-                        String type = (String) ReportsApi.asMap(v, 'reportType').get('type');
+                        String type = (String) ReportsInput.asMap(v, 'reportType').get('type');
                         if (m.getReportType() == null || type != m.getReportType().getType()) {
-                            throw ReportsApi.inputError('A run cannot change the report type of a saved report.');
+                            throw ReportsException.invalidInput('A run cannot change the report type of a saved report.');
                         }
                     }
                     when 'reportFormat' {
@@ -213,11 +214,11 @@ public with sharing class ReportsDefinition {
                         m.setStandardFilters(out);
                     }
                     when else {
-                        throw ReportsApi.inputError('reportMetadata.' + key + ' is not supported on the in-org door. Use the local server for it.');
+                        throw ReportsException.invalidInput('reportMetadata.' + key + ' is not supported on the in-org door. Use the local server for it.');
                     }
                 }
             } catch (TypeException e) {
-                throw ReportsApi.inputError('reportMetadata.' + key + ' has the wrong shape: ' + e.getMessage());
+                throw ReportsException.invalidInput('reportMetadata.' + key + ' has the wrong shape: ' + e.getMessage());
             }
         }
     }
@@ -238,7 +239,7 @@ public with sharing class ReportsDefinition {
 
     static Reports.DateGranularity granularity(String value) {
         for (Reports.DateGranularity g : Reports.DateGranularity.values()) if (restGranularity(g) == value) return g;
-        throw ReportsApi.inputError('dateGranularity must be one of ' + String.join(DATE_GRANULARITIES, ', ') + '.');
+        throw ReportsException.invalidInput('dateGranularity must be one of ' + String.join(DATE_GRANULARITIES, ', ') + '.');
     }
 
     static Reports.ColumnSortOrder columnSortOrder(String value) {
@@ -247,25 +248,25 @@ public with sharing class ReportsDefinition {
 
     static Reports.ReportFormat reportFormat(String value) {
         for (Reports.ReportFormat f : Reports.ReportFormat.values()) if (f.name() == value) return f;
-        throw ReportsApi.inputError('format must be TABULAR, SUMMARY or MATRIX.');
+        throw ReportsException.invalidInput('format must be TABULAR, SUMMARY or MATRIX.');
     }
 
     // ---- input pieces ----
 
     static List<Map<String, Object>> groupings(Map<String, Object> def, String key, Integer max) {
-        List<Object> raw = ReportsApi.optList(def, key);
+        List<Object> raw = ReportsInput.optList(def, key);
         if (raw == null) return null;
-        if (raw.size() > max) throw ReportsApi.inputError(key + ' takes at most ' + max + ' groupings.');
+        if (raw.size() > max) throw ReportsException.invalidInput(key + ' takes at most ' + max + ' groupings.');
         List<Map<String, Object>> out = new List<Map<String, Object>>();
         for (Object o : raw) {
-            Map<String, Object> g = ReportsApi.asMap(o, key);
-            String order = ReportsApi.optString(g, 'sortOrder');
-            String grain = ReportsApi.optString(g, 'dateGranularity');
+            Map<String, Object> g = ReportsInput.asMap(o, key);
+            String order = ReportsInput.optString(g, 'sortOrder');
+            String grain = ReportsInput.optString(g, 'dateGranularity');
             if (grain != null && !DATE_GRANULARITIES.contains(grain)) {
-                throw ReportsApi.inputError('dateGranularity must be one of ' + String.join(DATE_GRANULARITIES, ', ') + '.');
+                throw ReportsException.invalidInput('dateGranularity must be one of ' + String.join(DATE_GRANULARITIES, ', ') + '.');
             }
             out.add(new Map<String, Object>{
-                'name' => ReportsApi.reqString(g, 'column'),
+                'name' => ReportsInput.reqString(g, 'column'),
                 'sortOrder' => order == null ? 'Asc' : sortOrder(order),
                 'dateGranularity' => grain == null ? 'None' : grain
             });
@@ -281,27 +282,27 @@ public with sharing class ReportsDefinition {
                 out.add((String) a);
                 continue;
             }
-            Map<String, Object> m = ReportsApi.asMap(a, 'aggregates');
-            String fn = ReportsApi.reqString(m, 'fn');
-            if (!PREFIX.containsKey(fn)) throw ReportsApi.inputError('An aggregate fn is sum, avg, min, max or unique.');
-            out.add(PREFIX.get(fn) + ReportsApi.reqString(m, 'column'));
+            Map<String, Object> m = ReportsInput.asMap(a, 'aggregates');
+            String fn = ReportsInput.reqString(m, 'fn');
+            if (!PREFIX.containsKey(fn)) throw ReportsException.invalidInput('An aggregate fn is sum, avg, min, max or unique.');
+            out.add(PREFIX.get(fn) + ReportsInput.reqString(m, 'column'));
         }
         return out;
     }
 
     static String sortOrder(String value) {
-        if (!SORT_ORDERS.contains(value)) throw ReportsApi.inputError('A sort order is Asc or Desc.');
+        if (!SORT_ORDERS.contains(value)) throw ReportsException.invalidInput('A sort order is Asc or Desc.');
         return value;
     }
 
     /** As JavaScript's String(value) writes a filter value. */
     @TestVisible
     static String filterValue(Object value) {
-        if (value == null) throw ReportsApi.inputError('A filter needs a value.');
+        if (value == null) throw ReportsException.invalidInput('A filter needs a value.');
         if (value instanceof String) return (String) value;
         if (value instanceof Boolean || value instanceof Integer || value instanceof Long) return String.valueOf(value);
         if (value instanceof Decimal) return ((Decimal) value).stripTrailingZeros().toPlainString();
-        throw ReportsApi.inputError('A filter value is a string, number or boolean.');
+        throw ReportsException.invalidInput('A filter value is a string, number or boolean.');
     }
 
     static List<String> strings(Object value) {

@@ -1,5 +1,6 @@
 /**
- * Runs the door against the org's own saved reports, so it needs SeeAllData. It creates no records and no reports.
+ * Covers the REST adapter (status codes, error bodies, unknown tool, delete_report 404) and runs the door against the
+ * org's own saved reports, so it needs SeeAllData. It creates no records and no reports.
  */
 @IsTest(SeeAllData='true')
 private class ReportsApiTest {
@@ -14,6 +15,27 @@ private class ReportsApiTest {
 
     static String errorCode(ReportsApi.Answer a) {
         return (String) ((Map<String, Object>) ((Map<String, Object>) a.body).get('error')).get('code');
+    }
+
+    static String errorMessage(ReportsApi.Answer a) {
+        return (String) ((Map<String, Object>) ((Map<String, Object>) a.body).get('error')).get('message');
+    }
+
+    /** The body as the wire carries it, read back, so the comparison does not depend on key order. */
+    static Map<String, Object> wire(Object body) {
+        return (Map<String, Object>) JSON.deserializeUntyped(body instanceof String ? (String) body : JSON.serialize(body));
+    }
+
+    static Map<String, Object> errorBody(String code, String message, String hintText) {
+        Map<String, Object> error = new Map<String, Object>{ 'code' => code, 'message' => message };
+        if (hintText != null) error.put('hint', hintText);
+        return new Map<String, Object>{ 'error' => error };
+    }
+
+    static void assertBody(Map<String, Object> expected, Object body) {
+        Map<String, Object> actual = wire(body);
+        Assert.areEqual(expected.keySet(), actual.keySet());
+        Assert.areEqual(expected.get('error'), actual.get('error'));
     }
 
     /** A saved tabular or summary report this user can run, or null in an org with none. */
@@ -136,15 +158,62 @@ private class ReportsApiTest {
         Assert.areEqual('UNEXPECTED', errorCode(ReportsApi.failure(new BoomException())));
         Assert.areEqual(400, ReportsApi.failure(new JSONException('x')).status);
         Assert.areEqual(500, ReportsApi.failure(new NoAccessException()).status);
+        Assert.areEqual('INSUFFICIENT_ACCESS', errorCode(ReportsApi.failure(new NoAccessException())));
         Assert.areEqual(400, ReportsApi.failure(new Reports.InvalidFilterException('bad filter')).status);
         Assert.areEqual('INVALID_FILTER', errorCode(ReportsApi.failure(new Reports.InvalidFilterException('bad filter'))));
-        Assert.isNotNull(ReportsApi.hintFor(404, 'X', 'y'));
-        Assert.isNotNull(ReportsApi.hintFor(400, 'X', 'unknown column'));
-        Assert.isNotNull(ReportsApi.hintFor(400, 'X', 'over the limit'));
-        Assert.isNotNull(ReportsApi.hintFor(400, 'X', 'no permission'));
-        Assert.isNull(ReportsApi.hintFor(400, 'X', 'y'));
-        Assert.areEqual('a\\_b\\%c\\\'d\\\\', ReportsApi.soqlLike('a_b%c\'d\\'));
-        Assert.areEqual('2026-10-11T21:06:12.000+0000', ReportsApi.soqlDatetime(Datetime.newInstanceGmt(2026, 10, 11, 21, 6, 12)));
-        Assert.isNull(ReportsApi.soqlDatetime(null));
+        ReportsException same = ReportsException.invalidInput('x');
+        Assert.areEqual(same, ReportsException.fromException(same));
+        Assert.areEqual(ReportsException.ID_HINT, ReportsException.hintFor('NOT_FOUND', 'y'));
+        Assert.isNotNull(ReportsException.hintFor('X', 'unknown column'));
+        Assert.isNotNull(ReportsException.hintFor('X', 'over the limit'));
+        Assert.isNotNull(ReportsException.hintFor('X', 'no permission'));
+        Assert.isNull(ReportsException.hintFor('X', 'y'));
+        Assert.areEqual('a\\_b\\%c\\\'d\\\\', ReportsService.soqlLike('a_b%c\'d\\'));
+        Assert.areEqual('2026-10-11T21:06:12.000+0000', ReportsService.soqlDatetime(Datetime.newInstanceGmt(2026, 10, 11, 21, 6, 12)));
+        Assert.isNull(ReportsService.soqlDatetime(null));
+    }
+
+    /** The adapter alone maps a core category to a status, and writes the error body src/format.ts builds. */
+    @IsTest
+    static void mapsEachCategoryToItsStatus() {
+        Map<ReportsException.ErrorCategory, Integer> statuses = new Map<ReportsException.ErrorCategory, Integer>{
+            ReportsException.ErrorCategory.INVALID_INPUT => 400,
+            ReportsException.ErrorCategory.FORBIDDEN => 403,
+            ReportsException.ErrorCategory.UNKNOWN_TOOL => 404,
+            ReportsException.ErrorCategory.FAILED => 500
+        };
+        Assert.areEqual(ReportsException.ErrorCategory.values().size(), statuses.size(), 'every category has a status');
+        for (ReportsException.ErrorCategory category : statuses.keySet()) {
+            ReportsApi.Answer a = ReportsApi.failure(ReportsException.create(category, 'SOME_CODE', 'Some message.', 'A hint.'));
+            Assert.areEqual(statuses.get(category), a.status, String.valueOf(category));
+            assertBody(errorBody('SOME_CODE', 'Some message.', 'A hint.'), a.body);
+        }
+        // No hint, no hint key.
+        assertBody(errorBody('INVALID_INPUT', 'Bad.', null), ReportsApi.failure(ReportsException.invalidInput('Bad.')).body);
+        Assert.areEqual(200, ReportsApi.DEFAULT_MAX_ROWS);
+        Assert.areEqual(ReportsService.baseUrl(), ReportsApi.baseUrl());
+    }
+
+    @IsTest
+    static void answersUnknownToolsWith404() {
+        ReportsApi.Answer unknown = call('nope', '{}');
+        Assert.areEqual(404, unknown.status);
+        Assert.areEqual('UNKNOWN_TOOL', errorCode(unknown));
+        Assert.isTrue(errorMessage(unknown).startsWith('There is no tool named "nope". This door offers search_reports, '), errorMessage(unknown));
+        ReportsApi.Answer deleted = call('delete_report', '{"reportId":"00O000000000000"}');
+        Assert.areEqual(404, deleted.status);
+        Assert.areEqual('UNKNOWN_TOOL', errorCode(deleted));
+        Assert.areEqual('delete_report is not on the in-org door. Use the local server for it.', errorMessage(deleted));
+        // Over HTTP: the status and the JSON body are written to the response.
+        RestContext.request = new RestRequest();
+        RestContext.response = new RestResponse();
+        RestContext.request.requestURI = '/services/apexrest/reports/v1/delete_report';
+        ReportsApi.post();
+        Assert.areEqual(404, RestContext.response.statusCode);
+        assertBody(errorBody('UNKNOWN_TOOL', 'delete_report is not on the in-org door. Use the local server for it.', null), RestContext.response.responseBody.toString());
+        // A body that is not JSON is bad input.
+        ReportsApi.Answer notJson = call('search_reports', 'not json');
+        Assert.areEqual(400, notJson.status);
+        assertBody(errorBody('INVALID_INPUT', 'The request body is not JSON.', null), notJson.body);
     }
 }

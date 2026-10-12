@@ -9,7 +9,10 @@
         <members>ReportsCombineTest</members>
         <members>ReportsDefinition</members>
         <members>ReportsDefinitionTest</members>
+        <members>ReportsException</members>
+        <members>ReportsInput</members>
         <members>ReportsSaveTest</members>
+        <members>ReportsService</members>
         <members>ReportsShape</members>
         <members>ReportsSummary</members>
         <members>ReportsSummaryTest</members>

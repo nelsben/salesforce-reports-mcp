@@ -53,7 +53,7 @@ private class ReportsSaveTest {
 
     @TestSetup
     static void users() {
-        PermissionSet write = [SELECT Id FROM PermissionSet WHERE Name = :ReportsApi.WRITE_PERMISSION_SET];
+        PermissionSet write = [SELECT Id FROM PermissionSet WHERE Name = :ReportsService.WRITE_PERMISSION_SET];
         List<PermissionSetAssignment> has = [SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :write.Id];
         if (has.isEmpty()) insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = write.Id);
         // A Chatter Free profile, else a Platform one, so the reader takes no Salesforce license.
@@ -167,19 +167,19 @@ private class ReportsSaveTest {
     @IsTest
     static void appliesChangesAsTheLocalServerDoes() {
         Map<String, Object> before = (Map<String, Object>) ((Map<String, Object>) JSON.deserializeUntyped(SOURCE)).get('reportMetadata');
-        Map<String, Object> matrix = ReportsApi.applyChanges(before, new Map<String, Object>(), new Map<String, Object>{
+        Map<String, Object> matrix = ReportsService.applyChanges(before, new Map<String, Object>(), new Map<String, Object>{
             'groupingsDown' => new List<Object>{ new Map<String, Object>{ 'name' => 'STAGE_NAME' } },
             'groupingsAcross' => new List<Object>{ new Map<String, Object>{ 'name' => 'TYPE' } }
         });
         Assert.areEqual('MATRIX', matrix.get('reportFormat'));
         Assert.areEqual(new List<Object>{ 'OPPORTUNITY_NAME', 'AMOUNT' }, matrix.get('detailColumns'));
         Assert.isFalse(matrix.containsKey('folderId'));
-        Map<String, Object> flat = ReportsApi.applyChanges(before, new Map<String, Object>(), new Map<String, Object>());
+        Map<String, Object> flat = ReportsService.applyChanges(before, new Map<String, Object>(), new Map<String, Object>());
         Assert.areEqual('TABULAR', flat.get('reportFormat'));
         Assert.areEqual(new List<Object>{ 'OPPORTUNITY_NAME', 'STAGE_NAME', 'AMOUNT' }, flat.get('detailColumns'));
-        Map<String, Object> given = ReportsApi.applyChanges(before, new Map<String, Object>{ 'format' => 'SUMMARY' }, new Map<String, Object>{ 'reportFormat' => 'SUMMARY' });
+        Map<String, Object> given = ReportsService.applyChanges(before, new Map<String, Object>{ 'format' => 'SUMMARY' }, new Map<String, Object>{ 'reportFormat' => 'SUMMARY' });
         Assert.areEqual('SUMMARY', given.get('reportFormat'));
-        Map<String, Object> groupedAggregate = ReportsApi.applyChanges(before,
+        Map<String, Object> groupedAggregate = ReportsService.applyChanges(before,
             new Map<String, Object>{ 'aggregates' => new List<Object>{ new Map<String, Object>{ 'fn' => 'max', 'column' => 'STAGE_NAME' }, 's!AMOUNT' } },
             new Map<String, Object>{ 'groupingsDown' => new List<Object>{ new Map<String, Object>{ 'name' => 'STAGE_NAME' } } });
         Assert.areEqual(new List<Object>{ 'OPPORTUNITY_NAME', 'AMOUNT' }, groupedAggregate.get('detailColumns'), 'a grouped column is never a detail column');
@@ -247,12 +247,12 @@ private class ReportsSaveTest {
             Assert.isFalse(sentMetadata(m.requests[1]).containsKey('name'));
             List<Object> changes = (List<Object>) out.get('changes');
             Assert.areEqual('detailColumns: ["OPPORTUNITY_NAME","AMOUNT"] -> ["OPPORTUNITY_NAME","AMOUNT","PROBABILITY"]', changes[0]);
-            Assert.areEqual('(none)', ReportsApi.clip(null));
-            String clipped = ReportsApi.clip('x'.repeat(200));
+            Assert.areEqual('(none)', ReportsService.clip(null));
+            String clipped = ReportsService.clip('x'.repeat(200));
             Assert.areEqual(160, clipped.length());
             Assert.isTrue(clipped.endsWith('...'));
-            Assert.areEqual('short', ReportsApi.clip('short'));
-        Assert.areEqual('{"a":[1,null,true],"b":{"c":"x","d":1.5}}', ReportsApi.sortedJson(JSON.deserializeUntyped('{"b":{"d":1.5,"c":"x"},"a":[1,null,true]}')));
+            Assert.areEqual('short', ReportsService.clip('short'));
+        Assert.areEqual('{"a":[1,null,true],"b":{"c":"x","d":1.5}}', ReportsService.sortedJson(JSON.deserializeUntyped('{"b":{"d":1.5,"c":"x"},"a":[1,null,true]}')));
             Test.stopTest();
         }
     }

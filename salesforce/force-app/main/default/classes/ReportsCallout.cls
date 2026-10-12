@@ -1,8 +1,9 @@
 /**
- * The one way the in-org door calls the org's own REST API (phase 3a): URL.getOrgDomainUrl() plus /services/data/v62.0,
- * under the running user's session. Every callout tool goes through send(), so a Named Credential can replace the
- * session here alone: set the endpoint to 'callout:<name>' plus the path, and drop the Authorization header.
- * Phase 0 probe 3 showed this needs no Remote Site Setting.
+ * Outbound HTTP adapter layer: the one way the core calls the org's own REST API (phase 3a), URL.getOrgDomainUrl() plus
+ * /services/data/v62.0, under the running user's session. Every callout tool goes through send(), so a Named Credential
+ * can replace the session here alone: set the endpoint to 'callout:<name>' plus the path, and drop the Authorization
+ * header. Phase 0 probe 3 showed this needs no Remote Site Setting. It reads upstream status codes, but it throws only
+ * the core's ReportsException, with a category and never a status of its own.
  */
 public with sharing class ReportsCallout {
     public static final String API_PATH = '/services/data/v62.0';
@@ -17,7 +18,7 @@ public with sharing class ReportsCallout {
     /**
      * Calls `path` (after /services/data/v62.0) and answers with the parsed JSON, or null for an empty body.
      * A refused session throws CALLOUT_SESSION. Any other error throws the code, message and hint the local door
-     * gives for it (src/salesforce/client.ts and src/format.ts), with status 400 for a 4xx and 500 otherwise.
+     * gives for it (src/salesforce/client.ts and src/format.ts), as invalid input for a 4xx and failed otherwise.
      */
     public static Object send(String method, String path, Object body) {
         String session = session();
@@ -36,7 +37,7 @@ public with sharing class ReportsCallout {
         try {
             res = new Http().send(req);
         } catch (CalloutException e) {
-            throw ReportsApi.apiError(500, 'CALLOUT_FAILED', 'The in-org door\'s call to ' + method + ' ' + path.substringBefore('?') + ' failed: ' + e.getMessage(),
+            throw ReportsException.failed('CALLOUT_FAILED', 'The in-org door\'s call to ' + method + ' ' + path.substringBefore('?') + ' failed: ' + e.getMessage(),
                 'A response over 6 MB, or a call over 120 seconds, fails here. Narrow the filters, drop columns, or use the local server.');
         }
         Integer status = res.getStatusCode();
@@ -61,13 +62,13 @@ public with sharing class ReportsCallout {
         return id == null && Test.isRunningTest() ? 'test-session' : id;
     }
 
-    static ReportsApi.ApiException refused(String message) {
-        return ReportsApi.apiError(500, 'CALLOUT_SESSION', message, SESSION_HINT);
+    static ReportsException refused(String message) {
+        return ReportsException.failed('CALLOUT_SESSION', message, SESSION_HINT);
     }
 
     /** As src/salesforce/client.ts toError reads a Salesforce error body, then as src/format.ts describes it. */
     @TestVisible
-    static ReportsApi.ApiException toError(Integer status, String text, String call) {
+    static ReportsException toError(Integer status, String text, String call) {
         String code = 'HTTP_' + status;
         String message = 'Salesforce returned HTTP ' + status + '.';
         try {
@@ -87,6 +88,7 @@ public with sharing class ReportsCallout {
         if (status == 401 || code == 'INVALID_SESSION_ID') {
             return refused('Salesforce refused the session for ' + call + ' (' + status + ' ' + code + ': ' + message + ').');
         }
-        return ReportsApi.apiError(status >= 400 && status < 500 ? 400 : 500, code, message, ReportsApi.hintFor(status, code, message));
+        ReportsException.ErrorCategory category = status >= 400 && status < 500 ? ReportsException.ErrorCategory.INVALID_INPUT : ReportsException.ErrorCategory.FAILED;
+        return ReportsException.create(category, code, message, status == 404 ? ReportsException.ID_HINT : ReportsException.hintFor(code, message));
     }
 }

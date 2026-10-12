@@ -34,10 +34,11 @@ flowchart TB
   end
 
   subgraph forceapp [Package force-app: the REST adapter and the core]
-    API["ReportsApi @RestResource<br/>/services/apexrest/reports/v1/{tool}<br/>parses the URL and body, sets status codes"]
-    SVC["ReportsService (proposed split)<br/>dispatch by tool name, with sharing<br/>checks Reports_MCP_Write for saves"]
-    SHAPE["ReportsShape, ReportsSummary<br/>factMap to ReportResult"]
-    CALL["ReportsCallout<br/>the org calling its own Reports REST API"]
+    API["ReportsApi @RestResource<br/>/services/apexrest/reports/v1/{tool}<br/>reads the URL and body, maps error categories to status codes"]
+    SVC["ReportsService<br/>tool list and dispatch by tool name, with sharing<br/>checks Reports_MCP_Write for saves"]
+    SHAPE["ReportsDefinition, ReportsShape,<br/>ReportsSummary, ReportsCombine<br/>definition to reportMetadata, factMap to ReportResult"]
+    ERR["ReportsInput, ReportsException<br/>typed input, errors with a category<br/>and never an HTTP status"]
+    CALL["ReportsCallout<br/>outbound adapter: the org calling its own Reports REST API"]
     PS["Permission sets<br/>Salesforce_Reports_MCP (read)<br/>Salesforce_Reports_MCP_Write (saves)"]
   end
 
@@ -53,7 +54,9 @@ flowchart TB
   GW --> DEF --> ESR --> API
   AI -.->|sign in| ECA
   API --> SVC
+  API -.->|category to status| ERR
   SVC --> SHAPE
+  SVC --> ERR
   SVC --> RM
   SVC --> SOQL
   SVC --> CALL --> REST
@@ -61,7 +64,8 @@ flowchart TB
 
 Reading the diagram:
 
-- The core never knows which door called it. `ReportsApi` is thin on purpose: URL, body, status code. Today the logic still lives inside `ReportsApi`; splitting `ReportsService` out is the one refactor this page proposes, so the adapter pattern is visible in the code and not only in the drawing.
+- The core never knows which door called it. `ReportsApi` is thin on purpose: it reads the URL and the body, calls `ReportsService`, and maps an error's category to 400, 403, 404 or 500 with the error body. No core class names `ReportsApi`, and a core error carries a category (invalid input, forbidden, unknown tool, failed), never an HTTP status.
+- `ReportsCallout` is the outbound adapter. It may read the upstream status codes of the Reports REST API, but it throws the core's `ReportsException`, so the core sees one error type whichever platform route failed.
 - The MCP adapter adds no Apex. It is metadata (the registration, the server definition, the client app) plus a setup script that writes the tool rows. Removing it leaves the REST door untouched.
 - Two platform routes exist for a reason. `Reports.ReportManager` runs saved reports with no callout and no extra scope. Unsaved runs, report types and saves have no Apex API, so they go through `ReportsCallout` to the Reports REST API as the signed-in user.
 
@@ -226,10 +230,10 @@ sequenceDiagram
     FM-->>SVC: true
     SVC->>RR: ReportsCallout: POST /analytics/reports (reportMetadata)
     RR-->>SVC: new report id and metadata
-    SVC-->>D: 201, the saved report's summary
+    SVC-->>D: the saved report's summary, which the door answers with 200
   else the user does not
     FM-->>SVC: false
-    SVC-->>D: 403 WRITE_NOT_ALLOWED, "ask an admin to assign Salesforce_Reports_MCP_Write"
+    SVC-->>D: FORBIDDEN WRITE_NOT_ALLOWED, "ask an admin to assign Salesforce_Reports_MCP_Write", which the door answers with 403
   end
 ```
 
@@ -270,6 +274,5 @@ There is no `delete_report` in the org. Deleting is left to the report builder a
 
 Open on this page, to settle before phase 3c:
 
-1. Split `ReportsService` out of `ReportsApi`. Do it after phase 3b merges, so the saves land first and the refactor is a pure move with the parity check as the proof.
-2. Move the MCP metadata from `force-app` into `mcp-app` and give each package its own manifest and README section.
-3. One skill set with a transport section, or a separate REST skill. The recommendation is one set: skills bind to tool names.
+1. Move the MCP metadata from `force-app` into `mcp-app` and give each package its own manifest and README section.
+2. One skill set with a transport section, or a separate REST skill. The recommendation is one set: skills bind to tool names.

@@ -209,13 +209,13 @@ public class ReportsCalloutTest {
 
     @IsTest
     static void readsSalesforceErrorBodiesAsTheLocalClientDoes() {
-        ReportsApi.ApiException e = ReportsCallout.toError(400, '[{"errorCode":"BAD_REQUEST","message":"The column NOPE is not valid."}]', 'POST /x');
-        Assert.areEqual(400, e.status);
+        ReportsException e = ReportsCallout.toError(400, '[{"errorCode":"BAD_REQUEST","message":"The column NOPE is not valid."}]', 'POST /x');
+        Assert.areEqual(ReportsException.ErrorCategory.INVALID_INPUT, e.category);
         Assert.areEqual('BAD_REQUEST', e.code);
         Assert.areEqual('The column NOPE is not valid.', e.getMessage());
         Assert.isTrue(e.hintText.contains('describe_report_type'));
         e = ReportsCallout.toError(500, '<html>oops</html>', 'GET /x');
-        Assert.areEqual(500, e.status);
+        Assert.areEqual(ReportsException.ErrorCategory.FAILED, e.category);
         Assert.areEqual('HTTP_500', e.code);
         Assert.areEqual('Salesforce returned HTTP 500.', e.getMessage());
         Assert.isNull(e.hintText);
@@ -381,8 +381,8 @@ public class ReportsCalloutTest {
         Assert.isNull(ReportsShape.cell(new Map<String, Object>{ 'amount' => null }, '-', 'currency'));
         Assert.areEqual('x', ReportsShape.cell(new Map<String, Object>{ 'currency' => 'USD' }, 'x', 'currency'));
         Assert.areEqual('', ReportsShape.cell(new Map<String, Object>{ 'currency' => 'USD' }, null, 'currency'));
-        ReportsApi.ApiException tooLarge = ReportsShape.tooLarge();
-        Assert.areEqual(500, tooLarge.status);
+        ReportsException tooLarge = ReportsShape.tooLarge();
+        Assert.areEqual(ReportsException.ErrorCategory.FAILED, tooLarge.category);
         Assert.areEqual('RESULT_TOO_LARGE', tooLarge.code);
     }
 }
