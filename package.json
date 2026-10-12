@@ -32,7 +32,8 @@
     "mcp-check": "tsx scripts/mcp-check.ts",
     "mcp:generate": "tsx salesforce/scripts/generate-metadata.ts",
     "mcp:setup": "tsx salesforce/scripts/mcp-setup.ts",
-    "mcp:teardown": "tsx salesforce/scripts/mcp-teardown.ts"
+    "mcp:teardown": "tsx salesforce/scripts/mcp-teardown.ts",
+    "callout:setup": "tsx salesforce/scripts/callout-setup.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

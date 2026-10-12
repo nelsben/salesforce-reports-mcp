@@ -8,8 +8,9 @@
  *
  * The hosted MCP door reaches the core through this class too, on its own route, POST /services/apexrest/reports/v1/mcp/<tool>.
  * Its sign-in gives Apex no session, and asking for one throws an exception no catch block stops (docs/decisions/0007), so on
- * that route this class tells ReportsCallout there is no session before it calls the core, and the callout tools answer
- * CALLOUT_SESSION. Both routes read the tool name the same way, from the last segment of the URL.
+ * that route this class tells ReportsCallout to call out through the per-user named credential instead, before it calls the
+ * core. Without the optional callout-app package the callout tools answer CALLOUT_SESSION (docs/decisions/0012). Both routes
+ * read the tool name the same way, from the last segment of the URL.
  */
 @RestResource(urlMapping='/reports/v1/*')
 global with sharing class ReportsApi {
@@ -65,10 +66,11 @@ global with sharing class ReportsApi {
 
     /**
      * One call of a tool: 200 with the tool's answer, or the failure's status and error body. On the hosted route the
-     * callouts carry no identity, so the callout tools answer CALLOUT_SESSION without asking for a session.
+     * callouts go through the per-user named credential and never ask for a session. Without the credential, the callout
+     * tools answer CALLOUT_SESSION.
      */
     public static Answer handle(String tool, String body, Boolean hosted) {
-        ReportsCallout.calloutIdentity = hosted ? ReportsCallout.Identity.NONE : ReportsCallout.Identity.SESSION;
+        ReportsCallout.calloutIdentity = hosted ? ReportsCallout.Identity.NAMED_CREDENTIAL : ReportsCallout.Identity.SESSION;
         try {
             return new Answer(200, ReportsService.call(tool, body));
         } catch (Exception e) {

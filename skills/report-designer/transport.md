@@ -69,7 +69,8 @@ Act on `code`:
 | --- | --- | --- |
 | `INVALID_INPUT`, or a Salesforce error code | The input is wrong, often a column name | Fix the input from `message` and `hint` and try once more, as the skill says. |
 | `WRITE_NOT_ALLOWED` (HTTP 403) | The user lacks the write permission for saves | A refusal. Do not retry. Follow the skill's refusal steps. |
-| `CALLOUT_SESSION` | The door could not call the org's own REST API under this sign-in | A refusal. Do not retry. Follow the skill's refusal steps. |
+| `CALLOUT_SESSION` | The door could not call the org's own REST API under this sign-in. On the hosted MCP server, the org lacks the optional callout package | A refusal. Do not retry. Follow the skill's refusal steps. |
+| `CALLOUT_CREDENTIAL` | On the hosted MCP server, the org has the callout package, but this user lacks its permission set (the `hint` names it) or its token failed | A refusal. Do not retry. Follow the skill's refusal steps for `CALLOUT_SESSION`, and pass on the `hint`. |
 | `CALLOUT_FAILED`, `RESULT_TOO_LARGE` | The run was too big or too slow inside the org | Narrow it (fewer columns, a tighter date range, no detail rows) and try once. |
 | `NO_SAVED_REPORT` | `describe_report_type` could not read a type that has no saved report | Pick a type that has a saved report, or say the type cannot be read here. |
 | `UNKNOWN_TOOL` (HTTP 404) | The package is installed, but this tool is not on the door | Do not retry. Use another tool, or say it needs the local server. |
