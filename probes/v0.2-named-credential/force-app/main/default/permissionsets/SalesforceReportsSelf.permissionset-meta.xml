@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Probe: lets the user call out through the named credential SalesforceReportsSelf, and pre-authorizes the user on the probe External Client App.</description>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>SalesforceReportsSelf-RunningUser</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Salesforce Reports Self (probe)</label>
+</PermissionSet>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ExternalClientApplication xmlns="http://soap.sforce.com/2006/04/metadata">
+    <contactEmail>admin@example.com</contactEmail>
+    <description>Probe: lets the named credential SalesforceReportsSelf mint a token for the running user with the JWT bearer flow, to call this org's own REST API.</description>
+    <distributionState>Local</distributionState>
+    <isProtected>false</isProtected>
+    <label>Salesforce Reports Self (probe)</label>
+</ExternalClientApplication>
