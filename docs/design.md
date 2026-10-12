@@ -248,7 +248,7 @@ Built 2026-10-11 (`docs/probes/v0.2-phase3.md`). `list_report_types`, `query_rep
 
 ### Phase 3b result
 
-Built 2026-10-11 (`docs/probes/v0.2-phase3b.md`). `create_report` (from a definition, or from `fromReportId` plus changes), `update_report` and `clone_report` reach the in-org door through `ReportsCallout`. Each checks the custom permission `Reports_MCP_Write`, held by the permission set `Salesforce_Reports_MCP_Write`, before it reads its input or calls out, and answers 403 `WRITE_NOT_ALLOWED` without it. The hosted server carries eleven tools. No MCP Tooling object has a user or permission field, so one hosted server cannot hide tools per user: the save tools stay listed for everyone and the door refuses users without the permission. Parity holds on 49 cases, the live check runs every save step through the door (delete stays local), and 50 Apex tests pass, including a user without the permission whose call makes no callout. Open, as in 3a: whether the callout works under a hosted MCP sign-in.
+Built 2026-10-11 (`docs/probes/v0.2-phase3b.md`). `create_report` (from a definition, or from `fromReportId` plus changes), `update_report` and `clone_report` reach the in-org door through `ReportsCallout`. Each checks the custom permission `Reports_Write`, held by the permission set `Salesforce_Reports_Write`, before it reads its input or calls out, and answers 403 `WRITE_NOT_ALLOWED` without it. The hosted server carries eleven tools. No MCP Tooling object has a user or permission field, so one hosted server cannot hide tools per user: the save tools stay listed for everyone and the door refuses users without the permission. Parity holds on 49 cases, the live check runs every save step through the door (delete stays local), and 50 Apex tests pass, including a user without the permission whose call makes no callout. Open, as in 3a: whether the callout works under a hosted MCP sign-in.
 
 ### Phases
 
@@ -267,5 +267,5 @@ Built 2026-10-11 (`docs/probes/v0.2-phase3b.md`). `create_report` (from a defini
 
 - `ReportsApi` is `with sharing` and runs as the signed-in user, so sharing, folder access and field-level security stay Salesforce's own.
 - The permission set grants the Apex class and nothing else.
-- The save tools check a custom permission, `Reports_MCP_Write`, held by a second permission set, before any input is read or callout made. Without it they answer 403 `WRITE_NOT_ALLOWED`. They stay listed on the hosted server, because a tool list is not a security boundary: the REST door can be called directly, and one hosted server cannot vary its tools per user.
+- The save tools check a custom permission, `Reports_Write`, held by a second permission set, before any input is read or callout made. Without it they answer 403 `WRITE_NOT_ALLOWED`. They stay listed on the hosted server, because a tool list is not a security boundary: the REST door can be called directly, and one hosted server cannot vary its tools per user.
 - No `delete_report` in the org.

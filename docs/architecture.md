@@ -35,11 +35,11 @@ flowchart TB
 
   subgraph forceapp [Package force-app: the REST adapter and the core]
     API["ReportsApi @RestResource<br/>/services/apexrest/reports/v1/{tool}<br/>reads the URL and body, maps error categories to status codes"]
-    SVC["ReportsService<br/>tool list and dispatch by tool name, with sharing<br/>checks Reports_MCP_Write for saves"]
+    SVC["ReportsService<br/>tool list and dispatch by tool name, with sharing<br/>checks Reports_Write for saves"]
     SHAPE["ReportsDefinition, ReportsShape,<br/>ReportsSummary, ReportsCombine<br/>definition to reportMetadata, factMap to ReportResult"]
     ERR["ReportsInput, ReportsException<br/>typed input, errors with a category<br/>and never an HTTP status"]
     CALL["ReportsCallout<br/>outbound adapter: the org calling its own Reports REST API"]
-    PS["Permission sets<br/>Salesforce_Reports_MCP (read)<br/>Salesforce_Reports_MCP_Write (saves)"]
+    PS["Permission sets<br/>Salesforce_Reports (read)<br/>Salesforce_Reports_Write (saves)"]
   end
 
   subgraph platform [Salesforce platform]
@@ -118,8 +118,8 @@ What the user sees when something is refused:
 
 | Case | Status | Body `code` | What the skill tells Claude to do |
 | --- | --- | --- | --- |
-| No permission set | 403 from the platform | none | Ask an admin for `Salesforce_Reports_MCP` |
-| Save without the custom permission | 403 | `WRITE_NOT_ALLOWED` | Ask an admin for `Salesforce_Reports_MCP_Write`; offer the local server or the report builder meanwhile |
+| No permission set | 403 from the platform | none | Ask an admin for `Salesforce_Reports` |
+| Save without the custom permission | 403 | `WRITE_NOT_ALLOWED` | Ask an admin for `Salesforce_Reports_Write`; offer the local server or the report builder meanwhile |
 | Session cannot reach the REST API | 500 | `CALLOUT_SESSION` | Explain which tools still work (`search`, `folders`, `describe_report`, `run_report`) and point at the scope note below |
 | Callout failed for another reason | 500 | `CALLOUT_FAILED` | Retry once, then report the message |
 
@@ -147,7 +147,7 @@ sequenceDiagram
   CLI->>TOOL: one McpServerToolDefinition and McpServerToolApiDefinition per tool<br/>ApiSource API_CATALOG, ApiIdentifier ar:ReportsApi, Operation = tool name
   A->>SETUP: API Catalog, ReportsApi, activate the operations
   Note over A,SETUP: The only step with no API. Salesforce requires the click.
-  A->>SETUP: Assign Salesforce_Reports_MCP to users, and Salesforce_Reports_MCP_Write to the few who save
+  A->>SETUP: Assign Salesforce_Reports to users, and Salesforce_Reports_Write to the few who save
   A-->>A: Share the endpoint URL and the consumer key (a public id, not a secret)
 ```
 
@@ -225,7 +225,7 @@ sequenceDiagram
   participant RR as Reports REST API
 
   D->>SVC: call("create_report", {"definition":{...},"folderId":"..."})
-  SVC->>FM: checkPermission("Reports_MCP_Write")
+  SVC->>FM: checkPermission("Reports_Write")
   alt the user holds the custom permission
     FM-->>SVC: true
     SVC->>RR: ReportsCallout: POST /analytics/reports (reportMetadata)
@@ -233,7 +233,7 @@ sequenceDiagram
     SVC-->>D: the saved report's summary, which the door answers with 200
   else the user does not
     FM-->>SVC: false
-    SVC-->>D: FORBIDDEN WRITE_NOT_ALLOWED, "ask an admin to assign Salesforce_Reports_MCP_Write", which the door answers with 403
+    SVC-->>D: FORBIDDEN WRITE_NOT_ALLOWED, "ask an admin to assign Salesforce_Reports_Write", which the door answers with 403
   end
 ```
 
@@ -245,8 +245,8 @@ There is no `delete_report` in the org. Deleting is left to the report builder a
 
 | Control | What it governs | Who sets it | Enforced by |
 | --- | --- | --- | --- |
-| Permission set `Salesforce_Reports_MCP` | who may call `ReportsApi` at all | admin | the platform (Apex class access) |
-| Permission set `Salesforce_Reports_MCP_Write` with custom permission `Reports_MCP_Write` | who may create, update or clone | admin | `ReportsService`, before any callout |
+| Permission set `Salesforce_Reports` | who may call `ReportsApi` at all | admin | the platform (Apex class access) |
+| Permission set `Salesforce_Reports_Write` with custom permission `Reports_Write` | who may create, update or clone | admin | `ReportsService`, before any callout |
 | `with sharing`, running as the caller | which reports, folders, rows and fields a call can see | the org's existing sharing model | the platform |
 | External Client App scopes `mcp_api`, `refresh_token` | what the hosted connector's token can reach | admin, at deploy | Salesforce OAuth |
 | `SF_REPORTS_SETUP_ORGS` or `--yes` | which orgs the setup scripts will write to | the person running the script | the scripts, before any CLI call |

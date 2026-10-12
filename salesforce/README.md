@@ -4,7 +4,7 @@ Two Salesforce package directories, as [decision 0009](../docs/decisions/0009-tw
 
 | Directory | Holds | Depends on |
 | --- | --- | --- |
-| `force-app` (default) | the REST door: the Apex classes and tests, the permission sets `Salesforce_Reports_MCP` and `Salesforce_Reports_MCP_Write`, and the custom permission `Reports_MCP_Write` | nothing |
+| `force-app` (default) | the REST door: the Apex classes and tests, the permission sets `Salesforce_Reports` and `Salesforce_Reports_Write`, and the custom permission `Reports_Write` | nothing |
 | `mcp-app` | the hosted MCP door: the API Catalog entry `ReportsApi`, the MCP server `SalesforceReports` and the External Client App `SalesforceReportsMcp`. No code. | `force-app` |
 
 The REST door is an Apex REST resource, `ReportsApi`, that answers the runner tools from inside the org. It takes the same JSON input as the local server's tool and returns the same JSON. `ReportsApi` is a thin adapter over the core class `ReportsService`, as [docs/architecture.md](../docs/architecture.md) draws it. The contract is in [docs/design.md](../docs/design.md), section "v0.2: the in-org doors". Phase 1 results are in [docs/probes/v0.2-phase1.md](../docs/probes/v0.2-phase1.md), phase 3a (the callout tools) in [docs/probes/v0.2-phase3.md](../docs/probes/v0.2-phase3.md), and phase 3b (the save tools) in [docs/probes/v0.2-phase3b.md](../docs/probes/v0.2-phase3b.md).
@@ -14,7 +14,7 @@ POST /services/apexrest/reports/v1/<tool>
 Body: the tool's JSON input, as inputSchema in src/server.ts defines it
 200:  the JSON the local tool returns
 400:  bad input or a Salesforce 4xx, 500: anything else. Body: {"error": {"code", "message", "hint"?}}
-403:  a save tool, for a user without the Reports_MCP_Write custom permission. Body: {"error": {"code": "WRITE_NOT_ALLOWED", ...}}
+403:  a save tool, for a user without the Reports_Write custom permission. Body: {"error": {"code": "WRITE_NOT_ALLOWED", ...}}
 404:  a tool this door lacks. Body: {"error": {"code": "UNKNOWN_TOOL", ...}}
 ```
 
@@ -39,7 +39,7 @@ The door has eleven tools: the eight read tools `search_reports`, `list_report_f
 
 ### Saving
 
-The save tools check the custom permission `Reports_MCP_Write` with `FeatureManagement.checkPermission` before they read the input or call out. The permission set `Salesforce_Reports_MCP_Write` grants it. A user without it gets HTTP 403, code `WRITE_NOT_ALLOWED`, and a hint naming that permission set. The read tools never check it. A user who saves also needs Create and Customize Reports, as on the local server.
+The save tools check the custom permission `Reports_Write` with `FeatureManagement.checkPermission` before they read the input or call out. The permission set `Salesforce_Reports_Write` grants it. A user without it gets HTTP 403, code `WRITE_NOT_ALLOWED`, and a hint naming that permission set. The read tools never check it. A user who saves also needs Create and Customize Reports, as on the local server.
 
 - `create_report` posts to `/analytics/reports`. From `fromReportId`, it first reads the saved report's REST describe, so the copy keeps fields Apex does not expose, such as `sortBy` and `presentationOptions`.
 - `update_report` patches `/analytics/reports/{id}` with only the given fields, and answers one `changes` line per field sent.
@@ -60,7 +60,7 @@ The save tools check the custom permission `Reports_MCP_Write` with `FeatureMana
 | Class | Layer | What it does |
 | --- | --- | --- |
 | `ReportsApi` | REST adapter | The `@RestResource`. Reads the tool name from the URL and the body text, calls `ReportsService`, and answers 200, or maps an error's category to 400, 403, 404 or 500 with the error body. |
-| `ReportsService` | core | The tool list, the `Reports_MCP_Write` check for the save tools (before the input is read or any callout), dispatch by tool name, and the eleven tools, the SOQL ones included. Ported from `src/server.ts`. |
+| `ReportsService` | core | The tool list, the `Reports_Write` check for the save tools (before the input is read or any callout), dispatch by tool name, and the eleven tools, the SOQL ones included. Ported from `src/server.ts`. |
 | `ReportsInput` | core | Parses the body and reads typed fields, refusing bad input with the local server's messages. |
 | `ReportsException` | core | The one error type: code, message, hint and a category (invalid input, forbidden, unknown tool, failed), never an HTTP status. Turns any other exception into one, as `src/format.ts` does. |
 | `ReportsDefinition` | core | `src/reports/definition.ts`: the friendly definition to `reportMetadata` to `Reports.ReportMetadata`. |
@@ -126,7 +126,7 @@ Removing the External Client App ends every Claude connector that signs in throu
 
 To remove the REST door after that, unassign both permission sets from every user first, since an assigned permission set cannot be deleted.
 
-- The pre step, `manifest/force-app/destructiveChangesPre.xml`, removes the two permission sets (`Salesforce_Reports_MCP` grants every non-test class, `ReportsService`, `ReportsInput` and `ReportsException` among them).
+- The pre step, `manifest/force-app/destructiveChangesPre.xml`, removes the two permission sets (`Salesforce_Reports` grants every non-test class, `ReportsService`, `ReportsInput` and `ReportsException` among them).
 - The post step, `manifest/force-app/destructiveChanges.xml`, then removes the custom permission and all fifteen classes: the adapter, the core, the callout and their tests.
 
 ```bash
@@ -146,7 +146,7 @@ The same class is also a Salesforce hosted MCP server. Everything it adds is in 
 
 The permission sets and the custom permission it relies on are in `force-app`, since the REST door needs them too.
 
-For the three save tools, the generator adds two sentences after the local description, in the OpenAPI operation, the server's `descriptionOverride` and the tool row: "In the org, this tool needs the permission set Salesforce_Reports_MCP_Write. Without it, the call answers WRITE_NOT_ALLOWED." `src/server.ts` stays as it is.
+For the three save tools, the generator adds two sentences after the local description, in the OpenAPI operation, the server's `descriptionOverride` and the tool row: "In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED." `src/server.ts` stays as it is.
 
 The setup script writes each tool row's ReadOnly, Destructive, Idempotent and OpenWorld flags from the local server's annotations. A hosted server lists its tools to every user who can reach it: there is no per-user or per-permission field on the tool, server or access rows. So the save tools are listed for everyone, and the door refuses a user without the write permission.
 

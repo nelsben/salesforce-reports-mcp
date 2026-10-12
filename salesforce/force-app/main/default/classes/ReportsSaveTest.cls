@@ -1,6 +1,6 @@
 /**
  * The save tools (create_report, update_report, clone_report) against HttpCalloutMock answers shaped like the REST
- * API's. The writer is the running user with the Salesforce_Reports_MCP_Write permission set (assigned in the test
+ * API's. The writer is the running user with the Salesforce_Reports_Write permission set (assigned in the test
  * setup when missing). The reader is a Chatter Free user the test setup creates, so it takes no Salesforce license.
  * Both are rolled back with the test. No report is created. Each test calls inside System.runAs and Test.startTest:
  * without startTest, a callout after runAs fails with "uncommitted work pending".
@@ -303,7 +303,7 @@ private class ReportsSaveTest {
                 ReportsApi.Answer a = call(tool, bodies.get(tool));
                 Assert.areEqual(403, a.status, tool);
                 Assert.areEqual('WRITE_NOT_ALLOWED', error(a).get('code'), tool);
-                Assert.isTrue(((String) error(a).get('hint')).contains('Salesforce_Reports_MCP_Write'), tool);
+                Assert.isTrue(((String) error(a).get('hint')).contains('Salesforce_Reports_Write'), tool);
             }
             Assert.areEqual(0, m.requests.size(), 'refused before any callout');
             // The read tools never check the permission.

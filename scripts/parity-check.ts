@@ -6,7 +6,7 @@
  * query_report, list_report_types and describe_report_type reach the org's REST API from Apex (phase 3a), so their
  * cases also check that callout. The save cases (phase 3b) let each door make its own zz-parity report, compare the
  * answers after normalize(), and delete every report through the local server. The org's user needs the
- * Salesforce_Reports_MCP_Write permission set for the door's save cases.
+ * Salesforce_Reports_Write permission set for the door's save cases.
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";

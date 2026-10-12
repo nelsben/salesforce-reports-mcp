@@ -1,6 +1,6 @@
 # 0005. Saves behind a custom permission, enforced in the service, not hidden in the tool list
 
-Status: Accepted, 2026-10-11
+Status: Accepted, 2026-10-11. The names were changed by [0011](0011-name-permissions-for-the-capability.md); the body below keeps the original names.
 
 ## Context
 

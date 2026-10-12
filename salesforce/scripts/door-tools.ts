@@ -12,7 +12,7 @@ import { buildServer } from "../../src/server.js";
 /**
  * The eleven tools ReportsApi answers, in the order the door lists them: the six phase 1 tools, list_report_types
  * and query_report, which call the org's own REST API (phase 3a), and the three save tools (phase 3b), which also
- * need the Reports_MCP_Write custom permission. delete_report stays on the local server only.
+ * need the Reports_Write custom permission. delete_report stays on the local server only.
  */
 export const DOOR_TOOLS = [
   "search_reports",
@@ -28,12 +28,12 @@ export const DOOR_TOOLS = [
   "clone_report",
 ] as const;
 
-/** The save tools, which need the Reports_MCP_Write custom permission in the org. */
+/** The save tools, which need the Reports_Write custom permission in the org. */
 export const SAVE_TOOLS: readonly string[] = ["create_report", "update_report", "clone_report"];
 
 /** Added after a save tool's local description on the door: the OpenAPI operation, the server, the tool row. */
 export const WRITE_PERMISSION_SENTENCES =
-  "In the org, this tool needs the permission set Salesforce_Reports_MCP_Write. Without it, the call answers WRITE_NOT_ALLOWED.";
+  "In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED.";
 
 /** A tool's description on the door: the local description, plus the write permission sentences for a save tool. */
 export function doorDescription(name: string, local: string): string {
