@@ -73,7 +73,7 @@ npm run live -- --org <alias> --door apex --allow-delete
 Remove everything: first the MCP rows and server access (from the repo root), then the server, the API Catalog entry, the permission set and the classes. Check the second command first with `--dry-run`. A server that is still active cannot be deleted ("Server must be inactive before making changes"), and a class an API Catalog entry names cannot be deleted before the entry, which is why the manifest has a pre and a post step.
 
 ```bash
-npm run mcp:teardown -- <alias>
+npm run mcp:teardown -- --org <alias> --yes
 sf project deploy start --manifest manifest/package.xml --pre-destructive-changes manifest/destructiveChangesPre.xml --post-destructive-changes manifest/destructiveChanges.xml -o <alias>
 ```
 
@@ -87,7 +87,7 @@ The same class is also a Salesforce hosted MCP server. The admin steps are in th
 | MCP server `SalesforceReports`, with six tools on `ar:ReportsApi` | `force-app/main/default/mcpServerDefinitions/` | `npm run mcp:generate` |
 | Permission set `Salesforce_Reports_MCP` (the five non-test classes) | `force-app/main/default/permissionsets/` | by hand |
 | External Client App `SalesforceReportsMcp` (PKCE, `mcp_api`, `refresh_token`, callback for claude.ai) | `eca/` | by hand; deploy it with `-d eca` |
-| Tool rows and server access | not metadata | `npm run mcp:setup -- <alias>`, removed by `npm run mcp:teardown -- <alias>` |
+| Tool rows and server access | not metadata | `npm run mcp:setup -- --org <alias> --yes`, removed by `npm run mcp:teardown -- --org <alias> --yes` |
 
 `npm run mcp:generate -- --check` fails when the committed registration or server no longer matches `src/server.ts`.
 

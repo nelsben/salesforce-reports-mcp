@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `mcp:setup` and `mcp:teardown` take any org you name: pass `--yes`, or set `SF_REPORTS_SETUP_ORGS` to the aliases they may change (an alias off that list is refused even with `--yes`). No alias is hard-coded, and both print the alias and instance URL before they write.
 - v0.2 phase 2, the in-org MCP door: `salesforce/` adds the API Catalog entry `ReportsApi` (one operation per tool, schemas generated from the local server by `npm run mcp:generate`), the hosted MCP server `SalesforceReports` with the six read tools, a permission set, `npm run mcp:setup` and `mcp:teardown`, an External Client App for sign-in, and `npm run mcp-check`. The README's "In the org" section has the admin steps.
 - v0.2 phase 1, the in-org REST door: `salesforce/` holds `ReportsApi`, an Apex REST class at `/services/apexrest/reports/v1/<tool>` for search_reports, list_report_folders, describe_report, describe_report_type, run_report and combine_reports, with the local server's inputs and results. `npm run parity` checks both doors give the same JSON, and `npm run live -- --door apex` runs the read steps through it.
 - The Salesforce CLI now starts on Windows: `sf.cmd` runs through a shell with the org alias checked first, and a failure to start the CLI says how to fix it.
