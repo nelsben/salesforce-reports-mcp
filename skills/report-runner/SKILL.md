@@ -36,7 +36,7 @@ A failed call returns an error with a code and a hint (`isError` on MCP, an `err
 
 A refusal is not a bad input. Never retry it.
 
-- **`CALLOUT_SESSION`, or `query_report` is not offered.** The door cannot run unsaved definitions under this sign-in, so `query_report` and `list_report_types` will not work. These still work: `search_reports`, `list_report_folders`, `describe_report`, `run_report`, and `combine_reports` over saved reports. Say that in one sentence. Then answer through the closest saved report: find it with `search_reports`, and cut it the user's way with `run_report` and `overrides` (other groupings, columns, filters or dates). Say which report you started from and what you changed. If no saved report is close, say so and that an admin can fix the sign-in.
+- **`CALLOUT_SESSION`, or `query_report` is not offered.** The door cannot run unsaved definitions under this sign-in, so `query_report` and `list_report_types` will not work. These still work: `search_reports`, `list_report_folders`, `describe_report`, `run_report`, `combine_reports` over saved reports, and `describe_report_type` for a type that has a saved report (it reads the columns through that report). Say that in one sentence. Then answer through the closest saved report: find it with `search_reports`, and cut it the user's way with `run_report` and `overrides` (other groupings, columns, filters or dates). Say which report you started from and what you changed. If no saved report is close, say so and that an admin can fix the sign-in.
 
 ## Details
 

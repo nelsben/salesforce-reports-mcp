@@ -18,7 +18,7 @@ Every tool is one POST to `/services/apexrest/reports/v1/<tool>`, with the tool'
 
 Pass the JSON in a body file. It avoids every shell quoting problem (apostrophes in report names, quotes and braces in filters):
 
-1. Write the input JSON to a new file with your file-writing tool, in your scratchpad directory if the session has one, otherwise a temp folder (for example `/tmp/sf-reports/run_report-1.json`). Use a fresh file name for each call, so you never overwrite a file you have not read. Do not make the file in the shell (`echo`, `printf`, `mkdir`, `>`): the file tool needs no folder made first, and a shell command that does more than the one `sf` call is refused by Claude Code's permission checks.
+1. Write the input JSON to a new file with your file-writing tool, in your scratchpad directory if the session has one, otherwise a temp folder (for example `/tmp/sf-reports/run_report-1.json`). Use a fresh file name for each call, so you never overwrite a file you have not read. Do not make the file in the shell (`echo`, `printf`, `mkdir`, `>`): the file tool needs no folder made first, and a shell command that does more than the one `sf` call can be refused by Claude Code's permission checks.
 2. Run the call as a command of its own, with `@` before the path:
 
 ```bash
