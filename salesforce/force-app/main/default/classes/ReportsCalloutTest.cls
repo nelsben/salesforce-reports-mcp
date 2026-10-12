@@ -137,6 +137,18 @@ public class ReportsCalloutTest {
     }
 
     @IsTest
+    static void readsANullBodyAsNoInput() {
+        Mock m = use(new Mock().route('/analytics/reportTypes', 200, TYPES));
+        ok(call('list_report_types', 'null'));
+        Assert.areEqual(1, m.requests.size());
+        ReportsApi.Answer hosted = ReportsApi.handle('list_report_types', 'null', true);
+        Assert.areEqual('CALLOUT_SESSION', error(hosted).get('code'));
+        Assert.areEqual(1, m.requests.size(), 'no callout on the hosted route');
+        Assert.areEqual(400, call('list_report_types', '[]').status);
+        Assert.areEqual(400, call('list_report_types', '"x"').status);
+    }
+
+    @IsTest
     static void describesAReportTypeThroughTheRestApi() {
         use(new Mock().route('/analytics/reportTypes/Opportunity', 200, DESCRIBE));
         Map<String, Object> d = ok(call('describe_report_type', '{"type":"Opportunity"}'));

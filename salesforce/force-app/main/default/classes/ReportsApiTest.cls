@@ -259,4 +259,19 @@ private class ReportsApiTest {
         Assert.areEqual(200, post('/services/apexrest/reports/v1/list_report_types', '{}').status);
         Assert.areEqual(1, m.requests.size());
     }
+
+    /** A JSON null body is no input on both routes, as the local server reads missing arguments. Other non-objects are refused. */
+    @IsTest
+    static void readsANullBodyAsNoInput() {
+        Assert.areEqual(200, ReportsApi.handle('list_report_folders', 'null', false).status);
+        Assert.areEqual(200, ReportsApi.handle('list_report_folders', 'null', true).status);
+        for (String body : new List<String>{ '[]', '"x"' }) {
+            for (Boolean hosted : new List<Boolean>{ false, true }) {
+                ReportsApi.Answer a = ReportsApi.handle('list_report_folders', body, hosted);
+                Assert.areEqual(400, a.status, body);
+                Assert.areEqual('INVALID_INPUT', errorCode(a), body);
+                Assert.areEqual('The request body must be a JSON object.', errorMessage(a), body);
+            }
+        }
+    }
 }
