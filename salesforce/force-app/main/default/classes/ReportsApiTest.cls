@@ -214,4 +214,49 @@ private class ReportsApiTest {
         Assert.areEqual(400, notJson.status);
         assertBody(errorBody('INVALID_INPUT', 'The request body is not JSON.', null), notJson.body);
     }
+
+    /** A POST over HTTP to `uri`, answered as the response's status and parsed body. */
+    static ReportsApi.Answer post(String uri, String body) {
+        RestContext.request = new RestRequest();
+        RestContext.response = new RestResponse();
+        RestContext.request.requestURI = uri;
+        RestContext.request.requestBody = Blob.valueOf(body);
+        ReportsApi.post();
+        return new ReportsApi.Answer(RestContext.response.statusCode, JSON.deserializeUntyped(RestContext.response.responseBody.toString()));
+    }
+
+    /** Both routes read the tool name from the last segment. Only /reports/v1/mcp/<tool> is the hosted route. */
+    @IsTest
+    static void readsTheToolNameTheSameWayOnBothRoutes() {
+        for (String uri : new List<String>{ '/reports/v1/run_report', '/reports/v1/mcp/run_report', '/services/apexrest/reports/v1/mcp/run_report' }) {
+            Assert.areEqual('run_report', ReportsApi.toolName(uri), uri);
+        }
+        Assert.isFalse(ReportsApi.isHosted('/reports/v1/run_report', 'run_report'));
+        Assert.isFalse(ReportsApi.isHosted('/services/apexrest/reports/v1/run_report', 'run_report'));
+        Assert.isTrue(ReportsApi.isHosted('/reports/v1/mcp/run_report', 'run_report'));
+        Assert.isTrue(ReportsApi.isHosted('/services/apexrest/reports/v1/mcp/run_report', 'run_report'));
+        Assert.isFalse(ReportsApi.isHosted('/reports/v1/mcp', 'mcp'), 'a tool named mcp on the REST route');
+        Assert.areEqual('', ReportsApi.toolName(null));
+        Assert.isFalse(ReportsApi.isHosted(null, ''));
+    }
+
+    /** Over HTTP on the hosted route: unknown tools are 404, the read tools run, and the callout tools make no callout. */
+    @IsTest
+    static void servesTheHostedRoute() {
+        ReportsCalloutTest.Mock m = new ReportsCalloutTest.Mock().route('/analytics/reportTypes', 200, '[]');
+        Test.setMock(HttpCalloutMock.class, m);
+        ReportsApi.Answer unknown = post('/services/apexrest/reports/v1/mcp/nope', '{}');
+        Assert.areEqual(404, unknown.status);
+        Assert.areEqual('UNKNOWN_TOOL', errorCode(unknown));
+        Assert.isTrue(errorMessage(unknown).startsWith('There is no tool named "nope". This door offers search_reports, '), errorMessage(unknown));
+        Assert.areEqual(404, post('/services/apexrest/reports/v1/mcp/delete_report', '{}').status);
+        Assert.areEqual(200, post('/services/apexrest/reports/v1/mcp/list_report_folders', '{"search":"public"}').status);
+        ReportsApi.Answer types = post('/services/apexrest/reports/v1/mcp/list_report_types', '{}');
+        Assert.areEqual(500, types.status);
+        assertBody(errorBody('CALLOUT_SESSION', ReportsCallout.HOSTED_MESSAGE, ReportsCallout.HOSTED_HINT), types.body);
+        Assert.areEqual(0, m.requests.size(), 'no callout on the hosted route');
+        // The next call on the REST route asks for the session again and calls out.
+        Assert.areEqual(200, post('/services/apexrest/reports/v1/list_report_types', '{}').status);
+        Assert.areEqual(1, m.requests.size());
+    }
 }

@@ -207,6 +207,33 @@ public class ReportsCalloutTest {
         Assert.areEqual(0, m.requests.size());
     }
 
+    /** The hosted MCP door's route: no session is asked for and no callout is made (docs/decisions/0007). */
+    @IsTest
+    static void answersCalloutSessionOnTheHostedRoute() {
+        Mock m = use(new Mock().route('/analytics/reportTypes', 200, TYPES).route('/analytics/reports/query', 200, TABULAR));
+        Map<String, String> bodies = new Map<String, String>{
+            'list_report_types' => '{}',
+            'query_report' => '{"reportType":"Opportunity","columns":["AMOUNT"]}',
+            'combine_reports' => '{"mode":"stack","inputs":[{"alias":"a","definition":{"reportType":"Opportunity","columns":["OPPORTUNITY_NAME"]}},{"alias":"b","definition":{"reportType":"Opportunity","columns":["OPPORTUNITY_NAME"]}}]}'
+        };
+        for (String tool : bodies.keySet()) {
+            ReportsApi.Answer a = ReportsApi.handle(tool, bodies.get(tool), true);
+            Assert.areEqual(500, a.status, tool);
+            Assert.areEqual('CALLOUT_SESSION', error(a).get('code'), tool);
+            Assert.areEqual(ReportsCallout.HOSTED_MESSAGE, error(a).get('message'), tool);
+            Assert.areEqual(ReportsCallout.HOSTED_HINT, error(a).get('hint'), tool);
+        }
+        // describe_report_type reaches its saved-report fallback.
+        ReportsApi.Answer described = ReportsApi.handle('describe_report_type', '{"type":"No_Such_Type__c"}', true);
+        Assert.areEqual(400, described.status);
+        Assert.areEqual('NO_SAVED_REPORT', error(described).get('code'));
+        Assert.areEqual(0, m.requests.size(), 'no callout on the hosted route');
+        // The REST route still calls out with the session.
+        ok(call('list_report_types', '{}'));
+        Assert.areEqual(1, m.requests.size());
+        Assert.isTrue(m.requests[0].getHeader('Authorization').startsWith('Bearer '));
+    }
+
     @IsTest
     static void readsSalesforceErrorBodiesAsTheLocalClientDoes() {
         ReportsException e = ReportsCallout.toError(400, '[{"errorCode":"BAD_REQUEST","message":"The column NOPE is not valid."}]', 'POST /x');

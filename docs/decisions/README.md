@@ -12,7 +12,7 @@ One page per architectural decision: the context, the decision, what it costs, a
 | [0004](0004-reportmanager-first-callout-for-the-rest.md) | `Reports.ReportManager` first, a callout to the org's own REST API for the rest | Accepted |
 | [0005](0005-saves-behind-a-custom-permission.md) | Saves behind a custom permission, enforced in the service, not hidden in the tool list | Accepted |
 | [0006](0006-no-delete-in-the-org.md) | No delete in the org | Accepted |
-| [0007](0007-callout-identity-under-hosted-mcp.md) | The callout's identity under a hosted MCP sign-in | Proposed |
+| [0007](0007-callout-identity-under-hosted-mcp.md) | The callout's identity under a hosted MCP sign-in | Accepted |
 | [0008](0008-result-limits.md) | Result limits: a row cap from the heap, and notes that say so | Accepted |
 | [0009](0009-two-shipping-units.md) | Two Salesforce shipping units: the REST door and the MCP adapter | Accepted |
 | [0010](0010-verification-by-parity.md) | Verification by parity between doors, against a real org | Accepted |

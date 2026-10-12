@@ -29,12 +29,12 @@ flowchart TB
   subgraph mcpapp [Package mcp-app: the MCP adapter]
     GW["Salesforce MCP gateway<br/>api.salesforce.com/platform/mcp"]
     DEF["McpServerDefinition SalesforceReports<br/>one tool row per operation"]
-    ESR["ExternalServiceRegistration ReportsApi<br/>API Catalog, OpenAPI from the class"]
+    ESR["ExternalServiceRegistration ReportsApi<br/>API Catalog, OpenAPI from the class<br/>operations at /reports/v1/mcp/{tool}"]
     ECA["External Client App<br/>scopes mcp_api, refresh_token"]
   end
 
   subgraph forceapp [Package force-app: the REST adapter and the core]
-    API["ReportsApi @RestResource<br/>/services/apexrest/reports/v1/{tool}<br/>reads the URL and body, maps error categories to status codes"]
+    API["ReportsApi @RestResource<br/>/services/apexrest/reports/v1/{tool}, the REST door<br/>/services/apexrest/reports/v1/mcp/{tool}, the hosted door<br/>reads the URL and body, maps error categories to status codes"]
     SVC["ReportsService<br/>tool list and dispatch by tool name, with sharing<br/>checks Reports_Write for saves"]
     SHAPE["ReportsDefinition, ReportsShape,<br/>ReportsSummary, ReportsCombine<br/>definition to reportMetadata, factMap to ReportResult"]
     ERR["ReportsInput, ReportsException<br/>typed input, errors with a category<br/>and never an HTTP status"]
@@ -66,6 +66,7 @@ Reading the diagram:
 
 - The core never knows which door called it. `ReportsApi` is thin on purpose: it reads the URL and the body, calls `ReportsService`, and maps an error's category to 400, 403, 404 or 500 with the error body. No core class names `ReportsApi`, and a core error carries a category (invalid input, forbidden, unknown tool, failed), never an HTTP status.
 - `ReportsCallout` is the outbound adapter. It may read the upstream status codes of the Reports REST API, but it throws the core's `ReportsException`, so the core sees one error type whichever platform route failed.
+- Each door has its own route on `ReportsApi`. The REST door posts to `/reports/v1/{tool}` and the callouts carry the caller's session. The hosted door's registration posts to `/reports/v1/mcp/{tool}`. A hosted sign-in gives Apex no session, and asking for one throws an exception no `catch` stops, so on that route `ReportsApi` tells `ReportsCallout` there is no session before it calls the core, and every callout answers `CALLOUT_SESSION` without asking ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md)). The core still never knows which door called.
 - The MCP adapter adds no Apex. It is metadata (the registration, the server definition, the client app) plus a setup script that writes the tool rows. Removing it leaves the REST door untouched.
 - Two platform routes exist for a reason. `Reports.ReportManager` runs saved reports with no callout and no extra scope. Unsaved runs, report types and saves have no Apex API, so they go through `ReportsCallout` to the Reports REST API as the signed-in user.
 
@@ -121,6 +122,7 @@ What the user sees when something is refused:
 | No permission set | 403 from the platform | none | Ask an admin for `Salesforce_Reports` |
 | Save without the custom permission | 403 | `WRITE_NOT_ALLOWED` | Ask an admin for `Salesforce_Reports_Write`; offer the local server or the report builder meanwhile |
 | Session cannot reach the REST API | 500 | `CALLOUT_SESSION` | Explain which tools still work (`search`, `folders`, `describe_report`, `run_report`) and point at the scope note below |
+| A callout tool on the hosted route | 500 | `CALLOUT_SESSION` | The same. No session is asked for and no callout is made |
 | Callout failed for another reason | 500 | `CALLOUT_FAILED` | Retry once, then report the message |
 
 ## Feature 2: the hosted MCP door
@@ -177,7 +179,7 @@ sequenceDiagram
   U->>AI: "Run my pipeline report"
   AI->>GW: tools/call run_report {"reportId":"00O..."}
   GW->>CAT: operation run_report on ar:ReportsApi, as the user
-  CAT->>API: POST /services/apexrest/reports/v1/run_report
+  CAT->>API: POST /services/apexrest/reports/v1/mcp/run_report
   API->>SVC: call("run_report", body)
   SVC->>RM: runReport
   RM-->>SVC: factMap
@@ -190,28 +192,24 @@ sequenceDiagram
   U->>AI: "Try it grouped by region instead, don't save it"
   AI->>GW: tools/call query_report {"definition":{...}}
   GW->>CAT: operation query_report
-  CAT->>API: POST .../query_report
+  CAT->>API: POST .../mcp/query_report
+  API->>API: the hosted route, so the callout has no session to use
   API->>SVC: call("query_report", body)
-  SVC->>RR: ReportsCallout with the caller's session
-  alt the session is accepted by the REST API
-    RR-->>SVC: factMap
-    SVC-->>API: ReportResult, 200
-  else the REST API refuses a token scoped to mcp_api only
-    RR-->>SVC: 401 INVALID_SESSION_ID
-    SVC-->>API: CALLOUT_SESSION, 500, with the remedy in the message
-  end
+  SVC->>SVC: ReportsCallout refuses before it asks for a session
+  SVC-->>API: CALLOUT_SESSION, 500, with the tools that still work
   API-->>CAT: response
   CAT-->>GW: response
-  GW-->>AI: result or error
-  AI-->>U: Numbers, or which tools work and what the admin can change
+  GW-->>AI: error
+  AI-->>U: Which tools work here, and the local server or REST door for the rest
+  Note over SVC,RR: No call reaches the Reports REST API from the hosted route
 ```
 
-The `alt` block is the one open question in v0.2. It is answered by a sign-in to claude.ai and one call to `list_report_types`. Until then the design assumes the stricter branch, and the choice of fix is a decision record:
+This was the one open question in v0.2, settled on 2026-10-12 ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md)). Under the hosted sign-in, `UserInfo.getSessionId()` throws an exception Apex cannot catch, so the hosted route never asks for a session. On it, `list_report_types`, `query_report`, `combine_reports` with definitions and the three saves answer `CALLOUT_SESSION`. `describe_report_type` reads the type through a saved report, and the other tools work as on the REST door. The fixes:
 
 | Fix | Keeps the token narrow | Setup | Verdict |
 | --- | --- | --- | --- |
-| Add the `api` scope to the External Client App | No. The connector token can then call any REST API as the user | one setting | Documented opt-in for admins who want saves and unsaved runs in the hosted door |
-| Named Credential, per-user principal | Yes | each user authorises once in My Settings | The alternative for orgs that will not widen the token |
+| Add the `api` scope to the External Client App | No. The connector token can then call any REST API as the user | one setting | Untested: whether it stops the throw is not known |
+| Named Credential, per-user principal | Yes | each user authorises once in My Settings | Chosen. It gets its own decision record when it is built |
 | Named Credential, named principal | Yes, but reports would run as the integration user | one credential | Ruled out: the caller's sharing and field security would be lost |
 
 ## The write path, both doors

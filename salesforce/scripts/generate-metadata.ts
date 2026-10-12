@@ -1,9 +1,11 @@
 /**
  * Writes the hosted MCP door's metadata from the local server's tool list, so names, descriptions and input
  * schemas cannot drift from src/server.ts:
- * - the ExternalServiceRegistration for ReportsApi: one POST operation per door tool, operationId equal to the
- *   tool name, request body schema equal to the tool's inputSchema (as OpenAPI 3.0: $ref inlined, type lists
- *   as anyOf, no $schema);
+ * - the ExternalServiceRegistration for ReportsApi: one POST operation per door tool at /reports/v1/mcp/<tool>,
+ *   operationId equal to the tool name, request body schema equal to the tool's inputSchema (as OpenAPI 3.0:
+ *   $ref inlined, type lists as anyOf, no $schema). The hosted door has its own route, so ReportsApi knows it has
+ *   no session to call out with before it asks for one (docs/decisions/0007). The REST door stays at
+ *   /reports/v1/<tool>;
  * - the McpServerDefinition SalesforceReports with one <tools> entry per door tool (ar:ReportsApi, API_CATALOG).
  * Both land in salesforce/mcp-app. The save tools' door descriptions name the write permission set (door-tools.ts).
  *
@@ -65,7 +67,12 @@ export function toOpenApiSchema(root: Json): Json {
   return walk(root, 0);
 }
 
-/** The OpenAPI 3.0 document for the door. */
+/** The hosted MCP door's route for a tool. ReportsApi reads the "mcp" segment and makes no callout under it. */
+export function hostedPath(tool: string): string {
+  return `/reports/v1/mcp/${tool}`;
+}
+
+/** The OpenAPI 3.0 document for the hosted MCP door. */
 export function openApiDocument(tools: DoorTool[]): Json {
   const error = {
     description: "The error body the door returns.",
@@ -85,7 +92,7 @@ export function openApiDocument(tools: DoorTool[]): Json {
   };
   const paths: Json = {};
   for (const tool of tools) {
-    paths[`/reports/v1/${tool.name}`] = {
+    paths[hostedPath(tool.name)] = {
       post: {
         operationId: tool.name,
         summary: tool.title,
@@ -112,7 +119,8 @@ export function openApiDocument(tools: DoorTool[]): Json {
     info: {
       title: REGISTRATION,
       version: "1.0.0",
-      description: "The in-org REST door for the Salesforce reports tools. Saving needs the Salesforce_Reports_Write permission set. Generated from src/server.ts by salesforce/scripts/generate-metadata.ts.",
+      // Salesforce keeps at most 255 characters of this description.
+      description: "The hosted MCP door, /reports/v1/mcp/<tool>. Callout tools answer CALLOUT_SESSION here. Saving needs the Salesforce_Reports_Write permission set. Generated from src/server.ts by salesforce/scripts/generate-metadata.ts.",
     },
     servers: [{ url: "/services/apexrest" }],
     paths,
