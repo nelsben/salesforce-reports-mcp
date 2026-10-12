@@ -25,7 +25,7 @@ private class ReportsApiTest {
     @IsTest
     static void answersTheContract() {
         Test.setMock(HttpCalloutMock.class, ReportsCalloutTest.refusing());
-        Assert.areEqual(404, call('create_report', '{}').status);
+        Assert.areEqual(404, call('delete_report', '{}').status);
         Assert.areEqual(400, call('query_report', '{}').status);
         Assert.areEqual('UNKNOWN_TOOL', errorCode(call('nope', '{}')));
         Assert.areEqual(400, call('search_reports', 'not json').status);

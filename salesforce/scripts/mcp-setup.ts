@@ -1,16 +1,17 @@
 /**
- * Wires the eight door tools onto the Salesforce Reports hosted MCP server, idempotently, and activates the
+ * Wires the eleven door tools onto the Salesforce Reports hosted MCP server, idempotently, and activates the
  * server. Run it after deploying salesforce/force-app (the registration, the server and the permission set).
  *
  * Usage, from the repo root:  npx tsx salesforce/scripts/mcp-setup.ts --org <alias> [--yes]
  *
  * For each tool it creates or updates one McpServerToolDefinition (ToolName, ToolTitle, DescriptionOverride
- * from the local server, ReadOnly true, Destructive false, Idempotent true, OpenWorld true) and its child
+ * from the local server, and ReadOnly, Destructive, Idempotent and OpenWorld from its annotations, so the save tools
+ * are not marked read-only) and its child
  * McpServerToolApiDefinition (API_CATALOG, ar:ReportsApi, the operation named after the tool). Then it creates
  * or updates the server's McpServerAccess row with Active true, and reports the API Catalog operations that
  * are still inactive (those are activated in Setup).
  */
-import { doorTools } from "./door-tools.js";
+import { doorTools, toolFlags } from "./door-tools.js";
 import { announce, API_IDENTIFIER, API_SOURCE, Org, orgFromArgs, REGISTRATION, SERVER, type Json } from "./org.js";
 
 const org = new Org(orgFromArgs("npx tsx salesforce/scripts/mcp-setup.ts --org <alias> [--yes]"));
@@ -38,10 +39,7 @@ for (const tool of tools) {
     ToolName: tool.name,
     ToolTitle: tool.title,
     DescriptionOverride: tool.description,
-    ReadOnly: true,
-    Destructive: false,
-    Idempotent: tool.annotations.idempotentHint ?? true,
-    OpenWorld: true,
+    ...toolFlags(tool),
   };
   const found = existing.find((r) => r.ToolName === tool.name);
   let toolId: string;

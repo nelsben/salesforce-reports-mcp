@@ -4,7 +4,9 @@
  * Creates three private reports named zz-parity-* through the local API, runs every case through both doors,
  * diffs the JSON, deletes the reports, and exits non-zero on any difference or on a report left behind.
  * query_report, list_report_types and describe_report_type reach the org's REST API from Apex (phase 3a), so their
- * cases also check that callout.
+ * cases also check that callout. The save cases (phase 3b) let each door make its own zz-parity report, compare the
+ * answers after normalize(), and delete every report through the local server. The org's user needs the
+ * Salesforce_Reports_MCP_Write permission set for the door's save cases.
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -96,6 +98,27 @@ function clip(value: Json): string {
   return text.length > 160 ? `${text.slice(0, 157)}...` : text;
 }
 
+type Door = "local" | "apex";
+const DOORS: Door[] = ["local", "apex"];
+
+function door(name: Door, tool: string, args: Record<string, unknown>): Promise<Answer> {
+  return name === "local" ? local(tool, args) : apex(tool, args);
+}
+
+/**
+ * A save answer with the fields that must differ between the doors made equal: every report id (also inside the URL
+ * and in strings), the door's own token in the report name (saveName puts it there), and every developerName, which
+ * Salesforce derives from the name. Save answers carry no timestamps.
+ */
+function normalize(body: Json, from: Door): Json {
+  if (typeof body === "string") return body.replace(/00O[A-Za-z0-9]{12,15}/g, "<report id>").split(`-${from}-`).join("-<door>-");
+  if (Array.isArray(body)) return body.map((item) => normalize(item, from));
+  if (!body || typeof body !== "object") return body;
+  return Object.fromEntries(
+    Object.entries(body).map(([key, value]) => [key, key === "developerName" && typeof value === "string" ? "<developer name>" : normalize(value, from)]),
+  );
+}
+
 function without(body: Json, keys: string[]): Json {
   if (!body || typeof body !== "object") return body;
   const copy = { ...body };
@@ -133,6 +156,32 @@ async function sameError(label: string, tool: string, args: Record<string, unkno
   } catch (error) {
     line(false, label, error instanceof Error ? error.message : String(error));
   }
+}
+
+/**
+ * A save case: each door makes or changes its own report, and the answers must match after normalize(). Every id a
+ * door answers with is kept for deletion. Answers with each door's body, for the cases that build on it.
+ */
+async function sameSave(label: string, tool: string, args: (from: Door) => Record<string, unknown>): Promise<Partial<Record<Door, Json>>> {
+  const bodies: Partial<Record<Door, Json>> = {};
+  try {
+    const answers: Partial<Record<Door, Answer>> = {};
+    for (const d of DOORS) {
+      const answer = await door(d, tool, args(d));
+      answers[d] = answer;
+      const id = answer.ok ? answer.body?.id : undefined;
+      if (typeof id === "string" && !created.includes(id)) created.push(id);
+      if (answer.ok) bodies[d] = answer.body;
+    }
+    const [l, a] = [answers.local!, answers.apex!];
+    if (!l.ok) return (line(false, label, `local failed: ${clip(l.body)}`), bodies);
+    if (!a.ok) return (line(false, label, `apex answered ${a.status}: ${clip(a.body)}`), bodies);
+    const diff = firstDiff(normalize(l.body, "local"), normalize(a.body, "apex"));
+    line(!diff, label, diff ?? "");
+  } catch (error) {
+    line(false, label, error instanceof Error ? error.message : String(error));
+  }
+  return bodies;
 }
 
 /** A contract case for the in-org door only. */
@@ -191,6 +240,9 @@ async function typeWithoutReport(): Promise<string> {
   }
   throw new Error("Every candidate report type has a saved report here. Add a candidate to typeWithoutReport().");
 }
+
+/** A report name for one door's save, under the 40-character limit. normalize() reads the door back out of it. */
+const saveName = (what: string, from: Door) => `${prefix}-${what}-${from}-${stamp}`;
 
 async function create(name: string, definition: Record<string, unknown>): Promise<string> {
   const out = await local("create_report", { name: `${prefix}-${name}-${stamp}`, ...definition });
@@ -321,7 +373,26 @@ try {
       { alias: "big", definition: { ...summaryDef, filters: [{ column: "AMOUNT", operator: "greaterThan", value: 100000 }] } },
     ],
   });
-  await apexAnswers("apex: create_report is not on this door (404)", "create_report", { name: "x", reportType: "Opportunity" }, 404, "UNKNOWN_TOOL");
+  const fresh = await sameSave("create_report from a definition", "create_report", (d) => ({
+    name: saveName("new", d),
+    ...summaryDef,
+    filters: [{ column: "AMOUNT", operator: "greaterThan", value: 1000 }],
+  }));
+  await sameSave("create_report from fromReportId with a change (a grouping on a tabular copy)", "create_report", (d) => ({
+    name: saveName("copy", d),
+    fromReportId: tabular,
+    groupingsDown: [{ column: "STAGE_NAME" }],
+    aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }],
+  }));
+  await sameSave("update_report: name, filters and an aggregate on a column the report lacks", "update_report", (d) => ({
+    reportId: fresh[d]?.id ?? "00O000000000000AAA",
+    name: saveName("renamed", d),
+    filters: [{ column: "AMOUNT", operator: "greaterThan", value: 100000 }],
+    aggregates: ["RowCount", { fn: "max", column: "PROBABILITY" }],
+  }));
+  await sameSave("clone_report", "clone_report", (d) => ({ reportId: summary, name: saveName("clone", d) }));
+  await sameError("update_report with nothing to change gives the local error body", "update_report", { reportId: summary });
+  await apexAnswers("apex: delete_report is not on this door (404)", "delete_report", { reportId: summary }, 404, "UNKNOWN_TOOL");
   await apexAnswers("apex: query_report without reportType answers 400", "query_report", { columns: ["AMOUNT"] }, 400, "INVALID_INPUT");
   await apexAnswers("apex: an unknown tool answers 404", "no_such_tool", {}, 404, "UNKNOWN_TOOL");
   await apexAnswers("apex: a bad report id answers 400", "run_report", { reportId: "not-an-id" }, 400, "INVALID_INPUT");

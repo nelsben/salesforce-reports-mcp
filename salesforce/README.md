@@ -1,18 +1,19 @@
 # In-org REST door
 
-An Apex REST resource, `ReportsApi`, that answers the runner tools from inside the org. It takes the same JSON input as the local server's tool and returns the same JSON. The contract is in [docs/design.md](../docs/design.md), section "v0.2: the in-org doors". Phase 1 results are in [docs/probes/v0.2-phase1.md](../docs/probes/v0.2-phase1.md), and phase 3a (the callout tools) in [docs/probes/v0.2-phase3.md](../docs/probes/v0.2-phase3.md).
+An Apex REST resource, `ReportsApi`, that answers the runner tools from inside the org. It takes the same JSON input as the local server's tool and returns the same JSON. The contract is in [docs/design.md](../docs/design.md), section "v0.2: the in-org doors". Phase 1 results are in [docs/probes/v0.2-phase1.md](../docs/probes/v0.2-phase1.md), phase 3a (the callout tools) in [docs/probes/v0.2-phase3.md](../docs/probes/v0.2-phase3.md), and phase 3b (the save tools) in [docs/probes/v0.2-phase3b.md](../docs/probes/v0.2-phase3b.md).
 
 ```
 POST /services/apexrest/reports/v1/<tool>
 Body: the tool's JSON input, as inputSchema in src/server.ts defines it
 200:  the JSON the local tool returns
 400:  bad input or a Salesforce 4xx, 500: anything else. Body: {"error": {"code", "message", "hint"?}}
+403:  a save tool, for a user without the Reports_MCP_Write custom permission. Body: {"error": {"code": "WRITE_NOT_ALLOWED", ...}}
 404:  a tool this door lacks. Body: {"error": {"code": "UNKNOWN_TOOL", ...}}
 ```
 
 ## Tools
 
-The door has eight tools: `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`.
+The door has eleven tools: the eight read tools `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`, and the three save tools `create_report`, `update_report` and `clone_report`.
 
 | Tool | On this door | Differences from the local server |
 | --- | --- | --- |
@@ -24,11 +25,22 @@ The door has eight tools: `search_reports`, `list_report_folders`, `list_report_
 | `run_report` | yes | Detail rows are capped at `min(2000, floor(50000 / columns))`, and a note says when that cap cut rows. No async fallback: a run that is too large returns `RESULT_TOO_LARGE`. Raw `reportMetadata` overrides take the fields the Apex `ReportMetadata` can set. |
 | `query_report` | yes, through the callout | Detail rows have the same cap as `run_report`. It asks Salesforce for detail rows only when they will be shown, so a grouped query over 2,000 rows without `detail` lacks the local note that Salesforce stopped at 2,000 rows. |
 | `combine_reports` | yes | A `definition` input runs through `query_report`. |
-| `create_report`, `update_report`, `clone_report`, `delete_report` | no, 404 | Use the local server. |
+| `create_report` | yes, through the callout, with the write permission | none. From a definition, or from `fromReportId` plus changes. With no `folderId` the report lands in Private Reports. |
+| `update_report` | yes, through the callout, with the write permission | none |
+| `clone_report` | yes, through the callout, with the write permission | none |
+| `delete_report` | no, 404 | Use the local server. |
+
+### Saving
+
+The save tools check the custom permission `Reports_MCP_Write` with `FeatureManagement.checkPermission` before they read the input or call out. The permission set `Salesforce_Reports_MCP_Write` grants it. A user without it gets HTTP 403, code `WRITE_NOT_ALLOWED`, and a hint naming that permission set. The read tools never check it. A user who saves also needs Create and Customize Reports, as on the local server.
+
+- `create_report` posts to `/analytics/reports`. From `fromReportId`, it first reads the saved report's REST describe, so the copy keeps fields Apex does not expose, such as `sortBy` and `presentationOptions`.
+- `update_report` patches `/analytics/reports/{id}` with only the given fields, and answers one `changes` line per field sent.
+- `clone_report` posts to `/analytics/reports?cloneId={id}`, as the local server does.
 
 ### The callout
 
-`list_report_types`, `describe_report_type` and `query_report` call the org's own Reports REST API through one helper, `ReportsCallout`: `URL.getOrgDomainUrl()` plus `/services/data/v62.0/analytics/...`, with the running user's session. It needs no Remote Site Setting. A Named Credential could replace the session in that one class.
+`list_report_types`, `describe_report_type`, `query_report` and the three save tools call the org's own Reports REST API through one helper, `ReportsCallout`: `URL.getOrgDomainUrl()` plus `/services/data/v62.0/analytics/...`, with the running user's session. It needs no Remote Site Setting. A Named Credential could replace the session in that one class.
 
 - A missing session, a 401 or `INVALID_SESSION_ID` answers 500 with code `CALLOUT_SESSION` and a hint that the in-org door could not call the org's REST API under this sign-in.
 - Any other Salesforce error answers with the body the local server gives for it: Salesforce's `errorCode` and `message`, the same hint, and status 400 for a 4xx.
@@ -47,7 +59,7 @@ The door has eight tools: `search_reports`, `list_report_folders`, `list_report_
 | `ReportsCombine` | `src/reports/combine.ts`: stack and join |
 | `ReportsCallout` | `src/salesforce/client.ts`: the one call to the org's REST API, and its errors |
 
-Each has a test class. The tests that run reports use `@IsTest(SeeAllData='true')` and the org's own saved reports. They create no records. `ReportsCalloutTest` answers every callout with an `HttpCalloutMock`.
+Each has a test class. The tests that run reports use `@IsTest(SeeAllData='true')` and the org's own saved reports. They create no reports. `ReportsCalloutTest` and `ReportsSaveTest` answer every callout with an `HttpCalloutMock`. `ReportsSaveTest` creates, in its test setup, a Chatter Free user without the write permission (so it takes no Salesforce license), and assigns the write permission set to the running user if it lacks it. Both roll back with the test.
 
 ## Commands
 
@@ -62,7 +74,7 @@ sf project deploy start -d force-app -o <alias>
 Test, with coverage:
 
 ```bash
-sf apex run test -o <alias> --class-names ReportsApiTest --class-names ReportsDefinitionTest --class-names ReportsSummaryTest --class-names ReportsCombineTest --class-names ReportsCalloutTest --code-coverage --result-format human --wait 10
+sf apex run test -o <alias> --class-names ReportsApiTest --class-names ReportsDefinitionTest --class-names ReportsSummaryTest --class-names ReportsCombineTest --class-names ReportsCalloutTest --class-names ReportsSaveTest --code-coverage --result-format human --wait 10
 ```
 
 Call it:
@@ -77,13 +89,13 @@ Check parity with the local server, from the repo root. It creates and deletes i
 npm run parity -- --org <alias>
 ```
 
-Run the live check's read steps through this door, from the repo root:
+Run the live check's read and save steps through this door, from the repo root. The deletes still run on the local server, and the user needs the write permission set:
 
 ```bash
 npm run live -- --org <alias> --door apex --allow-delete
 ```
 
-Remove everything: first the MCP rows and server access (from the repo root), then the server, the API Catalog entry, the permission set and the classes. Check the second command first with `--dry-run`. A server that is still active cannot be deleted ("Server must be inactive before making changes"), and a class an API Catalog entry names cannot be deleted before the entry, which is why the manifest has a pre and a post step.
+Remove everything: first the MCP rows and server access (from the repo root), then the server, the API Catalog entry, the two permission sets, the custom permission and the classes. Unassign both permission sets from every user first, since an assigned permission set cannot be deleted. Check the second command first with `--dry-run`. A server that is still active cannot be deleted ("Server must be inactive before making changes"), and a class an API Catalog entry names cannot be deleted before the entry, which is why the manifest has a pre and a post step.
 
 ```bash
 npm run mcp:teardown -- --org <alias> --yes
@@ -97,10 +109,13 @@ The same class is also a Salesforce hosted MCP server. The admin steps are in th
 | Piece | Source | Made by |
 | --- | --- | --- |
 | API Catalog entry `ReportsApi` (ExternalServiceRegistration, ApexRest, inline OpenAPI 3) | `force-app/main/default/externalServiceRegistrations/` | `npm run mcp:generate`, from the local tool list |
-| MCP server `SalesforceReports`, with eight tools on `ar:ReportsApi` | `force-app/main/default/mcpServerDefinitions/` | `npm run mcp:generate` |
+| MCP server `SalesforceReports`, with eleven tools on `ar:ReportsApi`. The save tools are not marked read-only. | `force-app/main/default/mcpServerDefinitions/` | `npm run mcp:generate` |
 | Permission set `Salesforce_Reports_MCP` (the six non-test classes) | `force-app/main/default/permissionsets/` | by hand |
+| Custom permission `Reports_MCP_Write`, and the permission set `Salesforce_Reports_MCP_Write` that grants it | `force-app/main/default/customPermissions/`, `permissionsets/` | by hand |
 | External Client App `SalesforceReportsMcp` (PKCE, `mcp_api`, `refresh_token`, callback for claude.ai) | `eca/` | by hand; deploy it with `-d eca` |
 | Tool rows and server access | not metadata | `npm run mcp:setup -- --org <alias> --yes`, removed by `npm run mcp:teardown -- --org <alias> --yes` |
+
+The setup script writes each tool row's ReadOnly, Destructive, Idempotent and OpenWorld flags from the local server's annotations. A hosted server lists its tools to every user who can reach it: there is no per-user or per-permission field on the tool, server or access rows. So the save tools are listed for everyone, and the door refuses a user without the write permission.
 
 `npm run mcp:generate -- --check` fails when the committed registration or server no longer matches `src/server.ts`.
 

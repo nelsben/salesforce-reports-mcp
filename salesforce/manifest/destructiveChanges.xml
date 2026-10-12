@@ -9,10 +9,15 @@
         <members>ReportsCombineTest</members>
         <members>ReportsDefinition</members>
         <members>ReportsDefinitionTest</members>
+        <members>ReportsSaveTest</members>
         <members>ReportsShape</members>
         <members>ReportsSummary</members>
         <members>ReportsSummaryTest</members>
         <name>ApexClass</name>
+    </types>
+    <types>
+        <members>Reports_MCP_Write</members>
+        <name>CustomPermission</name>
     </types>
     <version>68.0</version>
 </Package>

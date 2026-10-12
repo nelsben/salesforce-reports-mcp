@@ -2,8 +2,9 @@
  * End-to-end check against a real org, through the MCP server in memory.
  * Usage: npm run live -- --org <alias> --allow-delete [--door apex]
  * Creates private reports named zz-live-check-*, deletes them, and fails if any remain.
- * With --door apex, the read steps go through the in-org REST door (salesforce/, class ReportsApi). Reports are still
- * created and deleted through the local server, and steps for tools the door lacks print "skipped on the apex door".
+ * With --door apex, the read and save steps go through the in-org REST door (salesforce/, class ReportsApi). Saving
+ * there needs the Salesforce_Reports_MCP_Write permission set. Reports are still deleted through the local server,
+ * and steps for tools the door lacks print "skipped on the apex door".
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -41,6 +42,9 @@ const APEX_TOOLS = new Set([
   "run_report",
   "query_report",
   "combine_reports",
+  "create_report",
+  "update_report",
+  "clone_report",
 ]);
 
 const connection = resolveConnection({ org: values.org });
@@ -90,15 +94,15 @@ async function callApex(name: string, args: Record<string, unknown>): Promise<Js
 
 let failures = 0;
 /**
- * One step. On the apex door, `apex: "skip"` marks a step for a tool the door lacks, and `apex: "local"` a setup step
- * (create, clone, delete) that still runs on the local server so the read steps have reports to read.
+ * One step. On the apex door, `apex: "skip"` marks a step for a tool the door lacks, and `apex: "local"` a step
+ * (the delete) that still runs on the local server, since the door has no delete_report.
  */
 async function step(label: string, fn: () => Promise<void>, options: { apex?: "skip" | "local" } = {}): Promise<boolean> {
   if (apexDoor && options.apex === "skip") {
     console.log(`SKIP  ${label}: skipped on the apex door`);
     return true;
   }
-  if (apexDoor && options.apex === "local") label = `${label} (local server: the apex door does not save or delete)`;
+  if (apexDoor && options.apex === "local") label = `${label} (local server: the apex door does not delete)`;
   try {
     await fn();
     console.log(`PASS  ${label}`);
@@ -216,7 +220,7 @@ try {
     created.push(out.id);
     expect(/^00O/.test(out.id), "no id");
     expect(out.folder === "Private Reports", `folder ${out.folder}`);
-  }, { apex: "local" });
+  });
 
   await step("4b. describe it", async () => {
     const out = await call("describe_report", { reportId: firstId });
@@ -235,7 +239,7 @@ try {
     expect(out.summary.name === `${prefix}-a2-${stamp}`, "name not updated");
     expect(out.changes.some((c: string) => c.startsWith("reportFilters:") && !c.endsWith("unchanged")), `changes ${JSON.stringify(out.changes)}`);
     expect(out.summary.groupingsDown.length === 1, "partial update lost the grouping");
-  }, { apex: "skip" });
+  });
 
   await step("4d. run it, then run it with overrides", async () => {
     const plain = await call("run_report", { reportId: firstId });
@@ -250,7 +254,7 @@ try {
     secondId = out.id;
     created.push(out.id);
     expect(out.folder === "Private Reports", `folder ${out.folder}`);
-  }, { apex: "local" });
+  });
 
   await step("5b. create_report fromReportId: a flat copy, then a grouped copy of that", async () => {
     // Start from the grouped report: drop its filters, keep its grouping, change the name only.
@@ -284,7 +288,7 @@ try {
     expect(original.format === "TABULAR" && original.groupingsDown.length === 0, "the original changed");
     const run = await call("run_report", { reportId: grouped.id });
     expect(run.groups.rows.length >= 0 && run.report.id === grouped.id, "the copy does not run");
-  }, { apex: "skip" });
+  });
 
   await step("6a. combine with stack (this year against last 30 days)", async () => {
     const out = await call("combine_reports", {

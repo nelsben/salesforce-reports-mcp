@@ -4,14 +4,23 @@
  * the local tool returns. A failure answers 400 (bad input) or 500 with the body the local fail() builds,
  * and a tool this door lacks answers 404. Ported from src/server.ts and src/format.ts.
  * list_report_types, query_report and describe_report_type call the org's own REST API through ReportsCallout (phase 3a).
+ * create_report, update_report and clone_report save through the same callout (phase 3b), and only for a user with the
+ * Reports_MCP_Write custom permission. There is no delete_report on this door.
  */
 @RestResource(urlMapping='/reports/v1/*')
 global with sharing class ReportsApi {
     public static final Integer DEFAULT_MAX_ROWS = 200;
     static final List<String> TOOLS = new List<String>{
-        'search_reports', 'list_report_folders', 'list_report_types', 'describe_report', 'describe_report_type', 'run_report', 'query_report', 'combine_reports'
+        'search_reports', 'list_report_folders', 'list_report_types', 'describe_report', 'describe_report_type', 'run_report', 'query_report', 'combine_reports',
+        'create_report', 'update_report', 'clone_report'
     };
-    static final Set<String> LATER = new Set<String>{ 'create_report', 'update_report', 'clone_report', 'delete_report' };
+    /** The save tools. Each needs WRITE_PERMISSION, checked before the input is read and before any callout. */
+    static final Set<String> SAVE_TOOLS = new Set<String>{ 'create_report', 'update_report', 'clone_report' };
+    static final Set<String> LOCAL_ONLY = new Set<String>{ 'delete_report' };
+    public static final String WRITE_PERMISSION = 'Reports_MCP_Write';
+    public static final String WRITE_PERMISSION_SET = 'Salesforce_Reports_MCP_Write';
+    /** The longest report name Salesforce takes, as the local tools check it. */
+    static final Integer MAX_NAME = 40;
     static final String OPERATOR_NOTE = 'Filter operators are not on the in-org door, because Apex does not expose them. Common ones: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith, includes, excludes.';
     static final String FALLBACK_NOTE = 'The in-org door could not call the org\'s REST API under this sign-in, so it read the type through a saved report of that type instead.';
 
@@ -55,12 +64,13 @@ global with sharing class ReportsApi {
 
     public static Answer handle(String tool, String body) {
         if (!TOOLS.contains(tool)) {
-            String message = LATER.contains(tool)
-                ? tool + ' is not on the in-org door yet. Use the local server for it.'
+            String message = LOCAL_ONLY.contains(tool)
+                ? tool + ' is not on the in-org door. Use the local server for it.'
                 : 'There is no tool named "' + tool + '". This door offers ' + String.join(TOOLS, ', ') + '.';
             return new Answer(404, errorBody('UNKNOWN_TOOL', message, null));
         }
         try {
+            if (SAVE_TOOLS.contains(tool)) requireWrite();
             return new Answer(200, dispatch(tool, parse(body)));
         } catch (Exception e) {
             return failure(e);
@@ -92,6 +102,15 @@ global with sharing class ReportsApi {
                 definition.remove('detail');
                 definition.remove('maxRows');
                 return queryToResult(definition, optBool(input, 'detail'), optInt(input, 'maxRows', 1, ReportsShape.HARD_ROW_CEILING));
+            }
+            when 'create_report' {
+                return createReport(input);
+            }
+            when 'update_report' {
+                return updateReport(input);
+            }
+            when 'clone_report' {
+                return cloneReport(input);
             }
             when else {
                 return combineReports(input);
@@ -318,6 +337,211 @@ global with sharing class ReportsApi {
         if (column == null) throw inputError('Give at least one detail column that is not a grouping.');
         meta.put('detailColumns', new List<String>{ column });
         mapped.notes.add('No detail column was given, so ' + column + ' was added; Salesforce needs one on a grouped report.');
+    }
+
+    // ---- save tools (phase 3b), ported from src/server.ts ----
+
+    /** The save tools need the Reports_MCP_Write custom permission. The read tools never check it. */
+    static void requireWrite() {
+        if (FeatureManagement.checkPermission(WRITE_PERMISSION)) return;
+        throw apiError(403, 'WRITE_NOT_ALLOWED',
+            'Saving reports on the in-org door needs the ' + WRITE_PERMISSION + ' custom permission, and this user does not have it.',
+            'Ask an admin to assign the permission set ' + WRITE_PERMISSION_SET + ' to users who may save reports, or use the local server.');
+    }
+
+    /**
+     * create_report: from a definition, or from fromReportId plus changes (the saved report is copied and the changes
+     * applied). POST /analytics/reports. With no folderId the report lands in the user's Private Reports folder.
+     */
+    static Map<String, Object> createReport(Map<String, Object> input) {
+        String name = nameOf(input, true);
+        String description = optString(input, 'description');
+        String folderId = optString(input, 'folderId');
+        Id fromReportId = input.get('fromReportId') == null ? null : reportId(input, 'fromReportId');
+        Map<String, Object> definition = definitionOf(input, new List<String>{ 'name', 'description', 'folderId', 'fromReportId' });
+        ReportsDefinition.Mapped mapped;
+        if (fromReportId != null) {
+            Map<String, Object> before = savedMetadata(fromReportId);
+            mapped = ReportsDefinition.toReportMetadata(definition, true);
+            mapped.metadata = applyChanges(before, definition, mapped.metadata);
+        } else {
+            if (String.isBlank(optString(definition, 'reportType'))) {
+                throw inputError('create_report needs reportType, or fromReportId to start from a saved report. Find a type with list_report_types.');
+            }
+            mapped = ReportsDefinition.toReportMetadata(definition, false);
+        }
+        ensureDetailColumn(mapped);
+        Map<String, Object> metadata = mapped.metadata;
+        metadata.put('name', name);
+        if (String.isNotEmpty(description)) metadata.put('description', description);
+        if (String.isNotEmpty(folderId)) metadata.put('folderId', folderId);
+        Object created = ReportsCallout.send('POST', '/analytics/reports', new Map<String, Object>{ 'reportMetadata' => metadata });
+        Map<String, Object> summary = ReportsSummary.summarizeReportJson(asMap(created, 'The saved report'), baseUrl());
+        Map<String, Object> out = savedReport(summary);
+        out.put('summary', summary);
+        out.put('notes', mapped.notes);
+        return out;
+    }
+
+    /**
+     * update_report: PATCH /analytics/reports/{id} with only the given fields. A sent list replaces the saved list.
+     * Answers the saved summary and one line per field sent, as the local tool does.
+     */
+    static Map<String, Object> updateReport(Map<String, Object> input) {
+        Id id = reportId(input, 'reportId');
+        String name = nameOf(input, false);
+        String description = optString(input, 'description');
+        String folderId = optString(input, 'folderId');
+        Map<String, Object> definition = definitionOf(input, new List<String>{ 'reportId', 'name', 'description', 'folderId' });
+        ReportsDefinition.Mapped mapped = ReportsDefinition.toReportMetadata(definition, true);
+        Map<String, Object> patch = new Map<String, Object>(mapped.metadata);
+        if (String.isNotEmpty(name)) patch.put('name', name);
+        if (description != null) patch.put('description', description);
+        if (String.isNotEmpty(folderId)) patch.put('folderId', folderId);
+        if (patch.isEmpty()) throw inputError('Nothing to update. Give at least one field to change.');
+        Map<String, Object> before = savedMetadata(id);
+        List<Object> aggregates = optList(definition, 'aggregates');
+        if (aggregates != null && definition.get('columns') == null) {
+            // A new aggregate needs its column among the detail columns; keep the saved ones.
+            List<Object> saved = items(before.get('detailColumns'));
+            List<Object> columns = new List<Object>(saved);
+            for (String c : ReportsDefinition.aggregateColumns(ReportsDefinition.mapAggregates(aggregates))) {
+                if (!saved.contains(c)) columns.add(c);
+            }
+            if (columns.size() > saved.size()) patch.put('detailColumns', columns);
+        }
+        Map<String, Object> after = asMap(
+            ReportsCallout.send('PATCH', '/analytics/reports/' + ReportsCallout.segment(id), new Map<String, Object>{ 'reportMetadata' => patch }),
+            'The saved report'
+        );
+        Map<String, Object> afterMeta = after.get('reportMetadata') instanceof Map<String, Object> ? (Map<String, Object>) after.get('reportMetadata') : new Map<String, Object>();
+        List<String> changes = new List<String>();
+        for (String key : patch.keySet()) {
+            // As JSON.stringify writes them; a missing key is undefined there, null here.
+            String was = before.containsKey(key) ? sortedJson(before.get(key)) : null;
+            String now = afterMeta.containsKey(key) ? sortedJson(afterMeta.get(key)) : null;
+            Boolean same = was == null ? now == null : was.equals(now);
+            changes.add(same ? key + ': unchanged' : key + ': ' + clip(was) + ' -> ' + clip(now));
+        }
+        return new Map<String, Object>{ 'summary' => ReportsSummary.summarizeReportJson(after, baseUrl()), 'changes' => changes, 'notes' => mapped.notes };
+    }
+
+    /** clone_report: POST /analytics/reports?cloneId={id}, as the local server calls it. */
+    static Map<String, Object> cloneReport(Map<String, Object> input) {
+        Id id = reportId(input, 'reportId');
+        String name = nameOf(input, false);
+        String folderId = optString(input, 'folderId');
+        Map<String, Object> metadata = new Map<String, Object>();
+        if (String.isNotEmpty(name)) metadata.put('name', name);
+        if (String.isNotEmpty(folderId)) metadata.put('folderId', folderId);
+        Object cloned = ReportsCallout.send('POST', '/analytics/reports?cloneId=' + ReportsCallout.segment(id), new Map<String, Object>{ 'reportMetadata' => metadata });
+        return savedReport(ReportsSummary.summarizeReportJson(asMap(cloned, 'The cloned report'), baseUrl()));
+    }
+
+    /** {id, name, folder, folderId, url} of a saved report, as create_report and clone_report answer. */
+    static Map<String, Object> savedReport(Map<String, Object> summary) {
+        String id = (String) summary.get('id');
+        Map<String, Object> out = new Map<String, Object>{ 'id' => id, 'name' => summary.get('name') };
+        String folder = folderName(id);
+        if (folder != null) out.put('folder', folder);
+        out.put('folderId', summary.get('folderId'));
+        if (summary.get('url') != null) out.put('url', summary.get('url'));
+        return out;
+    }
+
+    /** The saved report's REST reportMetadata, through the callout, so a copy keeps the fields Apex does not expose. */
+    static Map<String, Object> savedMetadata(Id id) {
+        Map<String, Object> described = asMap(ReportsCallout.send('GET', '/analytics/reports/' + ReportsCallout.segment(id) + '/describe', null), 'The report describe');
+        return described.get('reportMetadata') instanceof Map<String, Object> ? (Map<String, Object>) described.get('reportMetadata') : new Map<String, Object>();
+    }
+
+    /**
+     * src/server.ts applyChanges: the saved metadata of `before`, with the changes applied, ready to POST as a new report.
+     * Fields that identify the old report are dropped; a list in `changes` replaces the saved list.
+     */
+    @TestVisible
+    static Map<String, Object> applyChanges(Map<String, Object> before, Map<String, Object> def, Map<String, Object> changes) {
+        Map<String, Object> out = new Map<String, Object>(before);
+        for (String key : new List<String>{ 'id', 'developerName', 'folderId', 'name' }) out.remove(key);
+        out.putAll(changes);
+        // Adding groupings to a flat copy makes it a summary or matrix.
+        if (def.get('format') == null && changes.get('reportFormat') == null) {
+            Boolean across = !items(out.get('groupingsAcross')).isEmpty();
+            Boolean down = !items(out.get('groupingsDown')).isEmpty();
+            out.put('reportFormat', across ? 'MATRIX' : (down ? 'SUMMARY' : before.get('reportFormat')));
+        }
+        Set<String> grouped = new Set<String>();
+        for (String side : new List<String>{ 'groupingsDown', 'groupingsAcross' }) {
+            for (Object g : items(out.get(side))) grouped.add((String) ((Map<String, Object>) g).get('name'));
+        }
+        List<Object> columns = new List<Object>();
+        for (Object c : items(out.get('detailColumns'))) if (!grouped.contains((String) c)) columns.add(c);
+        List<Object> aggregates = optList(def, 'aggregates');
+        if (aggregates != null) {
+            // A new aggregate needs its column among the detail columns.
+            for (String c : ReportsDefinition.aggregateColumns(ReportsDefinition.mapAggregates(aggregates))) {
+                if (!columns.contains(c) && !grouped.contains(c)) columns.add(c);
+            }
+        }
+        out.put('detailColumns', columns);
+        return out;
+    }
+
+    /** The report name: 1 to 40 characters, required for create_report. */
+    static String nameOf(Map<String, Object> input, Boolean required) {
+        String name = required ? reqString(input, 'name') : optString(input, 'name');
+        if (name != null && (name.length() < 1 || name.length() > MAX_NAME)) throw inputError('name takes 1 to ' + MAX_NAME + ' characters.');
+        return name;
+    }
+
+    /** The definition fields of a save tool's input: the input without the tool's own fields. */
+    static Map<String, Object> definitionOf(Map<String, Object> input, List<String> own) {
+        Map<String, Object> definition = new Map<String, Object>(input);
+        for (String key : own) definition.remove(key);
+        return definition;
+    }
+
+    /** The report's folder name (Private Reports for a private one), or null when this user cannot read it. */
+    static String folderName(String id) {
+        if (String.isEmpty(id)) return null;
+        try {
+            List<Report> rows = [SELECT FolderName FROM Report WHERE Id = :id WITH USER_MODE];
+            return rows.isEmpty() ? null : rows[0].FolderName;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * JSON with object keys sorted. A map from JSON.deserializeUntyped loses the response's key order, and Salesforce
+     * writes its keys in alphabetical order, so this writes what JSON.stringify writes on the local server.
+     */
+    @TestVisible
+    static String sortedJson(Object value) {
+        List<String> parts = new List<String>();
+        if (value instanceof Map<String, Object>) {
+            Map<String, Object> m = (Map<String, Object>) value;
+            List<String> keys = new List<String>(m.keySet());
+            keys.sort();
+            for (String k : keys) parts.add(JSON.serialize(k) + ':' + sortedJson(m.get(k)));
+            return '{' + String.join(parts, ',') + '}';
+        }
+        if (value instanceof List<Object>) {
+            for (Object o : (List<Object>) value) parts.add(sortedJson(o));
+            return '[' + String.join(parts, ',') + ']';
+        }
+        return JSON.serialize(value);
+    }
+
+    /** src/server.ts clip, for a changes line. */
+    @TestVisible
+    static String clip(String text) {
+        if (text == null) return '(none)';
+        return text.length() > 160 ? text.substring(0, 157) + '...' : text;
+    }
+
+    static List<Object> items(Object value) {
+        return value instanceof List<Object> ? (List<Object>) value : new List<Object>();
     }
 
     static Map<String, Object> folderInfo(String id) {

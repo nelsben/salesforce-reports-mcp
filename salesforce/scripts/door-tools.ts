@@ -10,8 +10,9 @@ import type { SalesforceApi } from "../../src/salesforce/client.js";
 import { buildServer } from "../../src/server.js";
 
 /**
- * The eight tools ReportsApi answers, in the order the door lists them: the six phase 1 tools plus
- * list_report_types and query_report, which call the org's own REST API (phase 3a).
+ * The eleven tools ReportsApi answers, in the order the door lists them: the six phase 1 tools, list_report_types
+ * and query_report, which call the org's own REST API (phase 3a), and the three save tools (phase 3b), which also
+ * need the Reports_MCP_Write custom permission. delete_report stays on the local server only.
  */
 export const DOOR_TOOLS = [
   "search_reports",
@@ -22,6 +23,9 @@ export const DOOR_TOOLS = [
   "run_report",
   "query_report",
   "combine_reports",
+  "create_report",
+  "update_report",
+  "clone_report",
 ] as const;
 
 export interface DoorTool {
@@ -30,6 +34,17 @@ export interface DoorTool {
   description: string;
   inputSchema: Record<string, unknown>;
   annotations: { readOnlyHint?: boolean; destructiveHint?: boolean; idempotentHint?: boolean; openWorldHint?: boolean };
+}
+
+/** The hosted tool row flags, from the local server's annotations (MCP's defaults where one is missing). */
+export function toolFlags(tool: DoorTool): { ReadOnly: boolean; Destructive: boolean; Idempotent: boolean; OpenWorld: boolean } {
+  const a = tool.annotations;
+  return {
+    ReadOnly: a.readOnlyHint ?? false,
+    Destructive: a.destructiveHint ?? true,
+    Idempotent: a.idempotentHint ?? false,
+    OpenWorld: a.openWorldHint ?? true,
+  };
 }
 
 /** The local server's tool list for the door tools. Nothing is called on Salesforce. */
@@ -41,7 +56,7 @@ export async function doorTools(): Promise<DoorTool[]> {
       throw new Error("The tool list needs no Salesforce call.");
     },
   };
-  const server = buildServer(new ReportsApi(offline, async () => undefined), { readOnly: true, allowDelete: false, maxRows: 200 });
+  const server = buildServer(new ReportsApi(offline, async () => undefined), { readOnly: false, allowDelete: false, maxRows: 200 });
   const client = new Client({ name: "door-tools", version: "0.0.0" });
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   await Promise.all([server.connect(serverSide), client.connect(clientSide)]);
