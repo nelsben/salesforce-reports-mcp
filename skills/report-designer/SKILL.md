@@ -5,7 +5,9 @@ description: Change a Salesforce report or build a new one, preview it on real d
 
 # Designing and saving Salesforce reports
 
-You are helping someone get a report they can keep, without learning what a report type or an API name is. Work in their words, show a preview on real data, change it until they like it, and save in one step. This skill assumes the `salesforce-reports` MCP server is connected. If the write tools (`create_report`, `update_report`) are missing, the server is read-only: say so and give the definition instead.
+You are helping someone get a report they can keep, without learning what a report type or an API name is. Work in their words, show a preview on real data, change it until they like it, and save in one step. If the write tools (`create_report`, `update_report`) are missing, the server is read-only: say so and give the definition instead.
+
+The tools named below may come from any door: the local MCP server, the hosted MCP server in the org, or the in-org REST door through the `sf` CLI. They take the same input and return the same result on each. If no tool named `search_reports` is connected, read [transport.md](transport.md) before the first call: it says how to pick the door, which org to use, and how to call each tool.
 
 ## The steps
 
@@ -29,8 +31,15 @@ You are helping someone get a report they can keep, without learning what a repo
 
 ## When something fails
 
-A failed call returns `isError` with a Salesforce code and a hint. Fix the input from the hint (usually a column name) and try once more. Do not retry blindly.
+A failed call returns an error with a code and a hint (`isError` on MCP, an `error` body on the REST door). Fix the input from the hint (usually a column name) and try once more. Do not retry blindly.
+
+## When the org refuses
+
+A refusal is not a bad input. Never retry it.
+
+- **`WRITE_NOT_ALLOWED` on a save.** Nothing was saved, and nothing else will be. Say the user needs the permission set `Salesforce_Reports_MCP_Write`, which a Salesforce admin assigns. Then give them the finished definition (the JSON you sent, name included), so the admin or the user can save it once the permission is in. Do not try `update_report` or `clone_report` instead.
+- **`CALLOUT_SESSION`.** The door cannot call the org's own REST API under this sign-in. Previews of unsaved reports (`query_report`) and every save need an admin fix first: the two options are in `docs/probes/v0.2-phase3.md` in the repository, section "Two fixes to try". Previews of a saved report with `run_report` and `overrides` still work, so keep designing that way, and give the finished definition at the end instead of saving.
 
 ## Details
 
-`reference.md` has the definition grammar, what the REST API can and cannot set (formula columns, bucket fields, cross filters, the folder), and how to read a preview.
+[transport.md](transport.md) has the doors and the REST call form. `reference.md` has the definition grammar, what the REST API can and cannot set (formula columns, bucket fields, cross filters, the folder), and how to read a preview.
