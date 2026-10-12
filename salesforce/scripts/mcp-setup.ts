@@ -1,12 +1,13 @@
 /**
  * Wires the eleven door tools onto the Salesforce Reports hosted MCP server, idempotently, and activates the
- * server. Run it after deploying salesforce/force-app (the registration, the server and the permission set).
+ * server. Run it after deploying salesforce/force-app (the classes and the permission sets), then salesforce/mcp-app
+ * on top of it (the registration, the server and the External Client App).
  *
  * Usage, from the repo root:  npx tsx salesforce/scripts/mcp-setup.ts --org <alias> [--yes]
  *
- * For each tool it creates or updates one McpServerToolDefinition (ToolName, ToolTitle, DescriptionOverride
- * from the local server, and ReadOnly, Destructive, Idempotent and OpenWorld from its annotations, so the save tools
- * are not marked read-only) and its child
+ * For each tool it creates or updates one McpServerToolDefinition (ToolName, ToolTitle and DescriptionOverride
+ * from the local server, with the write permission sentences on the save tools, and ReadOnly, Destructive,
+ * Idempotent and OpenWorld from its annotations, so the save tools are not marked read-only) and its child
  * McpServerToolApiDefinition (API_CATALOG, ar:ReportsApi, the operation named after the tool). Then it creates
  * or updates the server's McpServerAccess row with Active true, and reports the API Catalog operations that
  * are still inactive (those are activated in Setup).
@@ -19,12 +20,12 @@ await announce(org);
 
 const server = await org.server();
 if (!server) {
-  console.error(`The org has no McpServerDefinition named ${SERVER}. Deploy first, from salesforce/: sf project deploy start -d force-app -o ${org.alias}`);
+  console.error(`The org has no McpServerDefinition named ${SERVER}. Deploy the MCP door first, from salesforce/: sf project deploy start -d mcp-app -o ${org.alias} (after force-app)`);
   process.exit(1);
 }
 const registration = (await org.tooling(`SELECT Id, Status FROM ExternalServiceRegistration WHERE DeveloperName = '${REGISTRATION}'`))[0];
 if (registration?.Status !== "Complete") {
-  console.error(`The ExternalServiceRegistration ${REGISTRATION} is ${registration ? `"${registration.Status}"` : "missing"}. Deploy salesforce/force-app first.`);
+  console.error(`The ExternalServiceRegistration ${REGISTRATION} is ${registration ? `"${registration.Status}"` : "missing"}. Deploy it first, from salesforce/: sf project deploy start -d mcp-app -o ${org.alias} (after force-app)`);
   process.exit(1);
 }
 

@@ -128,7 +128,7 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>create_report</operation>
         </apiDefinition>
-        <descriptionOverride>Save a new report in Salesforce. Two ways. From scratch: give name, reportType and the definition. From an existing report: give name and fromReportId, plus only the fields to change; the saved report is copied and the changes applied, so you do not repeat its columns, groupings or filters. A list you send (filters, columns, groupings, aggregates) replaces that list in the copy. With no folderId it lands in the user's Private Reports folder, visible only to them. Use it only when the user asks to save or create a report; try the definition first with query_report, or run_report with overrides when starting from a saved report. The original is never touched; to change the original, use update_report. Returns the new report's id, name, folder, URL and summary.</descriptionOverride>
+        <descriptionOverride>Save a new report in Salesforce. Two ways. From scratch: give name, reportType and the definition. From an existing report: give name and fromReportId, plus only the fields to change; the saved report is copied and the changes applied, so you do not repeat its columns, groupings or filters. A list you send (filters, columns, groupings, aggregates) replaces that list in the copy. With no folderId it lands in the user's Private Reports folder, visible only to them. Use it only when the user asks to save or create a report; try the definition first with query_report, or run_report with overrides when starting from a saved report. The original is never touched; to change the original, use update_report. Returns the new report's id, name, folder, URL and summary. In the org, this tool needs the permission set Salesforce_Reports_MCP_Write. Without it, the call answers WRITE_NOT_ALLOWED.</descriptionOverride>
         <destructive>false</destructive>
         <idempotent>false</idempotent>
         <openWorld>true</openWorld>
@@ -143,7 +143,7 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>update_report</operation>
         </apiDefinition>
-        <descriptionOverride>Change a saved report. Send only the fields to change; the rest stay as saved. A list you send (filters, columns, groupings, aggregates) replaces the saved list in full, so include the entries you want to keep. Use it only when the user asks to change the report itself. To try a change without saving it, use run_report with overrides. Returns the saved summary and one line per field that changed.</descriptionOverride>
+        <descriptionOverride>Change a saved report. Send only the fields to change; the rest stay as saved. A list you send (filters, columns, groupings, aggregates) replaces the saved list in full, so include the entries you want to keep. Use it only when the user asks to change the report itself. To try a change without saving it, use run_report with overrides. Returns the saved summary and one line per field that changed. In the org, this tool needs the permission set Salesforce_Reports_MCP_Write. Without it, the call answers WRITE_NOT_ALLOWED.</descriptionOverride>
         <destructive>false</destructive>
         <idempotent>false</idempotent>
         <openWorld>true</openWorld>
@@ -158,7 +158,7 @@
             <apiSource>API_CATALOG</apiSource>
             <operation>clone_report</operation>
         </apiDefinition>
-        <descriptionOverride>Copy a saved report to a new report. The clone lands in the user's Private Reports folder unless folderId is given. Use it when the user wants a variant to edit without touching the original, then change the copy with update_report. Returns the clone's id, name, folder and URL.</descriptionOverride>
+        <descriptionOverride>Copy a saved report to a new report. The clone lands in the user's Private Reports folder unless folderId is given. Use it when the user wants a variant to edit without touching the original, then change the copy with update_report. Returns the clone's id, name, folder and URL. In the org, this tool needs the permission set Salesforce_Reports_MCP_Write. Without it, the call answers WRITE_NOT_ALLOWED.</descriptionOverride>
         <destructive>false</destructive>
         <idempotent>false</idempotent>
         <openWorld>true</openWorld>

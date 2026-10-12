@@ -102,6 +102,8 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 - **`GET /analytics/reportTypes/{type}` and `GET /analytics/report-types/{type}` both work.** The server uses the first, as designed.
 - **`DELETE` returns 204; `POST /analytics/reports?cloneId=` with `{"reportMetadata":{"name":…}}` clones into Private Reports.**
 - **Saved metadata comes back with its keys in alphabetical order.** Apex's `JSON.deserializeUntyped` loses key order, so the in-org door writes `update_report`'s change lines with sorted keys to match what `JSON.stringify` writes locally (found in phase 3b).
+- **An External Client App can be deleted by metadata.** After `npm run mcp:teardown`, one destructive deploy removed the whole MCP door: the app's two OAuth settings and the MCP server in the pre step, the app and the API Catalog entry in the post step (`salesforce/manifest/mcp-app/`). No manual step and no Setup click was needed (found in the package split).
+- **Deploying the `McpServerDefinition` writes its tool rows.** On a fresh install, `mcp:setup` found all eleven `McpServerToolDefinition` rows already there and only created the `McpServerAccess` row. Redeploying the registration and the server over an active server also succeeds, and updates each tool row's `DescriptionOverride` in place, so a description change needs no teardown. The API Catalog operations stay inactive either way (found in the package split).
 
 ### ReportResult (output)
 

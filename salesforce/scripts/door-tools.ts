@@ -28,6 +28,18 @@ export const DOOR_TOOLS = [
   "clone_report",
 ] as const;
 
+/** The save tools, which need the Reports_MCP_Write custom permission in the org. */
+export const SAVE_TOOLS: readonly string[] = ["create_report", "update_report", "clone_report"];
+
+/** Added after a save tool's local description on the door: the OpenAPI operation, the server, the tool row. */
+export const WRITE_PERMISSION_SENTENCES =
+  "In the org, this tool needs the permission set Salesforce_Reports_MCP_Write. Without it, the call answers WRITE_NOT_ALLOWED.";
+
+/** A tool's description on the door: the local description, plus the write permission sentences for a save tool. */
+export function doorDescription(name: string, local: string): string {
+  return SAVE_TOOLS.includes(name) ? `${local} ${WRITE_PERMISSION_SENTENCES}` : local;
+}
+
 export interface DoorTool {
   name: string;
   title: string;
@@ -47,7 +59,10 @@ export function toolFlags(tool: DoorTool): { ReadOnly: boolean; Destructive: boo
   };
 }
 
-/** The local server's tool list for the door tools. Nothing is called on Salesforce. */
+/**
+ * The local server's tool list for the door tools, with each tool's door description. Nothing is called on
+ * Salesforce.
+ */
 export async function doorTools(): Promise<DoorTool[]> {
   const offline: SalesforceApi = {
     apiVersion: "62.0",
@@ -68,7 +83,7 @@ export async function doorTools(): Promise<DoorTool[]> {
     return {
       name,
       title: tool.title ?? tool.annotations?.title ?? name,
-      description: tool.description ?? "",
+      description: doorDescription(name, tool.description ?? ""),
       inputSchema: tool.inputSchema as Record<string, unknown>,
       annotations: tool.annotations ?? {},
     };

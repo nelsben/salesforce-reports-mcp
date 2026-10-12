@@ -17,7 +17,7 @@ Under the hosted MCP door, the user signs in through an External Client App with
 
 ## Decision (proposed)
 
-Ship with `mcp_api` only. When a callout is refused, the tools answer `CALLOUT_SESSION` and name both remedies. The skills fall back to saved reports and say what the admin can change. The admin chooses between the `api` scope and a per-user Named Credential knowingly, with this page as the trade-off.
+Ship with `mcp_api` only. When a callout is refused, the tools answer `CALLOUT_SESSION` and name both remedies. The skills fall back to saved reports and say what the admin can change. The admin chooses between the `api` scope and a per-user Named Credential knowingly, with this page as the trade-off. The scope is set in the `mcp-app` package, in `salesforce/mcp-app/main/default/extlClntAppOauthSettings/SalesforceReportsMcp.ecaOauth-meta.xml`, and reaches the org with a deploy of `mcp-app`.
 
 The named-principal credential is ruled out for good: a reporting tool that runs as an integration user shows every user the integration user's data, which defeats the org's sharing model.
 

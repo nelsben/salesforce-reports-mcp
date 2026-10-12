@@ -1,6 +1,6 @@
 # 0009. Two Salesforce shipping units: the REST door and the MCP adapter
 
-Status: Accepted, 2026-10-11. The split of `salesforce/` into two package directories is in progress.
+Status: Accepted, 2026-10-11. Done: `salesforce/` holds the two package directories, each with its own removal manifest in `salesforce/manifest/`, and `test/packages.test.ts` keeps them apart in CI.
 
 ## Context
 

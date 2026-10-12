@@ -25,7 +25,7 @@ for (String name : cases.keySet()) {
     Map<String, Object> raw = (Map<String, Object>) ReportsCallout.send('POST', '/analytics/reports/query?includeDetails=true', new Map<String, Object>{ 'reportMetadata' => mapped.metadata });
     Long t1 = System.currentTimeMillis();
     Integer hParse = Limits.getHeapSize() - h0;
-    Map<String, Object> shaped = ReportsShape.shapeJson(raw, 2000, true, ReportsApi.baseUrl(), new List<String>());
+    Map<String, Object> shaped = ReportsShape.shapeJson(raw, 2000, true, ReportsService.baseUrl(), new List<String>());
     Long t2 = System.currentTimeMillis();
     Integer hShape = Limits.getHeapSize() - h0;
     Integer bytes = Blob.valueOf(JSON.serialize(shaped)).size();
