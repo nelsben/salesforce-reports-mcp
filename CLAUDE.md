@@ -7,7 +7,8 @@ Guidance for Claude Code when working in this repository.
 An MCP server, plus Claude skills, that lets Claude find, define, run, save and combine Salesforce reports through the Salesforce Reports and Dashboards REST API. Nothing is installed in the Salesforce org.
 
 - [docs/design.md](docs/design.md) is the contract for the tools: the `ReportDefinition` input, the `ReportResult` output, safety, and live findings that corrected the first draft.
-- `docs/experiences.md` describes how people use the tools: the report runner, the report designer and report deploy, each a skill. It lands with the experiences PR.
+- `docs/experiences.md` describes how people use the tools: the report runner, the report designer and report deploy, each a skill.
+- [docs/architecture.md](docs/architecture.md) maps the three doors and the Apex layers; [docs/decisions/](docs/decisions/README.md) records why. A change that moves a decision gets a new record.
 
 Read the relevant one before changing behaviour, and update it in the same change when behaviour moves.
 

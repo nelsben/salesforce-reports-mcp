@@ -272,7 +272,4 @@ There is no `delete_report` in the org. Deleting is left to the report builder a
 | `skills/` | report-runner, report-designer, report-deploy; each names the tools and, in one short section, the three transports | upload to claude.ai, or install as a Claude Code plugin | any door |
 | npm package | the local MCP server | `npm install -g` | nothing |
 
-Open on this page, to settle before phase 3c:
-
-1. Move the MCP metadata from `force-app` into `mcp-app` and give each package its own manifest and README section.
-2. One skill set with a transport section, or a separate REST skill. The recommendation is one set: skills bind to tool names.
+The reasons behind each choice on this page are in [docs/decisions/](decisions/README.md). Still open: moving the MCP metadata from `force-app` into `mcp-app`, with its own manifest and README section ([0009](decisions/0009-two-shipping-units.md)). Settled: one skill set, with the REST call form in each skill's `transport.md`.
