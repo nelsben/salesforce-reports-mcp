@@ -350,4 +350,26 @@ private class ReportsSaveTest {
             Test.stopTest();
         }
     }
+
+    /** On the hosted MCP door's route, a save by a user who may save answers CALLOUT_SESSION, with no callout. */
+    @IsTest
+    static void answersCalloutSessionOnTheHostedRoute() {
+        System.runAs(writer()) {
+            Test.startTest();
+            ReportsCalloutTest.Mock m = use(new ReportsCalloutTest.Mock().route('/analytics/reportTypes', 200, TYPES).route('/analytics/reports', 200, SAVED));
+            Map<String, String> bodies = new Map<String, String>{
+                'create_report' => '{"name":"zz","reportType":"Opportunity"}',
+                'update_report' => '{"reportId":"' + SAVED_ID + '","name":"zz"}',
+                'clone_report' => '{"reportId":"' + SOURCE_ID + '"}'
+            };
+            for (String tool : bodies.keySet()) {
+                ReportsApi.Answer a = ReportsApi.handle(tool, bodies.get(tool), true);
+                Assert.areEqual(500, a.status, tool);
+                Assert.areEqual('CALLOUT_SESSION', error(a).get('code'), tool);
+                Assert.areEqual(ReportsCallout.HOSTED_HINT, error(a).get('hint'), tool);
+            }
+            Assert.areEqual(0, m.requests.size(), 'no callout on the hosted route');
+            Test.stopTest();
+        }
+    }
 }

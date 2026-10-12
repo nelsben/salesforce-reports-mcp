@@ -18,6 +18,13 @@ Body: the tool's JSON input, as inputSchema in src/server.ts defines it
 404:  a tool this door lacks. Body: {"error": {"code": "UNKNOWN_TOOL", ...}}
 ```
 
+The class answers on two routes, and reads the tool name from the last segment of either:
+
+| Route | Called by | Callouts |
+| --- | --- | --- |
+| `/services/apexrest/reports/v1/<tool>` | the REST door: scripts, the skills through `sf api request rest`, Flow, other agents | under the caller's session |
+| `/services/apexrest/reports/v1/mcp/<tool>` | the hosted MCP door, through the API Catalog entry in `mcp-app` | none. A hosted sign-in gives Apex no session, so `list_report_types`, `query_report`, `combine_reports` with definitions and the three save tools answer 500 `CALLOUT_SESSION`, and `describe_report_type` reads the type through a saved report ([decision 0007](../docs/decisions/0007-callout-identity-under-hosted-mcp.md)) |
+
 ## Tools
 
 The door has eleven tools: the eight read tools `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`, and the three save tools `create_report`, `update_report` and `clone_report`.

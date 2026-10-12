@@ -1,6 +1,6 @@
 # 0007. The callout's identity under a hosted MCP sign-in
 
-Status: Proposed, 2026-10-11. Settled by one signed-in call; see "How it is settled".
+Status: Accepted, 2026-10-12. Proposed 2026-10-11 and settled by one signed-in call; see "Result".
 
 ## Context
 
@@ -24,3 +24,11 @@ The named-principal credential is ruled out for good: a reporting tool that runs
 ## How it is settled
 
 Connect the hosted server in claude.ai, signed in to a dev org, and call `list_report_types`. A list means the session works and this record becomes "not needed". `CALLOUT_SESSION` means it is refused, and this record becomes Accepted as written.
+
+## Result
+
+Settled 2026-10-12 by a call to `list_report_types` through the hosted server in claude.ai, signed in through the External Client App with `mcp_api` and `refresh_token`. The answer was stronger than the REST API refusing the session. `UserInfo.getSessionId()` itself threw `System.UnexpectedException` ("Script-thrown exception"), and no `catch (Exception e)` stopped it. The client got Salesforce's own `APEX_ERROR`, with class names and line numbers, instead of `CALLOUT_SESSION`, so the skills' fallback never ran.
+
+So the code must know which door called before it asks for a session. The hosted door has its own route, `/services/apexrest/reports/v1/mcp/<tool>`, written into the API Catalog registration by `npm run mcp:generate`. On that route `ReportsApi` tells `ReportsCallout` the call has no session to use, and `ReportsCallout` answers `CALLOUT_SESSION` before it asks for one and before any request. Its hint names the tools that still work on the hosted server: `search_reports`, `list_report_folders`, `describe_report`, `describe_report_type` through a saved report, `run_report` with overrides, and `combine_reports` over saved reports. The REST door keeps `/reports/v1/<tool>` and the caller's session. The core does not know the route.
+
+Whether the `api` scope would change the throw is untested. The per-user Named Credential is the chosen remedy, and it will be recorded in its own decision when it is built.

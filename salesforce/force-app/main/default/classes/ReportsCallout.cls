@@ -4,12 +4,27 @@
  * can replace the session here alone: set the endpoint to 'callout:<name>' plus the path, and drop the Authorization
  * header. Phase 0 probe 3 showed this needs no Remote Site Setting. It reads upstream status codes, but it throws only
  * the core's ReportsException, with a category and never a status of its own.
+ *
+ * The door that calls the core sets calloutIdentity before the call. Under a hosted MCP sign-in, UserInfo.getSessionId()
+ * throws an exception no catch block can stop (docs/decisions/0007), so that door sets NONE, and send() refuses with
+ * CALLOUT_SESSION before it asks for a session.
  */
 public with sharing class ReportsCallout {
     public static final String API_PATH = '/services/data/v62.0';
     public static final String SESSION_HINT = 'The in-org door could not call the org\'s REST API under this sign-in. Use the local server, or ask an admin to give the sign-in API access (docs/probes/v0.2-phase3.md).';
+    public static final String HOSTED_MESSAGE = 'The hosted MCP sign-in gives Apex no session to call the org\'s REST API with, so this tool cannot run on the hosted MCP server.';
+    public static final String HOSTED_HINT = 'On the hosted MCP server, search_reports, list_report_folders, describe_report, describe_report_type (through a saved report of the type), run_report with overrides and combine_reports over saved reports still work. For list_report_types, query_report, combine_reports with definitions and the save tools, use the local server or the in-org REST door (docs/decisions/0007).';
     /** The longest one synchronous callout may take. */
     static final Integer TIMEOUT_MS = 120000;
+
+    /**
+     * Whose identity a callout carries. SESSION is the running user's session. NONE means the caller has no session to
+     * use, and send() refuses before it asks for one. A per-user Named Credential would be a third value.
+     */
+    public enum Identity { SESSION, NONE }
+
+    /** Set by the door for each call. The REST door leaves SESSION, the hosted MCP door sets NONE. */
+    public static Identity calloutIdentity = Identity.SESSION;
 
     /** Tests set this to stand in for a sign-in that has no session. */
     @TestVisible
@@ -17,10 +32,12 @@ public with sharing class ReportsCallout {
 
     /**
      * Calls `path` (after /services/data/v62.0) and answers with the parsed JSON, or null for an empty body.
-     * A refused session throws CALLOUT_SESSION. Any other error throws the code, message and hint the local door
-     * gives for it (src/salesforce/client.ts and src/format.ts), as invalid input for a 4xx and failed otherwise.
+     * A refused session throws CALLOUT_SESSION, and so does a call with no identity to use, before any session is asked
+     * for and before any request is built. Any other error throws the code, message and hint the local door gives for
+     * it (src/salesforce/client.ts and src/format.ts), as invalid input for a 4xx and failed otherwise.
      */
     public static Object send(String method, String path, Object body) {
+        if (calloutIdentity == Identity.NONE) throw ReportsException.failed('CALLOUT_SESSION', HOSTED_MESSAGE, HOSTED_HINT);
         String session = session();
         if (String.isBlank(session)) throw refused('There is no session to call the org\'s REST API with.');
         HttpRequest req = new HttpRequest();
