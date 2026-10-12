@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>SalesforceReportsSelf</members>
+        <name>Certificate</name>
+    </types>
+    <types>
+        <members>SalesforceReportsSelf</members>
+        <name>ExternalClientApplication</name>
+    </types>
+    <types>
+        <members>SalesforceReportsSelf</members>
+        <name>ExternalCredential</name>
+    </types>
+    <version>68.0</version>
+</Package>
