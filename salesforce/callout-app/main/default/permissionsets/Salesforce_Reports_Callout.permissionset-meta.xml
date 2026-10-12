@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Lets the hosted MCP server call the org's REST API as this user: the per-user principal of the named credential SalesforceReportsCallout, and its External Client App. Assign with Salesforce_Reports.</description>
+    <externalCredentialPrincipalAccesses>
+        <enabled>true</enabled>
+        <externalCredentialPrincipal>SalesforceReportsCallout-RunningUser</externalCredentialPrincipal>
+    </externalCredentialPrincipalAccesses>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Salesforce Reports Callout</label>
+</PermissionSet>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>SalesforceReportsCallout</members>
+        <name>ExtlClntAppConfigurablePolicies</name>
+    </types>
+    <types>
+        <members>SalesforceReportsCallout</members>
+        <name>ExtlClntAppGlobalOauthSettings</name>
+    </types>
+    <types>
+        <members>SalesforceReportsCallout</members>
+        <name>ExtlClntAppOauthConfigurablePolicies</name>
+    </types>
+    <types>
+        <members>SalesforceReportsCallout</members>
+        <name>ExtlClntAppOauthSettings</name>
+    </types>
+    <types>
+        <members>SalesforceReportsCallout</members>
+        <name>NamedCredential</name>
+    </types>
+    <types>
+        <members>Salesforce_Reports_Callout</members>
+        <name>PermissionSet</name>
+    </types>
+    <version>68.0</version>
+</Package>

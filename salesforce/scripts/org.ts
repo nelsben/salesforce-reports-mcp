@@ -35,22 +35,38 @@ export function checkOrg(alias: string, opts: { env: Record<string, string | und
 
 /** The alias from `<alias>` or `--org <alias>`, plus `--yes`. Exits 2 on a missing alias or a refused one, before any CLI call. */
 export function orgFromArgs(usage: string): string {
-  const { values, positionals } = parseArgs({
-    options: { org: { type: "string" }, yes: { type: "boolean", default: false } },
-    allowPositionals: true,
-    strict: true,
-  });
-  const org = values.org ?? positionals[0];
+  return orgAndFlagsFromArgs(usage, []).org;
+}
+
+/**
+ * As orgFromArgs, and also reads the named boolean flags (for example `ignore-conflicts`), each false unless given.
+ * Exits 2 on a missing alias, a refused one or an unknown flag, before any CLI call.
+ */
+export function orgAndFlagsFromArgs<F extends string>(usage: string, flags: readonly F[]): { org: string; flags: Record<F, boolean> } {
+  const extra = Object.fromEntries(flags.map((f) => [f, { type: "boolean" as const, default: false }]));
+  let parsed;
+  try {
+    parsed = parseArgs({
+      options: { org: { type: "string" }, yes: { type: "boolean", default: false }, ...extra },
+      allowPositionals: true,
+      strict: true,
+    });
+  } catch (e) {
+    console.error(`${(e as Error).message}\nUsage: ${usage}`);
+    process.exit(2);
+  }
+  const { values, positionals } = parsed;
+  const org = (values.org as string | undefined) ?? positionals[0];
   if (!org) {
     console.error(`Usage: ${usage}`);
     process.exit(2);
   }
-  const verdict = checkOrg(org, { env: process.env, yes: values.yes ?? false });
+  const verdict = checkOrg(org, { env: process.env, yes: (values.yes as boolean | undefined) ?? false });
   if (!verdict.ok) {
     console.error(verdict.message);
     process.exit(2);
   }
-  return org;
+  return { org, flags: Object.fromEntries(flags.map((f) => [f, values[f] === true])) as Record<F, boolean> };
 }
 
 /** Prints the alias and instance URL about to be changed. Never the token. */

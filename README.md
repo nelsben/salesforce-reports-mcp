@@ -138,7 +138,7 @@ There are three doors to the same tools. Each takes the same tool names and inpu
 | In-org REST | The Apex class `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce, other agents | 11: the eight read tools and three save tools |
 | In-org MCP | Salesforce hosted MCP over `ReportsApi`, server `SalesforceReports` | claude.ai and other remote MCP clients, with nothing to host | 11: the eight read tools and three save tools |
 
-The eight read tools are `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`. The three save tools are `create_report`, `update_report` and `clone_report`. They work only for a user with the permission set `Salesforce_Reports_Write`, and answer `WRITE_NOT_ALLOWED` (HTTP 403) to anyone else. `delete_report` is on the local server only. The save tools, `list_report_types`, `query_report` and `describe_report_type` call the org's own REST API under the user's session. On the REST door that works. A hosted MCP sign-in gives Apex no session, so on the hosted door `search_reports`, `list_report_folders`, `describe_report`, `run_report` and `combine_reports` over saved reports work, `describe_report_type` reads the type through a saved report, and `list_report_types`, `query_report` and the save tools answer `CALLOUT_SESSION`. For those, use the local server or the REST door ([decision 0007](docs/decisions/0007-callout-identity-under-hosted-mcp.md)). The in-org doors ship as two Salesforce package directories in `salesforce/` ([decision 0009](docs/decisions/0009-two-shipping-units.md)): `force-app` is the REST door, complete on its own, and `mcp-app` adds the hosted MCP door on top of it with no code of its own. `salesforce/README.md` has the details. Hosted MCP needs API 67.0 or later.
+The eight read tools are `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`. The three save tools are `create_report`, `update_report` and `clone_report`. They work only for a user with the permission set `Salesforce_Reports_Write`, and answer `WRITE_NOT_ALLOWED` (HTTP 403) to anyone else. `delete_report` is on the local server only. The save tools, `list_report_types`, `query_report` and `describe_report_type` call the org's own REST API under the user's session. On the REST door that works. A hosted MCP sign-in gives Apex no session ([decision 0007](docs/decisions/0007-callout-identity-under-hosted-mcp.md)). The optional package `callout-app` gives the hosted door a per-user named credential instead, so every tool but `delete_report` works there as the signed-in user ([decision 0012](docs/decisions/0012-per-user-jwt-named-credential.md)). Without it, on the hosted door `search_reports`, `list_report_folders`, `describe_report`, `run_report` and `combine_reports` over saved reports work, `describe_report_type` reads the type through a saved report, and `list_report_types`, `query_report` and the save tools answer `CALLOUT_SESSION`. The in-org doors ship as Salesforce package directories in `salesforce/` ([decision 0009](docs/decisions/0009-two-shipping-units.md)): `force-app` is the REST door, complete on its own, `mcp-app` adds the hosted MCP door on top of it with no code of its own, and `callout-app` adds the callout identity for the hosted door, also with no code. `salesforce/README.md` has the details. Hosted MCP needs API 67.0 or later.
 
 ### The REST door
 
@@ -193,6 +193,24 @@ To remove the REST door, remove the MCP door first if it is installed, then unas
 5. Connect Claude. In claude.ai, open Settings, then Connectors, then Add custom connector. Paste the URL from step 2. Under Advanced settings, paste the consumer key as the OAuth Client ID. Click Add, then Connect, and sign in to the org. A sandbox or scratch org uses `https://api.salesforce.com/platform/mcp/v1/sandbox/custom/SalesforceReports`. Production and Developer Edition use the same URL without `sandbox/`.
 
 Each user signs in as themselves, so sharing, folder access and field-level security apply. The save tools are listed for every user, and refuse anyone without `Salesforce_Reports_Write`. To check the door from a terminal, run `SF_MCP_TOKEN=<token> npm run mcp-check -- --org <alias>` with an access token from that sign-in. It lists the tools and runs `search_reports` and `run_report`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy `mcp-app` again.
+
+### The callout tools on the MCP door
+
+Without more setup, `list_report_types`, `query_report`, `combine_reports` with definitions and the save tools answer `CALLOUT_SESSION` on the MCP door. `salesforce/callout-app` fixes that with a per-user named credential: the org mints a token for each signed-in user itself, so no user clicks anything and no secret is stored. It holds no code, and the tracked files hold placeholders only.
+
+1. Run its setup script from the repo root. It fills the org's My Domain, the app's consumer key and the certificate the org makes into a temp copy, deploys it, and prints none of them. The same `--yes` or `SF_REPORTS_SETUP_ORGS` rule applies.
+
+   ```bash
+   npm run callout:setup -- --org <alias> --yes
+   ```
+
+2. Assign its permission set to each user of the MCP door. A user without it gets `CALLOUT_CREDENTIAL`, with a hint naming the set.
+
+   ```bash
+   sf org assign permset -n Salesforce_Reports_Callout -o <alias> --on-behalf-of <user>
+   ```
+
+`salesforce/README.md` has the steps the script runs and the removal.
 
 To remove the MCP door, run `npm run mcp:teardown -- --org <alias> --yes` (the same `--yes` or `SF_REPORTS_SETUP_ORGS` rule applies), then the `mcp-app` removal in `salesforce/README.md`. The REST door stays and keeps working.
 

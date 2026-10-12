@@ -351,9 +351,10 @@ private class ReportsSaveTest {
         }
     }
 
-    /** On the hosted MCP door's route, a save by a user who may save answers CALLOUT_SESSION, with no callout. */
+    /** On the hosted MCP door's route without the callout-app package, a save answers CALLOUT_SESSION, with no callout. */
     @IsTest
     static void answersCalloutSessionOnTheHostedRoute() {
+        ReportsCallout.credentialInstalled = false;
         System.runAs(writer()) {
             Test.startTest();
             ReportsCalloutTest.Mock m = use(new ReportsCalloutTest.Mock().route('/analytics/reportTypes', 200, TYPES).route('/analytics/reports', 200, SAVED));
@@ -369,6 +370,36 @@ private class ReportsSaveTest {
                 Assert.areEqual(ReportsCallout.HOSTED_HINT, error(a).get('hint'), tool);
             }
             Assert.areEqual(0, m.requests.size(), 'no callout on the hosted route');
+            Test.stopTest();
+        }
+    }
+
+    /** On the hosted route with the callout-app package, a save calls out through the named credential, as the user. */
+    @IsTest
+    static void savesThroughTheNamedCredentialOnTheHostedRoute() {
+        ReportsCallout.credentialInstalled = true;
+        System.runAs(writer()) {
+            Test.startTest();
+            ReportsCalloutTest.Mock m = use(new ReportsCalloutTest.Mock().route('/analytics/reports', 200, SAVED));
+            ReportsApi.Answer a = ReportsApi.handle('clone_report', '{"reportId":"' + SOURCE_ID + '","name":"zz clone"}', true);
+            Assert.areEqual(200, a.status, JSON.serialize(a.body));
+            Assert.areEqual('callout:SalesforceReportsCallout/services/data/v62.0/analytics/reports?cloneId=' + SOURCE_ID, m.requests[0].getEndpoint());
+            Assert.isNull(m.requests[0].getHeader('Authorization'));
+            Test.stopTest();
+        }
+    }
+
+    /** The write permission is checked before the credential: a reader gets WRITE_NOT_ALLOWED, with no callout. */
+    @IsTest
+    static void checksTheWritePermissionBeforeTheCredential() {
+        ReportsCallout.credentialInstalled = true;
+        System.runAs(reader()) {
+            Test.startTest();
+            ReportsCalloutTest.Mock m = use(new ReportsCalloutTest.Mock().route('/analytics/reports', 200, SAVED));
+            ReportsApi.Answer a = ReportsApi.handle('clone_report', '{"reportId":"' + SOURCE_ID + '"}', true);
+            Assert.areEqual(403, a.status);
+            Assert.areEqual('WRITE_NOT_ALLOWED', error(a).get('code'));
+            Assert.areEqual(0, m.requests.size());
             Test.stopTest();
         }
     }

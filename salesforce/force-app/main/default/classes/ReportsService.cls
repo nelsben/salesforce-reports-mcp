@@ -172,7 +172,7 @@ public with sharing class ReportsService {
             Object described = ReportsCallout.send('GET', '/analytics/reportTypes/' + ReportsCallout.segment(type), null);
             return ReportsSummary.summarizeReportTypeJson(ReportsInput.asMap(described, 'The report type describe'), type, search, lim);
         } catch (ReportsException e) {
-            if (e.code != 'CALLOUT_SESSION') throw e;
+            if (e.code != 'CALLOUT_SESSION' && e.code != 'CALLOUT_CREDENTIAL') throw e;
         }
         return describeThroughSavedReport(type, search, lim);
     }

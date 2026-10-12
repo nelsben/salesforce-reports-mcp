@@ -38,7 +38,7 @@ A failed call returns an error with a code and a hint (`isError` on MCP, an `err
 A refusal is not a bad input. Never retry it.
 
 - **`WRITE_NOT_ALLOWED` on a save.** Nothing was saved, and nothing else will be. Say the user needs the permission set `Salesforce_Reports_Write`, which a Salesforce admin assigns. Then give them the finished definition (the JSON you sent, name included), so the admin or the user can save it once the permission is in. Do not try `update_report` or `clone_report` instead.
-- **`CALLOUT_SESSION`.** The door cannot call the org's own REST API under this sign-in. Previews of unsaved reports (`query_report`) and every save need an admin fix first: the two options are in `docs/probes/v0.2-phase3.md` in the repository, section "Two fixes to try". Previews of a saved report with `run_report` and `overrides` still work, so keep designing that way, and give the finished definition at the end instead of saving.
+- **`CALLOUT_SESSION` or `CALLOUT_CREDENTIAL`.** The door cannot call the org's own REST API under this sign-in. Previews of unsaved reports (`query_report`) and every save need an admin fix first. On the hosted MCP server the fix is the optional callout package, `salesforce/callout-app` in the repository, plus its permission set; for `CALLOUT_CREDENTIAL` the package is there and the `hint` names the permission set to assign. Elsewhere, the options are in `docs/probes/v0.2-phase3.md` in the repository, section "Two fixes to try". Previews of a saved report with `run_report` and `overrides` still work, so keep designing that way, and give the finished definition at the end instead of saving.
 
 ## Details
 

@@ -120,7 +120,7 @@ export function openApiDocument(tools: DoorTool[]): Json {
       title: REGISTRATION,
       version: "1.0.0",
       // Salesforce keeps at most 255 characters of this description.
-      description: "The hosted MCP door, /reports/v1/mcp/<tool>. Callout tools answer CALLOUT_SESSION here. Saving needs the Salesforce_Reports_Write permission set. Generated from src/server.ts by salesforce/scripts/generate-metadata.ts.",
+      description: "The hosted MCP door, /reports/v1/mcp/<tool>. Callout tools need the callout-app package, else answer CALLOUT_SESSION. Saving needs the Salesforce_Reports_Write permission set. Generated from src/server.ts by salesforce/scripts/generate-metadata.ts.",
     },
     servers: [{ url: "/services/apexrest" }],
     paths,

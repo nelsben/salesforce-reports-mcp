@@ -6,7 +6,7 @@
 public class ReportsCalloutTest {
     /**
      * Answers each call by its path after /services/data/v62.0, without the query string, and any other path with the
-     * fallback (404 NOT_FOUND unless set). A status of -1 throws.
+     * fallback (404 NOT_FOUND unless set). A status of -1 throws, with the message set by failing() or 'Read timed out'.
      */
     public class Mock implements HttpCalloutMock {
         Integer otherStatus = 404;
@@ -21,10 +21,15 @@ public class ReportsCalloutTest {
             return this;
         }
 
+        /** Every call to `path` throws a CalloutException with `message`, as Salesforce does before any request. */
+        public Mock failing(String path, String message) {
+            return route(path, -1, message);
+        }
+
         public HttpResponse respond(HttpRequest req) {
             requests.add(req);
             String path = req.getEndpoint().substringAfter(ReportsCallout.API_PATH).substringBefore('?');
-            if (statuses.get(path) == -1) throw new CalloutException('Read timed out');
+            if (statuses.get(path) == -1) throw new CalloutException(bodies.get(path) == null ? 'Read timed out' : bodies.get(path));
             HttpResponse res = new HttpResponse();
             res.setStatusCode(statuses.containsKey(path) ? statuses.get(path) : otherStatus);
             res.setBody(statuses.containsKey(path) ? bodies.get(path) : otherBody);
@@ -141,6 +146,7 @@ public class ReportsCalloutTest {
         Mock m = use(new Mock().route('/analytics/reportTypes', 200, TYPES));
         ok(call('list_report_types', 'null'));
         Assert.areEqual(1, m.requests.size());
+        ReportsCallout.credentialInstalled = false;
         ReportsApi.Answer hosted = ReportsApi.handle('list_report_types', 'null', true);
         Assert.areEqual('CALLOUT_SESSION', error(hosted).get('code'));
         Assert.areEqual(1, m.requests.size(), 'no callout on the hosted route');
@@ -219,15 +225,24 @@ public class ReportsCalloutTest {
         Assert.areEqual(0, m.requests.size());
     }
 
-    /** The hosted MCP door's route: no session is asked for and no callout is made (docs/decisions/0007). */
-    @IsTest
-    static void answersCalloutSessionOnTheHostedRoute() {
-        Mock m = use(new Mock().route('/analytics/reportTypes', 200, TYPES).route('/analytics/reports/query', 200, TABULAR));
-        Map<String, String> bodies = new Map<String, String>{
+    /** A call of each callout tool but describe_report_type, as the hosted tests send them. */
+    static Map<String, String> hostedBodies() {
+        return new Map<String, String>{
             'list_report_types' => '{}',
             'query_report' => '{"reportType":"Opportunity","columns":["AMOUNT"]}',
             'combine_reports' => '{"mode":"stack","inputs":[{"alias":"a","definition":{"reportType":"Opportunity","columns":["OPPORTUNITY_NAME"]}},{"alias":"b","definition":{"reportType":"Opportunity","columns":["OPPORTUNITY_NAME"]}}]}'
         };
+    }
+
+    /**
+     * The hosted MCP door's route without the callout-app package: no session is asked for and no callout is made
+     * (docs/decisions/0007 and 0012).
+     */
+    @IsTest
+    static void answersCalloutSessionOnTheHostedRoute() {
+        ReportsCallout.credentialInstalled = false;
+        Mock m = use(new Mock().route('/analytics/reportTypes', 200, TYPES).route('/analytics/reports/query', 200, TABULAR));
+        Map<String, String> bodies = hostedBodies();
         for (String tool : bodies.keySet()) {
             ReportsApi.Answer a = ReportsApi.handle(tool, bodies.get(tool), true);
             Assert.areEqual(500, a.status, tool);
@@ -244,6 +259,103 @@ public class ReportsCalloutTest {
         ok(call('list_report_types', '{}'));
         Assert.areEqual(1, m.requests.size());
         Assert.isTrue(m.requests[0].getHeader('Authorization').startsWith('Bearer '));
+    }
+
+    /**
+     * The hosted route with the callout-app package: every callout tool calls out through the named credential, with no
+     * Authorization header of its own and no session asked for (noSession would refuse it).
+     */
+    @IsTest
+    static void callsOutThroughTheNamedCredentialOnTheHostedRoute() {
+        ReportsCallout.credentialInstalled = true;
+        ReportsCallout.noSession = true;
+        Mock m = use(new Mock().route('/analytics/reportTypes', 200, TYPES).route('/analytics/reports/query', 200, TABULAR).route('/analytics/reportTypes/Opportunity', 200, DESCRIBE));
+        Map<String, String> bodies = hostedBodies();
+        for (String tool : bodies.keySet()) {
+            ReportsApi.Answer a = ReportsApi.handle(tool, bodies.get(tool), true);
+            Assert.areEqual(200, a.status, tool + ': ' + JSON.serialize(a.body));
+        }
+        Map<String, Object> described = ok(ReportsApi.handle('describe_report_type', '{"type":"Opportunity"}', true));
+        Assert.isFalse(described.containsKey('notes'), 'a full describe, not the saved-report fallback');
+        Assert.areEqual(5, m.requests.size());
+        for (HttpRequest sent : m.requests) {
+            Assert.isTrue(sent.getEndpoint().startsWith('callout:SalesforceReportsCallout/services/data/v62.0/analytics/'), sent.getEndpoint());
+            Assert.isNull(sent.getHeader('Authorization'), 'the credential adds the header');
+        }
+        Set<String> endpoints = new Set<String>();
+        for (HttpRequest sent : m.requests) endpoints.add(sent.getEndpoint());
+        Assert.isTrue(endpoints.contains('callout:SalesforceReportsCallout/services/data/v62.0/analytics/reportTypes'), String.join(new List<String>(endpoints), ', '));
+        // The REST route still calls out with the session, at the org's own domain.
+        ReportsCallout.noSession = false;
+        ok(call('list_report_types', '{}'));
+        Assert.isTrue(m.requests[5].getEndpoint().startsWith(URL.getOrgDomainUrl().toExternalForm().removeEnd('/')));
+        Assert.isTrue(m.requests[5].getHeader('Authorization').startsWith('Bearer '));
+    }
+
+    /** The hosted route with the package, for a user without the callout permission set: CALLOUT_CREDENTIAL, naming the set. */
+    @IsTest
+    static void answersCalloutCredentialForAUserWithoutThePermissionSet() {
+        ReportsCallout.credentialInstalled = true;
+        String refused = 'We couldn\'t access the credential(s). You might not have the required permissions, or the external credential "SalesforceReportsCallout" might not exist.';
+        Mock m = use(new Mock().failing('/analytics/reportTypes', refused).failing('/analytics/reports/query', refused).failing('/analytics/reportTypes/No_Such_Type__c', refused));
+        Map<String, String> bodies = hostedBodies();
+        for (String tool : bodies.keySet()) {
+            ReportsApi.Answer a = ReportsApi.handle(tool, bodies.get(tool), true);
+            Assert.areEqual(500, a.status, tool);
+            Assert.areEqual('CALLOUT_CREDENTIAL', error(a).get('code'), tool);
+            Assert.areEqual(ReportsCallout.CREDENTIAL_HINT, error(a).get('hint'), tool);
+            Assert.isTrue(((String) error(a).get('hint')).contains('Salesforce_Reports_Callout'), tool);
+            Assert.isTrue(((String) error(a).get('message')).contains(refused), tool);
+        }
+        // describe_report_type still reaches its saved-report fallback.
+        ReportsApi.Answer described = ReportsApi.handle('describe_report_type', '{"type":"No_Such_Type__c"}', true);
+        Assert.areEqual('NO_SAVED_REPORT', error(described).get('code'));
+        Assert.isTrue(m.requests.size() >= 3, 'each tool tried the credential');
+    }
+
+    /** A credential that cannot mint a token, or a token Salesforce refuses, answers CALLOUT_CREDENTIAL with a setup hint. */
+    @IsTest
+    static void answersCalloutCredentialWhenTheTokenFails() {
+        ReportsCallout.credentialInstalled = true;
+        String exchange = 'Unable to complete the JWT token exchange. Error: invalid_client_id. Error description: client identifier invalid.';
+        use(new Mock().failing('/analytics/reportTypes', exchange));
+        Map<String, Object> e = error(ReportsApi.handle('list_report_types', '{}', true));
+        Assert.areEqual('CALLOUT_CREDENTIAL', e.get('code'));
+        Assert.areEqual(ReportsCallout.CREDENTIAL_SETUP_HINT, e.get('hint'));
+        Assert.isTrue(((String) e.get('message')).contains('invalid_client_id'));
+
+        use(refusing());
+        ReportsApi.Answer refused = ReportsApi.handle('query_report', '{"reportType":"Opportunity","columns":["AMOUNT"]}', true);
+        Assert.areEqual(500, refused.status);
+        Assert.areEqual('CALLOUT_CREDENTIAL', error(refused).get('code'));
+        Assert.areEqual(ReportsCallout.CREDENTIAL_SETUP_HINT, error(refused).get('hint'));
+
+        // Any other failure through the credential stays CALLOUT_FAILED, and Salesforce errors pass through.
+        use(new Mock().route('/analytics/reportTypes', -1, null));
+        Assert.areEqual('CALLOUT_FAILED', error(ReportsApi.handle('list_report_types', '{}', true)).get('code'));
+        use(new Mock());
+        Assert.areEqual('NOT_FOUND', error(ReportsApi.handle('query_report', '{"reportType":"Opportunity","columns":["AMOUNT"]}', true)).get('code'));
+        Assert.isNull(ReportsCallout.credentialError(null));
+        Assert.isNull(ReportsCallout.credentialError('Read timed out'));
+    }
+
+    /** Whether the credential is installed is read from the org, once. */
+    @IsTest
+    static void readsWhetherTheCredentialIsInstalled() {
+        Boolean installed = [SELECT COUNT() FROM NamedCredential WHERE DeveloperName = :ReportsCallout.CREDENTIAL] > 0;
+        Assert.areEqual(installed, ReportsCallout.hasCredential());
+        Assert.areEqual(installed, ReportsCallout.credentialInstalled);
+        // An explicit NONE never calls out, whatever is installed.
+        ReportsCallout.credentialInstalled = true;
+        ReportsCallout.calloutIdentity = ReportsCallout.Identity.NONE;
+        Mock m = use(new Mock().route('/analytics/reportTypes', 200, TYPES));
+        try {
+            ReportsCallout.send('GET', '/analytics/reportTypes', null);
+            Assert.fail('NONE should refuse');
+        } catch (ReportsException e) {
+            Assert.areEqual('CALLOUT_SESSION', e.code);
+        }
+        Assert.areEqual(0, m.requests.size());
     }
 
     @IsTest

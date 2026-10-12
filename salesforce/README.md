@@ -1,11 +1,14 @@
 # In-org REST door
 
-Two Salesforce package directories, as [decision 0009](../docs/decisions/0009-two-shipping-units.md) sets out:
+Three Salesforce package directories, as [decision 0009](../docs/decisions/0009-two-shipping-units.md) and [decision 0012](../docs/decisions/0012-per-user-jwt-named-credential.md) set out:
 
 | Directory | Holds | Depends on |
 | --- | --- | --- |
 | `force-app` (default) | the REST door: the Apex classes and tests, the permission sets `Salesforce_Reports` and `Salesforce_Reports_Write`, and the custom permission `Reports_Write` | nothing |
 | `mcp-app` | the hosted MCP door: the API Catalog entry `ReportsApi`, the MCP server `SalesforceReports` and the External Client App `SalesforceReportsMcp`. No code. | `force-app` |
+| `callout-app` (optional) | the callout identity for the hosted MCP door: the certificate, the External Client App, the external credential and the named credential `SalesforceReportsCallout`, and the permission set `Salesforce_Reports_Callout`. No code. Placeholders only: `npm run callout:setup` fills and deploys it. | nothing to deploy. Without it, the hosted door's callout tools answer `CALLOUT_SESSION` |
+
+Install order: `force-app`, then `mcp-app` for the hosted door, then `callout-app` if hosted users need the callout tools.
 
 The REST door is an Apex REST resource, `ReportsApi`, that answers the runner tools from inside the org. It takes the same JSON input as the local server's tool and returns the same JSON. `ReportsApi` is a thin adapter over the core class `ReportsService`, as [docs/architecture.md](../docs/architecture.md) draws it. The contract is in [docs/design.md](../docs/design.md), section "v0.2: the in-org doors". Phase 1 results are in [docs/probes/v0.2-phase1.md](../docs/probes/v0.2-phase1.md), phase 3a (the callout tools) in [docs/probes/v0.2-phase3.md](../docs/probes/v0.2-phase3.md), and phase 3b (the save tools) in [docs/probes/v0.2-phase3b.md](../docs/probes/v0.2-phase3b.md).
 
@@ -23,7 +26,7 @@ The class answers on two routes, and reads the tool name from the last segment o
 | Route | Called by | Callouts |
 | --- | --- | --- |
 | `/services/apexrest/reports/v1/<tool>` | the REST door: scripts, the skills through `sf api request rest`, Flow, other agents | under the caller's session |
-| `/services/apexrest/reports/v1/mcp/<tool>` | the hosted MCP door, through the API Catalog entry in `mcp-app` | none. A hosted sign-in gives Apex no session, so `list_report_types`, `query_report`, `combine_reports` with definitions and the three save tools answer 500 `CALLOUT_SESSION`, and `describe_report_type` reads the type through a saved report ([decision 0007](../docs/decisions/0007-callout-identity-under-hosted-mcp.md)) |
+| `/services/apexrest/reports/v1/mcp/<tool>` | the hosted MCP door, through the API Catalog entry in `mcp-app` | through the named credential `SalesforceReportsCallout`, as the user, when `callout-app` is installed ([decision 0012](../docs/decisions/0012-per-user-jwt-named-credential.md)). Without it, none: a hosted sign-in gives Apex no session, so `list_report_types`, `query_report`, `combine_reports` with definitions and the three save tools answer 500 `CALLOUT_SESSION`, and `describe_report_type` reads the type through a saved report ([decision 0007](../docs/decisions/0007-callout-identity-under-hosted-mcp.md)) |
 
 ## Tools
 
@@ -54,9 +57,18 @@ The save tools check the custom permission `Reports_Write` with `FeatureManageme
 
 ### The callout
 
-`list_report_types`, `describe_report_type`, `query_report` and the three save tools call the org's own Reports REST API through one helper, `ReportsCallout`: `URL.getOrgDomainUrl()` plus `/services/data/v62.0/analytics/...`, with the running user's session. It needs no Remote Site Setting. A Named Credential could replace the session in that one class.
+`list_report_types`, `describe_report_type`, `query_report` and the three save tools call the org's own Reports REST API through one helper, `ReportsCallout`. Which identity the call carries depends on the route:
+
+| Route | Identity | Endpoint |
+| --- | --- | --- |
+| REST door | `SESSION`: the running user's session | `URL.getOrgDomainUrl()` plus `/services/data/v62.0/analytics/...`, with a `Bearer` header. No Remote Site Setting needed. |
+| Hosted MCP door, with `callout-app` | `NAMED_CREDENTIAL`: a token the org mints for the running user (JWT bearer, per-user principal) | `callout:SalesforceReportsCallout/services/data/v62.0/analytics/...`, with no header of its own. `UserInfo.getSessionId()` is never called. |
+| Hosted MCP door, without `callout-app` | none | no request. 500 `CALLOUT_SESSION` |
+
+`ReportsCallout` reads whether the named credential is installed with a query on `NamedCredential`, once per request, so `force-app` runs the same with or without `callout-app`.
 
 - A missing session, a 401 or `INVALID_SESSION_ID` answers 500 with code `CALLOUT_SESSION` and a hint that the in-org door could not call the org's REST API under this sign-in.
+- Through the named credential, a user without `Salesforce_Reports_Callout` answers 500 `CALLOUT_CREDENTIAL`, with a hint naming that permission set. A failed token exchange or a 401 answers the same code, with Salesforce's text and a hint to run the setup again. `describe_report_type` falls back to a saved report on either code.
 - Any other Salesforce error answers with the body the local server gives for it: Salesforce's `errorCode` and `message`, the same hint, and status 400 for a 4xx.
 - A call that fails outright (over 6 MB or 120 seconds) answers 500 `CALLOUT_FAILED`.
 
@@ -74,11 +86,11 @@ The save tools check the custom permission `Reports_Write` with `FeatureManageme
 | `ReportsShape` | core | `src/reports/shape.ts`: `Reports.ReportResults` (run_report) and the REST JSON (query_report) to `ReportResult`, through one shared frame. |
 | `ReportsSummary` | core | `src/reports/summarize.ts`: `describe_report`, `list_report_types`, `describe_report_type`, filter lines. |
 | `ReportsCombine` | core | `src/reports/combine.ts`: stack and join. |
-| `ReportsCallout` | outbound HTTP adapter | `src/salesforce/client.ts`: the one call to the org's REST API. It reads the upstream status, and throws `ReportsException`. |
+| `ReportsCallout` | outbound HTTP adapter | `src/salesforce/client.ts`: the one call to the org's REST API, with the session or, on the hosted route, the named credential. It reads the upstream status, and throws `ReportsException`. |
 
 The dependency rule: no class but `ReportsApi` and its tests names `ReportsApi`, so the core does not know which door called it. `scripts/measure.apex` and `scripts/measure-query.apex` call the core directly, with the row cap and base URL from `ReportsService`, and call `ReportsApi.handle` only where they measure the door itself.
 
-`ReportsApiTest` covers the adapter: status codes, error bodies, unknown tools and `delete_report`. The other test classes call the door through `ReportsApi.handle` or the core classes directly. The tests that run reports use `@IsTest(SeeAllData='true')` and the org's own saved reports. They create no reports. `ReportsCalloutTest` and `ReportsSaveTest` answer every callout with an `HttpCalloutMock`. `ReportsSaveTest` creates, in its test setup, a Chatter Free user without the write permission (so it takes no Salesforce license), and assigns the write permission set to the running user if it lacks it. Both roll back with the test.
+`ReportsApiTest` covers the adapter: status codes, error bodies, unknown tools and `delete_report`. The other test classes call the door through `ReportsApi.handle` or the core classes directly. The tests that run reports use `@IsTest(SeeAllData='true')` and the org's own saved reports. They create no reports. `ReportsCalloutTest` and `ReportsSaveTest` answer every callout with an `HttpCalloutMock`, and cover the hosted route in its three cases: without the named credential, through it, and for a user who cannot use it. They set whether the credential is installed, so they pass the same in an org with or without `callout-app`. `ReportsSaveTest` creates, in its test setup, a Chatter Free user without the write permission (so it takes no Salesforce license), and assigns the write permission set to the running user if it lacks it. Both roll back with the test.
 
 ## Commands
 
@@ -90,6 +102,24 @@ Deploy the REST door, then, for the MCP door, `mcp-app` on top of it:
 sf project deploy start -d force-app -o <alias>
 sf project deploy start -d mcp-app -o <alias>
 ```
+
+For the callout tools on the hosted door, set up `callout-app` from the repo root, then assign its permission set to each hosted user. The script refuses an alias that is not on `SF_REPORTS_SETUP_ORGS` (or, with that unset, one given without `--yes`). Add `--ignore-conflicts` in a scratch org whose source tracking remembers an earlier removal:
+
+```bash
+SF_REPORTS_SETUP_ORGS=<alias> npm run callout:setup -- --org <alias>
+sf org assign permset -n Salesforce_Reports_Callout -o <alias>
+```
+
+The script copies `callout-app` to a temp folder, fills it there and deletes the copy. It never writes a filled value to the repo, and prints none.
+
+| Step | What |
+| --- | --- |
+| 1 | Deploy the certificate `SalesforceReportsCallout`, unless the org has it. The org makes the key pair, and the private key never leaves it. |
+| 2 | Retrieve the certificate's public part, fill `__CERTIFICATE__`, and deploy the External Client App with its scopes (`Api, RefreshToken`), global OAuth settings and app policy. |
+| 3 | Read the app's consumer key from `apps/oauth/credentials/<app id>`, a listing with no secret. Fill `__CONSUMER_KEY__`, `__MY_DOMAIN__` and `__AUDIENCE__` (`https://<My Domain>`), and deploy the external credential, the named credential and the permission set. |
+| 4 | Deploy the app's OAuth policy, which pre-authorizes users with the permission set. It needs the set, so it goes last. |
+
+Running it again is safe: it keeps the certificate and redeploys the rest. The certificate expires a year after it is made; renewing it is not scripted yet ([decision 0012](../docs/decisions/0012-per-user-jwt-named-credential.md)).
 
 Test, with coverage:
 
@@ -117,7 +147,16 @@ npm run live -- --org <alias> --door apex --allow-delete
 
 ### Removal
 
-Remove the units in the opposite order: `mcp-app` first, then `force-app`. Salesforce will not delete a class an API Catalog entry names, and the MCP door is useless without the REST door. Each unit has its own manifest folder, `manifest/mcp-app/` and `manifest/force-app/`, with an empty `package.xml`, a pre step and a post step. Check a removal first with `--dry-run`.
+Remove the units in the opposite order: `callout-app` and `mcp-app` first, then `force-app`. Salesforce will not delete a class an API Catalog entry names, and the MCP door is useless without the REST door. Each unit has its own manifest folder, `manifest/callout-app/`, `manifest/mcp-app/` and `manifest/force-app/`, with an empty `package.xml`, a pre step and a post step. Check a removal first with `--dry-run`.
+
+To remove `callout-app`, unassign `Salesforce_Reports_Callout` from every user first, since an assigned permission set cannot be deleted. The hosted door's callout tools then answer `CALLOUT_SESSION` again.
+
+- The pre step, `manifest/callout-app/destructiveChangesPre.xml`, removes the app's policies and OAuth settings, the named credential and the permission set.
+- The post step, `manifest/callout-app/destructiveChanges.xml`, then removes the certificate, the External Client App and the external credential.
+
+```bash
+sf project deploy start --manifest manifest/callout-app/package.xml --pre-destructive-changes manifest/callout-app/destructiveChangesPre.xml --post-destructive-changes manifest/callout-app/destructiveChanges.xml -o <alias>
+```
 
 To remove the MCP door, first remove the tool rows and server access (from the repo root), then the metadata. A server that is still active cannot be deleted ("Server must be inactive before making changes"), which is why the teardown runs first.
 

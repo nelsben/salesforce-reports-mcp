@@ -1,6 +1,6 @@
 # 0007. The callout's identity under a hosted MCP sign-in
 
-Status: Accepted, 2026-10-12. Proposed 2026-10-11 and settled by one signed-in call; see "Result".
+Status: Accepted, 2026-10-12. Proposed 2026-10-11 and settled by one signed-in call; see "Result". The remedy, a per-user JWT named credential in an optional package, is [0012](0012-per-user-jwt-named-credential.md).
 
 ## Context
 
@@ -31,4 +31,4 @@ Settled 2026-10-12 by a call to `list_report_types` through the hosted server in
 
 So the code must know which door called before it asks for a session. The hosted door has its own route, `/services/apexrest/reports/v1/mcp/<tool>`, written into the API Catalog registration by `npm run mcp:generate`. On that route `ReportsApi` tells `ReportsCallout` the call has no session to use, and `ReportsCallout` answers `CALLOUT_SESSION` before it asks for one and before any request. Its hint names the tools that still work on the hosted server: `search_reports`, `list_report_folders`, `describe_report`, `describe_report_type` through a saved report, `run_report` with overrides, and `combine_reports` over saved reports. The REST door keeps `/reports/v1/<tool>` and the caller's session. The core does not know the route.
 
-Whether the `api` scope would change the throw is untested. The per-user Named Credential is the chosen remedy, and it will be recorded in its own decision when it is built.
+Whether the `api` scope would change the throw is untested. The per-user Named Credential is the chosen remedy, built with the JWT bearer flow so no user clicks anything, and recorded in [0012](0012-per-user-jwt-named-credential.md). Without that optional package, the hosted route still answers `CALLOUT_SESSION` as above.

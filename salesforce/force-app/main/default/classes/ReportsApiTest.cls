@@ -243,6 +243,7 @@ private class ReportsApiTest {
     /** Over HTTP on the hosted route: unknown tools are 404, the read tools run, and the callout tools make no callout. */
     @IsTest
     static void servesTheHostedRoute() {
+        ReportsCallout.credentialInstalled = false;
         ReportsCalloutTest.Mock m = new ReportsCalloutTest.Mock().route('/analytics/reportTypes', 200, '[]');
         Test.setMock(HttpCalloutMock.class, m);
         ReportsApi.Answer unknown = post('/services/apexrest/reports/v1/mcp/nope', '{}');
