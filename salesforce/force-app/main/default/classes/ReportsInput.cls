@@ -12,6 +12,7 @@ public with sharing class ReportsInput {
         } catch (JSONException e) {
             throw ReportsException.invalidInput('The request body is not JSON.');
         }
+        if (parsed == null) return new Map<String, Object>();
         return asMap(parsed, 'The request body');
     }
 
