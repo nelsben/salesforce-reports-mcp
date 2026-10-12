@@ -3,6 +3,8 @@
     <types>
         <members>ReportsApi</members>
         <members>ReportsApiTest</members>
+        <members>ReportsCallout</members>
+        <members>ReportsCalloutTest</members>
         <members>ReportsCombine</members>
         <members>ReportsCombineTest</members>
         <members>ReportsDefinition</members>

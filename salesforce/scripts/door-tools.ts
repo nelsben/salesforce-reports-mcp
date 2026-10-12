@@ -9,8 +9,20 @@ import { ReportsApi } from "../../src/reports/api.js";
 import type { SalesforceApi } from "../../src/salesforce/client.js";
 import { buildServer } from "../../src/server.js";
 
-/** The six phase 1 tools ReportsApi answers, in the order the door lists them. */
-export const DOOR_TOOLS = ["search_reports", "list_report_folders", "describe_report", "describe_report_type", "run_report", "combine_reports"] as const;
+/**
+ * The eight tools ReportsApi answers, in the order the door lists them: the six phase 1 tools plus
+ * list_report_types and query_report, which call the org's own REST API (phase 3a).
+ */
+export const DOOR_TOOLS = [
+  "search_reports",
+  "list_report_folders",
+  "list_report_types",
+  "describe_report",
+  "describe_report_type",
+  "run_report",
+  "query_report",
+  "combine_reports",
+] as const;
 
 export interface DoorTool {
   name: string;

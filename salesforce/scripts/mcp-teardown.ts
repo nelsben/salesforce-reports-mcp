@@ -1,5 +1,5 @@
 /**
- * Removes what mcp-setup.ts writes: the six door tools' McpServerToolApiDefinition and McpServerToolDefinition
+ * Removes what mcp-setup.ts writes: the eight door tools' McpServerToolApiDefinition and McpServerToolDefinition
  * rows on the Salesforce Reports server, and the server's McpServerAccess row. Metadata (the server, the
  * registration, the permission set, the classes) stays; remove it with the destructive manifest.
  *

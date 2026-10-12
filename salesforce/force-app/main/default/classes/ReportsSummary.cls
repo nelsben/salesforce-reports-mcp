@@ -1,6 +1,7 @@
 /**
- * Compact summaries of Apex report describes, ported from src/reports/summarize.ts.
+ * Compact summaries of report describes, ported from src/reports/summarize.ts.
  * Apex objects are first turned into the REST shapes (metadataMap, infoMaps) so the port reads like the TypeScript.
+ * The REST JSON the callout tools read (phase 3a) goes straight in (infoMapsJson, summarizeReportTypes, summarizeReportTypeJson).
  */
 public with sharing class ReportsSummary {
     /** Granularities for date groupings. Apex has no dateGranularityInfos; REST lists these nine for every type. */
@@ -53,6 +54,29 @@ public with sharing class ReportsSummary {
         Map<String, Reports.AggregateColumn> aggregate = extended.getAggregateColumnInfo();
         if (aggregate != null) for (String k : aggregate.keySet()) maps.aggregate.put(k, info(aggregate.get(k).getLabel(), dataType(aggregate.get(k).getDataType())));
         return maps;
+    }
+
+    /** The REST reportExtendedMetadata as InfoMaps, for the JSON of /analytics/reports/query. */
+    public static InfoMaps infoMapsJson(Map<String, Object> extended) {
+        InfoMaps maps = new InfoMaps();
+        if (extended == null) return maps;
+        jsonInfo(maps.detail, extended.get('detailColumnInfo'));
+        jsonInfo(maps.grouping, extended.get('groupingColumnInfo'));
+        jsonInfo(maps.aggregate, extended.get('aggregateColumnInfo'));
+        return maps;
+    }
+
+    static void jsonInfo(Map<String, Map<String, String>> target, Object section) {
+        if (!(section instanceof Map<String, Object>)) return;
+        Map<String, Object> columns = (Map<String, Object>) section;
+        for (String k : columns.keySet()) {
+            Map<String, Object> col = columns.get(k) instanceof Map<String, Object> ? (Map<String, Object>) columns.get(k) : new Map<String, Object>();
+            target.put(k, info(text(col.get('label')), text(col.get('dataType'))));
+        }
+    }
+
+    static String text(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     public static Map<String, String> info(String label, String dataType) {
@@ -272,6 +296,101 @@ public with sharing class ReportsSummary {
         };
         putIfSet(out, 'label', label);
         return out;
+    }
+
+    /** list_report_types' answer, from the REST list of report type categories (src/reports/summarize.ts). */
+    public static Map<String, Object> summarizeReportTypes(List<Object> categories, String search, Integer lim) {
+        String needle = search == null ? null : search.toLowerCase().trim();
+        Integer max = lim == null ? 50 : lim;
+        List<Object> types = new List<Object>();
+        Integer total = 0;
+        for (Object c : categories == null ? new List<Object>() : categories) {
+            Map<String, Object> cat = (Map<String, Object>) c;
+            String category = text(cat.get('label'));
+            for (Object o : items(cat.get('reportTypes'))) {
+                Map<String, Object> t = (Map<String, Object>) o;
+                String type = text(t.get('type'));
+                String label = text(t.get('label'));
+                Boolean match = String.isEmpty(needle)
+                    || String.valueOf(type).toLowerCase().contains(needle)
+                    || String.valueOf(label).toLowerCase().contains(needle)
+                    || String.valueOf(category).toLowerCase().contains(needle);
+                if (!match) continue;
+                total++;
+                if (types.size() < max) types.add(new Map<String, Object>{ 'type' => type, 'label' => label, 'category' => category, 'description' => text(t.get('description')) });
+            }
+        }
+        return new Map<String, Object>{ 'total' => total, 'shown' => types.size(), 'types' => types };
+    }
+
+    /** describe_report_type's summary, from the REST describe of /analytics/reportTypes/{type} (src/reports/summarize.ts). */
+    public static Map<String, Object> summarizeReportTypeJson(Map<String, Object> describe, String type, String search, Integer lim) {
+        Map<String, Object> tm = obj(describe.get('reportTypeMetadata'));
+        String needle = search == null ? null : search.toLowerCase().trim();
+        Integer max = lim == null ? 150 : lim;
+        List<Object> sections = new List<Object>();
+        Integer fieldCount = 0;
+        Integer shown = 0;
+        List<Object> dateColumns = new List<Object>();
+        for (Object c : items(tm.get('categories'))) {
+            Map<String, Object> cat = (Map<String, Object>) c;
+            String section = text(cat.get('label'));
+            List<Object> fields = new List<Object>();
+            Map<String, Object> cols = obj(cat.get('columns'));
+            // JSON.deserializeUntyped keeps the document's key order, so fields come in the order REST lists them.
+            for (String name : cols.keySet()) {
+                Map<String, Object> col = obj(cols.get(name));
+                String label = text(col.get('label'));
+                String dt = text(col.get('dataType'));
+                fieldCount++;
+                if (dt == 'date' || dt == 'datetime') dateColumns.add(new Map<String, Object>{ 'name' => name, 'label' => label });
+                Boolean match = String.isEmpty(needle)
+                    || name.toLowerCase().contains(needle)
+                    || String.valueOf(label).toLowerCase().contains(needle)
+                    || String.valueOf(section).toLowerCase().contains(needle);
+                if (match && shown < max) {
+                    fields.add(new Map<String, Object>{ 'name' => name, 'label' => label, 'dataType' => dt });
+                    shown++;
+                }
+            }
+            if (!fields.isEmpty()) sections.add(new Map<String, Object>{ 'section' => section, 'fields' => fields });
+        }
+        List<String> durations = new List<String>();
+        for (Object g : items(tm.get('standardDateFilterDurationGroups'))) {
+            for (Object d : items(obj(g).get('standardDateFilterDurations'))) durations.add(text(obj(d).get('value')));
+        }
+        Map<String, Object> operators = new Map<String, Object>();
+        Map<String, Object> operatorMap = obj(tm.get('dataTypeFilterOperatorMap'));
+        for (String dataType : operatorMap.keySet()) {
+            List<String> names = new List<String>();
+            for (Object o : items(operatorMap.get(dataType))) names.add(text(obj(o).get('name')));
+            operators.put(dataType, names);
+        }
+        List<String> granularities = new List<String>();
+        for (Object g : items(tm.get('dateGranularityInfos'))) granularities.add(text(obj(g).get('value')));
+        List<String> scopes = new List<String>();
+        for (Object s : items(obj(tm.get('scopeInfo')).get('values'))) scopes.add(text(obj(s).get('value')));
+        Map<String, Object> out = new Map<String, Object>{
+            'type' => type,
+            'fieldCount' => fieldCount,
+            'fieldsShown' => shown,
+            'sections' => sections,
+            'dateFilterColumns' => dateColumns,
+            'dateFilterDurations' => durations,
+            'dateGranularities' => granularities,
+            'filterOperators' => operators,
+            'scopes' => scopes
+        };
+        putIfSet(out, 'label', obj(obj(describe.get('reportMetadata')).get('reportType')).get('label'));
+        return out;
+    }
+
+    static List<Object> items(Object value) {
+        return value instanceof List<Object> ? (List<Object>) value : new List<Object>();
+    }
+
+    static Map<String, Object> obj(Object value) {
+        return value instanceof Map<String, Object> ? (Map<String, Object>) value : new Map<String, Object>();
     }
 
     static void putIfSet(Map<String, Object> m, String key, Object value) {

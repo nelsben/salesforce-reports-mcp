@@ -24,7 +24,9 @@ private class ReportsApiTest {
 
     @IsTest
     static void answersTheContract() {
-        Assert.areEqual(404, call('query_report', '{}').status);
+        Test.setMock(HttpCalloutMock.class, ReportsCalloutTest.refusing());
+        Assert.areEqual(404, call('create_report', '{}').status);
+        Assert.areEqual(400, call('query_report', '{}').status);
         Assert.areEqual('UNKNOWN_TOOL', errorCode(call('nope', '{}')));
         Assert.areEqual(400, call('search_reports', 'not json').status);
         Assert.areEqual(400, call('search_reports', '[1]').status);
@@ -71,6 +73,8 @@ private class ReportsApiTest {
 
     @IsTest
     static void describesAndRunsSavedReports() {
+        // A refused callout sends describe_report_type down the phase 1 path, through a saved report of the type.
+        Test.setMock(HttpCalloutMock.class, ReportsCalloutTest.refusing());
         for (String format : new List<String>{ 'Tabular', 'Summary' }) {
             Report r = anyReport(format);
             if (r == null) continue;
@@ -84,6 +88,7 @@ private class ReportsApiTest {
             String type = Reports.ReportManager.describeReport(r.Id).getReportMetadata().getReportType().getType();
             Map<String, Object> typeSummary = ok(call('describe_report_type', '{"type":"' + type + '","search":"e","limit":5}'));
             Assert.isTrue((Integer) typeSummary.get('fieldsShown') <= 5);
+            Assert.areEqual(2, ((List<Object>) typeSummary.get('notes')).size());
             Map<String, Object> combined = ok(call('combine_reports', '{"mode":"stack","detail":true,"maxRows":2,"inputs":[{"alias":"a",' + id + '},{"alias":"b",' + id + '}]}'));
             Assert.isNotNull(combined.get('report'));
         }

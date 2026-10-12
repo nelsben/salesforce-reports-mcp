@@ -135,14 +135,14 @@ There are three doors to the same tools. Each takes the same tool names and inpu
 | Door | What runs | Who uses it | Tools |
 | --- | --- | --- | --- |
 | Local MCP | This Node server, on your machine | Claude Code, Claude Desktop, any MCP client that starts a process | All 12 |
-| In-org REST | The Apex class `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce, other agents | The six read tools |
-| In-org MCP | Salesforce hosted MCP over `ReportsApi`, server `SalesforceReports` | claude.ai and other remote MCP clients, with nothing to host | The six read tools |
+| In-org REST | The Apex class `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce, other agents | The eight read tools |
+| In-org MCP | Salesforce hosted MCP over `ReportsApi`, server `SalesforceReports` | claude.ai and other remote MCP clients, with nothing to host | The eight read tools |
 
-The six read tools are `search_reports`, `list_report_folders`, `describe_report`, `describe_report_type`, `run_report` and `combine_reports`. The package is in `salesforce/`, and its README covers the REST door. Hosted MCP needs API 67.0 or later.
+The eight read tools are `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`. `list_report_types`, `query_report` and `describe_report_type` call the org's own REST API under the user's session. Whether that call works under a hosted MCP sign-in is still open ([phase 3 findings](docs/probes/v0.2-phase3.md)). The package is in `salesforce/`, and its README covers the REST door. Hosted MCP needs API 67.0 or later.
 
 To set up the MCP door, an admin does this once per org. Replace `<alias>` with a Salesforce CLI alias, and `<user>` with a username.
 
-1. Deploy the package: the Apex classes, the API Catalog entry `ReportsApi`, the MCP server with its six tools, and the permission set. Run it from `salesforce/`. Add `--ignore-conflicts` if a scratch org reports source conflicts.
+1. Deploy the package: the Apex classes, the API Catalog entry `ReportsApi`, the MCP server with its eight tools, and the permission set. Run it from `salesforce/`. Add `--ignore-conflicts` if a scratch org reports source conflicts.
 
    ```bash
    sf project deploy start -d force-app -o <alias>
@@ -154,13 +154,13 @@ To set up the MCP door, an admin does this once per org. Replace `<alias>` with 
    sf org assign permset -n Salesforce_Reports_MCP -o <alias> --on-behalf-of <user>
    ```
 
-3. Run the setup script from the repo root. It writes the six tool rows if they are missing, turns the server on, and prints the server's URL. Name the org with `--org`, then either pass `--yes` or set `SF_REPORTS_SETUP_ORGS` to the aliases these scripts may change (comma-separated). When that variable is set, an alias not on it is refused even with `--yes`. The script prints the alias and instance URL before it writes.
+3. Run the setup script from the repo root. It writes the eight tool rows if they are missing, turns the server on, and prints the server's URL. Name the org with `--org`, then either pass `--yes` or set `SF_REPORTS_SETUP_ORGS` to the aliases these scripts may change (comma-separated). When that variable is set, an alias not on it is refused even with `--yes`. The script prints the alias and instance URL before it writes.
 
    ```bash
    npm run mcp:setup -- --org <alias> --yes
    ```
 
-4. If the script says operations are inactive and a tool call fails, open Setup, go to API Catalog, open `ReportsApi`, select its six operations, and click Activate. No API does this.
+4. If the script says operations are inactive and a tool call fails, open Setup, go to API Catalog, open `ReportsApi`, select its eight operations, and click Activate. No API does this.
 5. Deploy the External Client App that Claude signs in through. It is a public client with PKCE and the `mcp_api` and `refresh_token` scopes. Then read its consumer key: run the query, then pass the Id it prints to the third command. Run all three from `salesforce/`.
 
    ```bash
