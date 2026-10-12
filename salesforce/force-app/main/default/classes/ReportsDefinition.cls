@@ -273,7 +273,8 @@ public with sharing class ReportsDefinition {
         return out;
     }
 
-    static List<String> mapAggregates(List<Object> aggregates) {
+    /** Aggregates as reportMetadata names: {fn, column} gives the prefixed name, a string stays as given. */
+    public static List<String> mapAggregates(List<Object> aggregates) {
         List<String> out = new List<String>();
         for (Object a : aggregates) {
             if (a instanceof String) {

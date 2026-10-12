@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomPermission xmlns="http://soap.sforce.com/2006/04/metadata">
+    <description>Save reports through the in-org door: create_report, update_report and clone_report on the ReportsApi Apex REST class and the Salesforce Reports hosted MCP server. The read tools do not need it.</description>
+    <isLicensed>false</isLicensed>
+    <label>Reports MCP Write</label>
+</CustomPermission>

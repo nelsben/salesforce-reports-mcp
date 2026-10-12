@@ -10,6 +10,7 @@
     </types>
     <types>
         <members>Salesforce_Reports_MCP</members>
+        <members>Salesforce_Reports_MCP_Write</members>
         <name>PermissionSet</name>
     </types>
     <version>68.0</version>

@@ -1,7 +1,8 @@
 /**
  * Compact summaries of report describes, ported from src/reports/summarize.ts.
  * Apex objects are first turned into the REST shapes (metadataMap, infoMaps) so the port reads like the TypeScript.
- * The REST JSON the callout tools read (phase 3a) goes straight in (infoMapsJson, summarizeReportTypes, summarizeReportTypeJson).
+ * The REST JSON the callout tools read (phase 3a) goes straight in (infoMapsJson, summarizeReportTypes, summarizeReportTypeJson),
+ * and so does the JSON the save tools get back (summarizeReportJson, phase 3b).
  */
 public with sharing class ReportsSummary {
     /** Granularities for date groupings. Apex has no dateGranularityInfos; REST lists these nine for every type. */
@@ -230,6 +231,28 @@ public with sharing class ReportsSummary {
         summary.put('filters', describeFilters(meta, maps));
         if (includeMetadata == true) summary.put('reportMetadata', meta);
         return summary;
+    }
+
+    /**
+     * summarizeReport over the REST describe JSON that the save calls answer with (POST and PATCH /analytics/reports),
+     * as src/reports/summarize.ts reads it: the id from reportMetadata, else from attributes.
+     */
+    public static Map<String, Object> summarizeReportJson(Map<String, Object> describe, String baseUrl) {
+        Map<String, Object> raw = obj(describe.get('reportMetadata'));
+        Map<String, Object> meta = new Map<String, Object>(raw);
+        Object id = raw.get('id') != null ? raw.get('id') : obj(describe.get('attributes')).get('reportId');
+        meta.put('id', text(id));
+        meta.put('detailColumns', strings(raw.get('detailColumns')));
+        meta.put('aggregates', strings(raw.get('aggregates')));
+        meta.put('groupingsDown', items(raw.get('groupingsDown')));
+        meta.put('groupingsAcross', items(raw.get('groupingsAcross')));
+        return summarizeReport(meta, infoMapsJson(obj(describe.get('reportExtendedMetadata'))), baseUrl, false);
+    }
+
+    static List<String> strings(Object value) {
+        List<String> out = new List<String>();
+        for (Object o : items(value)) out.add(text(o));
+        return out;
     }
 
     static List<Object> summarizeGroupings(List<Object> groupings, InfoMaps maps) {
