@@ -1,6 +1,6 @@
 /**
- * Stack and join of ReportResults, ported from src/reports/combine.ts.
- * Results are the maps ReportsShape builds.
+ * Core layer: stack and join of ReportResults, ported from src/reports/combine.ts. Results are the maps ReportsShape
+ * builds. A CombineException is bad input, and ReportsException.fromException says so.
  */
 public with sharing class ReportsCombine {
     public class CombineException extends Exception {}

@@ -86,7 +86,7 @@ private class ReportsDefinitionTest {
             try {
                 ReportsDefinition.toReportMetadata(json(text), true);
                 Assert.fail('expected an error for ' + text);
-            } catch (ReportsApi.ApiException e) {
+            } catch (ReportsException e) {
                 Assert.areEqual('INVALID_INPUT', e.code, text);
             }
         }
@@ -135,8 +135,8 @@ private class ReportsDefinitionTest {
             try {
                 ReportsDefinition.applyTo(new Reports.ReportMetadata(), meta);
                 Assert.fail('expected an error for ' + meta);
-            } catch (ReportsApi.ApiException e) {
-                Assert.areEqual(400, e.status);
+            } catch (ReportsException e) {
+                Assert.areEqual(ReportsException.ErrorCategory.INVALID_INPUT, e.category);
             }
         }
     }

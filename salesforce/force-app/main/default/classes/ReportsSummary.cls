@@ -1,5 +1,5 @@
 /**
- * Compact summaries of report describes, ported from src/reports/summarize.ts.
+ * Core layer: compact summaries of report describes, ported from src/reports/summarize.ts.
  * Apex objects are first turned into the REST shapes (metadataMap, infoMaps) so the port reads like the TypeScript.
  * The REST JSON the callout tools read (phase 3a) goes straight in (infoMapsJson, summarizeReportTypes, summarizeReportTypeJson),
  * and so does the JSON the save tools get back (summarizeReportJson, phase 3b).

@@ -1,6 +1,6 @@
 /**
- * A report run to ReportResult, ported from src/reports/shape.ts. Two inputs share one frame: shapeResult reads the
- * Reports.ReportResults of ReportManager.runReport (run_report), and shapeJson reads the REST JSON of
+ * Core layer: a report run to ReportResult, ported from src/reports/shape.ts. Two inputs share one frame: shapeResult
+ * reads the Reports.ReportResults of ReportManager.runReport (run_report), and shapeJson reads the REST JSON of
  * /analytics/reports/query (query_report). The header, the row budget, the detail table and the notes are built once.
  * Detail rows past the cap are counted but never built, to keep heap low.
  */
@@ -14,8 +14,8 @@ public with sharing class ReportsShape {
         return Math.min(HARD_ROW_CEILING, CELL_BUDGET / Math.max(1, columns));
     }
 
-    public static ReportsApi.ApiException tooLarge() {
-        return ReportsApi.apiError(500, 'RESULT_TOO_LARGE', 'The report result is too large for the in-org door\'s memory.',
+    public static ReportsException tooLarge() {
+        return ReportsException.failed('RESULT_TOO_LARGE', 'The report result is too large for the in-org door\'s memory.',
             'Narrow the filters, lower maxRows, drop columns, or use the local server.');
     }
 
