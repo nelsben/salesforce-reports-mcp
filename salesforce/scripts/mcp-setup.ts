@@ -1,5 +1,5 @@
 /**
- * Wires the six door tools onto the Salesforce Reports hosted MCP server, idempotently, and activates the
+ * Wires the eight door tools onto the Salesforce Reports hosted MCP server, idempotently, and activates the
  * server. Run it after deploying salesforce/force-app (the registration, the server and the permission set).
  *
  * Usage, from the repo root:  npx tsx salesforce/scripts/mcp-setup.ts --org <alias> [--yes]

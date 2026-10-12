@@ -239,6 +239,10 @@ Done 2026-10-11 (`docs/probes/v0.2-phase1.md`, `salesforce/README.md`). `Reports
 
 Built 2026-10-11 (`docs/probes/v0.2-phase2.md`). The server `SalesforceReports` is deployed and active in a scratch org with the six read tools, named exactly like the local ones. Tool rows use `ApiSource` `API_CATALOG`, `ApiIdentifier` `ar:ReportsApi` and `Operation` equal to the tool name, and at API 68.0 the `McpServerDefinition` metadata carries its tools. Open: activating the API Catalog operations is a Setup click, and a live call needs one interactive sign-in through the External Client App. A client credentials token was not issued, because the org does not return an app's secret over REST.
 
+### Phase 3a result
+
+Built 2026-10-11 (`docs/probes/v0.2-phase3.md`). `list_report_types`, `query_report` and a full `describe_report_type` reach the in-org door through one helper, `ReportsCallout`, which calls the org's own REST API under the user's session. `combine_reports` takes definition inputs. The hosted server carries eight tools. Parity holds on 44 cases with no ignore list, the live check passes with `--door apex`, and 38 Apex tests pass. `query_report` asks for detail rows only when the result shows them. A grouped query over 2,000 rows can therefore lack the local "stopped at 2,000 rows" note. A refused session answers `CALLOUT_SESSION`, and `describe_report_type` then falls back to the phase 1 path. Open: whether the callout works under a hosted MCP sign-in, whose External Client App has only the `mcp_api` and `refresh_token` scopes. If it does not, the fixes are the `Api` scope (which widens the token to the whole API as that user) or a per-user Named Credential.
+
 ### Phases
 
 | Phase | Work | Done when |
@@ -246,7 +250,8 @@ Built 2026-10-11 (`docs/probes/v0.2-phase2.md`). The server `SalesforceReports` 
 | 0. Probes | The five above | All five answered in `docs/probes/v0.2-phase0.md` |
 | 1. REST door, runner tools | `ReportsApi` with `search_reports`, `list_report_folders`, `describe_report`, `run_report`, `combine_reports`, and `describe_report_type` through a saved report of the type; the shaper ported from `shape.ts`, with the cell cap from probe 4; Apex tests; `scripts/parity-check.ts` | Parity on every fixture, and the live check's read steps pass with `--door apex` |
 | 2. MCP door | The `McpServerDefinition`, the `ExternalServiceRegistration`, the permission set, and the admin steps in the README (External Client App, tool rows, sign-in); the runner skill rehearsed against hosted MCP, with Ben signing in once | The in-org runner rehearsal matches the local one |
-| 3. Saves and `query_report` | Only if probe 3 works: the callout tools, behind a custom permission. Otherwise a Named Credential the admin sets up, or saving stays local-only. | The designer rehearsal passes in the org |
+| 3a. Callout reads | `list_report_types`, `query_report` and `describe_report_type` through one callout helper; `combine_reports` over definitions | Parity on the new cases (done, see Phase 3a result) |
+| 3b. Saves | `create_report`, `update_report` and `clone_report` through the same helper, behind a custom permission. If the hosted sign-in cannot call out, a Named Credential the admin sets up, or saving stays local-only. | The designer rehearsal passes in the org |
 | 4. Docs and skills | The README's three doors, the changelog, the runner's fallback when `query_report` is missing | The skills read the same on every door |
 
 `report-deploy` stays local-only: it needs the `sf` CLI, and its description already says so.

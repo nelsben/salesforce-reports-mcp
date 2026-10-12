@@ -3,17 +3,17 @@
  * POST /services/apexrest/reports/v1/<tool> takes the local tool's JSON input and answers with the JSON
  * the local tool returns. A failure answers 400 (bad input) or 500 with the body the local fail() builds,
  * and a tool this door lacks answers 404. Ported from src/server.ts and src/format.ts.
+ * list_report_types, query_report and describe_report_type call the org's own REST API through ReportsCallout (phase 3a).
  */
 @RestResource(urlMapping='/reports/v1/*')
 global with sharing class ReportsApi {
     public static final Integer DEFAULT_MAX_ROWS = 200;
     static final List<String> TOOLS = new List<String>{
-        'search_reports', 'list_report_folders', 'describe_report', 'describe_report_type', 'run_report', 'combine_reports'
+        'search_reports', 'list_report_folders', 'list_report_types', 'describe_report', 'describe_report_type', 'run_report', 'query_report', 'combine_reports'
     };
-    static final Set<String> LATER = new Set<String>{
-        'list_report_types', 'query_report', 'create_report', 'update_report', 'clone_report', 'delete_report'
-    };
+    static final Set<String> LATER = new Set<String>{ 'create_report', 'update_report', 'clone_report', 'delete_report' };
     static final String OPERATOR_NOTE = 'Filter operators are not on the in-org door, because Apex does not expose them. Common ones: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith, includes, excludes.';
+    static final String FALLBACK_NOTE = 'The in-org door could not call the org\'s REST API under this sign-in, so it read the type through a saved report of that type instead.';
 
     /** A failure with its HTTP status, error code and optional hint. */
     public class ApiException extends Exception {
@@ -78,11 +78,20 @@ global with sharing class ReportsApi {
             when 'describe_report' {
                 return describeReport(input);
             }
+            when 'list_report_types' {
+                return listReportTypes(input);
+            }
             when 'describe_report_type' {
                 return describeReportType(input);
             }
             when 'run_report' {
                 return runToResult(reportId(input, 'reportId'), optMap(input, 'overrides'), optBool(input, 'detail'), optInt(input, 'maxRows', 1, ReportsShape.HARD_ROW_CEILING));
+            }
+            when 'query_report' {
+                Map<String, Object> definition = new Map<String, Object>(input);
+                definition.remove('detail');
+                definition.remove('maxRows');
+                return queryToResult(definition, optBool(input, 'detail'), optInt(input, 'maxRows', 1, ReportsShape.HARD_ROW_CEILING));
             }
             when else {
                 return combineReports(input);
@@ -164,10 +173,28 @@ global with sharing class ReportsApi {
         return summary;
     }
 
+    static Map<String, Object> listReportTypes(Map<String, Object> input) {
+        String search = optString(input, 'search');
+        Integer lim = optInt(input, 'limit', 1, 500);
+        Object categories = ReportsCallout.send('GET', '/analytics/reportTypes', null);
+        return ReportsSummary.summarizeReportTypes(categories instanceof List<Object> ? (List<Object>) categories : new List<Object>(), search, lim);
+    }
+
     static Map<String, Object> describeReportType(Map<String, Object> input) {
         String type = reqString(input, 'type');
         String search = optString(input, 'search');
         Integer lim = optInt(input, 'limit', 1, 1000);
+        try {
+            Object described = ReportsCallout.send('GET', '/analytics/reportTypes/' + ReportsCallout.segment(type), null);
+            return ReportsSummary.summarizeReportTypeJson(asMap(described, 'The report type describe'), type, search, lim);
+        } catch (ApiException e) {
+            if (e.code != 'CALLOUT_SESSION') throw e;
+        }
+        return describeThroughSavedReport(type, search, lim);
+    }
+
+    /** The phase 1 path, for a sign-in whose session cannot call the REST API: read the type through a saved report of it. */
+    static Map<String, Object> describeThroughSavedReport(String type, String search, Integer lim) {
         // Apex reads a report type only through a saved report of that type (phase 0, probe 5).
         // Report.ReportTypeApiName can carry a suffix, for example Opportunity@Opportunity.Some_Lookup__c, and SOQL
         // does not filter on it, so scan the most recently modified reports and match the name or its prefix.
@@ -180,11 +207,11 @@ global with sharing class ReportsApi {
             Reports.ReportType reportType = described.getReportMetadata().getReportType();
             if (reportType == null || !type.equalsIgnoreCase(reportType.getType())) continue;
             Map<String, Object> out = ReportsSummary.summarizeReportType(described.getReportTypeMetadata(), reportType.getLabel(), type, search, lim);
-            out.put('notes', new List<String>{ OPERATOR_NOTE });
+            out.put('notes', new List<String>{ FALLBACK_NOTE, OPERATOR_NOTE });
             return out;
         }
         throw apiError(400, 'NO_SAVED_REPORT',
-            'The in-org door reads a report type through a saved report of that type, and this user can see no report of type "' + type + '".',
+            'The in-org door could not call the org\'s REST API under this sign-in, so it reads a report type through a saved report of that type, and this user can see no report of type "' + type + '".',
             'Save a report of this type first, or use the local server, which reads the type directly.');
     }
 
@@ -199,6 +226,7 @@ global with sharing class ReportsApi {
         List<String> aliases = new List<String>();
         List<Id> ids = new List<Id>();
         List<Map<String, Object>> overrides = new List<Map<String, Object>>();
+        List<Map<String, Object>> definitions = new List<Map<String, Object>>();
         for (Object o : inputs) {
             Map<String, Object> item = asMap(o, 'inputs');
             String alias = reqString(item, 'alias');
@@ -206,15 +234,16 @@ global with sharing class ReportsApi {
             if ((item.get('reportId') != null) == (item.get('definition') != null)) {
                 throw inputError('Input "' + alias + '" needs exactly one of reportId and definition.');
             }
-            if (item.get('definition') != null) {
-                throw inputError('Input "' + alias + '" is a definition, which runs through query_report. query_report is not on the in-org door yet, so give a reportId, or use the local server.');
-            }
             aliases.add(alias);
-            ids.add(reportId(item, 'reportId'));
+            // A definition runs through query_report, a saved report through run_report.
+            definitions.add(optMap(item, 'definition'));
+            ids.add(item.get('reportId') == null ? null : reportId(item, 'reportId'));
             overrides.add(optMap(item, 'overrides'));
         }
         List<Map<String, Object>> results = new List<Map<String, Object>>();
-        for (Integer i = 0; i < ids.size(); i++) results.add(runToResult(ids[i], overrides[i], detail, maxRows));
+        for (Integer i = 0; i < ids.size(); i++) {
+            results.add(definitions[i] != null ? queryToResult(definitions[i], detail, maxRows) : runToResult(ids[i], overrides[i], detail, maxRows));
+        }
         return ReportsCombine.combineResults(mode, aliases, results, joinOn);
     }
 
@@ -236,6 +265,59 @@ global with sharing class ReportsApi {
         Boolean tabular = results.getReportMetadata().getReportFormat() == Reports.ReportFormat.TABULAR;
         Integer limitRows = Math.min(maxRows == null ? DEFAULT_MAX_ROWS : maxRows, ReportsShape.HARD_ROW_CEILING);
         return ReportsShape.shapeResult(results, limitRows, detail != null ? detail : tabular, baseUrl(), notes);
+    }
+
+    /**
+     * query_report's core, shared with combine_reports: map the definition, post it to /analytics/reports/query
+     * through ReportsCallout, and shape the REST JSON with the in-org row cap run_report uses.
+     */
+    public static Map<String, Object> queryToResult(Map<String, Object> definition, Boolean detail, Integer maxRows) {
+        if (String.isBlank(optString(definition, 'reportType'))) throw inputError('A report defined in the call needs reportType. Find one with list_report_types.');
+        ReportsDefinition.Mapped mapped = ReportsDefinition.toReportMetadata(definition, false);
+        ensureDetailColumn(mapped);
+        List<String> notes = new List<String>(mapped.notes);
+        // Ask for detail rows only when they will be shown, to keep the response and the heap small. The local server
+        // asks unless detail is false; the shaped result is the same (docs/probes/v0.2-phase3.md).
+        Boolean wantsDetail = detail != null ? detail : mapped.metadata.get('reportFormat') == 'TABULAR';
+        Object raw = ReportsCallout.send('POST', '/analytics/reports/query?includeDetails=' + wantsDetail, new Map<String, Object>{ 'reportMetadata' => mapped.metadata });
+        ReportsShape.guardHeap();
+        Map<String, Object> result = asMap(raw, 'The query result');
+        Object meta = result.get('reportMetadata');
+        Boolean tabular = meta instanceof Map<String, Object> && ((Map<String, Object>) meta).get('reportFormat') == 'TABULAR';
+        Integer limitRows = Math.min(maxRows == null ? DEFAULT_MAX_ROWS : maxRows, ReportsShape.HARD_ROW_CEILING);
+        return ReportsShape.shapeJson(result, limitRows, detail != null ? detail : tabular, baseUrl(), notes);
+    }
+
+    /**
+     * Salesforce rejects a grouped report with no detail column, and reads an empty list as "all columns"
+     * (which then trips the 100-column limit). Give such a report one ungrouped column from the type's defaults.
+     */
+    static void ensureDetailColumn(ReportsDefinition.Mapped mapped) {
+        Map<String, Object> meta = mapped.metadata;
+        Set<String> grouped = new Set<String>();
+        for (String side : new List<String>{ 'groupingsDown', 'groupingsAcross' }) {
+            Object found = meta.get(side);
+            if (found instanceof List<Object>) for (Object g : (List<Object>) found) grouped.add((String) ((Map<String, Object>) g).get('name'));
+        }
+        Object columns = meta.get('detailColumns');
+        if (grouped.isEmpty() || (columns instanceof List<Object> && !((List<Object>) columns).isEmpty())) return;
+        Object type = meta.get('reportType');
+        if (!(type instanceof Map<String, Object>) || ((Map<String, Object>) type).get('type') == null) return;
+        String typeName = (String) ((Map<String, Object>) type).get('type');
+        Map<String, Object> described = asMap(ReportsCallout.send('GET', '/analytics/reportTypes/' + ReportsCallout.segment(typeName), null), 'The report type describe');
+        Object defaults = described.get('reportMetadata') instanceof Map<String, Object> ? ((Map<String, Object>) described.get('reportMetadata')).get('detailColumns') : null;
+        String column;
+        if (defaults instanceof List<Object>) {
+            for (Object c : (List<Object>) defaults) {
+                if (!grouped.contains((String) c)) {
+                    column = (String) c;
+                    break;
+                }
+            }
+        }
+        if (column == null) throw inputError('Give at least one detail column that is not a grouping.');
+        meta.put('detailColumns', new List<String>{ column });
+        mapped.notes.add('No detail column was given, so ' + column + ' was added; Salesforce needs one on a grouped report.');
     }
 
     static Map<String, Object> folderInfo(String id) {
@@ -284,8 +366,8 @@ global with sharing class ReportsApi {
         return new Map<String, Object>{ 'error' => error };
     }
 
-    @TestVisible
-    static String hintFor(Integer status, String code, String message) {
+    /** src/format.ts hintFor. A 401 never gets here: ReportsCallout answers it with CALLOUT_SESSION. */
+    public static String hintFor(Integer status, String code, String message) {
         String text = code + ' ' + message;
         if (status == 404 || Pattern.compile('(?i)NOT_FOUND|INVALID_ID').matcher(code).find()) {
             return 'Check the id with search_reports (reports) or list_report_types (report types).';

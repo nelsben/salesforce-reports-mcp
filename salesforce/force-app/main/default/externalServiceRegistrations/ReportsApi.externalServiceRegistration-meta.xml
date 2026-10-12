@@ -12,6 +12,10 @@
     </operations>
     <operations>
         <active>true</active>
+        <name>listx5freportx5ftypes</name>
+    </operations>
+    <operations>
+        <active>true</active>
         <name>describex5freport</name>
     </operations>
     <operations>
@@ -21,6 +25,10 @@
     <operations>
         <active>true</active>
         <name>runx5freport</name>
+    </operations>
+    <operations>
+        <active>true</active>
+        <name>queryx5freport</name>
     </operations>
     <operations>
         <active>true</active>
@@ -141,6 +149,83 @@ paths:
                   minimum: 1
                   maximum: 200
                   description: "Maximum folders. Default 100."
+              additionalProperties: false
+      responses:
+        "200":
+          description: "The JSON the local tool returns."
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                additionalProperties: true
+        "400":
+          description: "The error body the door returns."
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  error:
+                    type: "object"
+                    properties:
+                      code:
+                        type: "string"
+                      message:
+                        type: "string"
+                      hint:
+                        type: "string"
+        "404":
+          description: "The error body the door returns."
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  error:
+                    type: "object"
+                    properties:
+                      code:
+                        type: "string"
+                      message:
+                        type: "string"
+                      hint:
+                        type: "string"
+        "500":
+          description: "The error body the door returns."
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  error:
+                    type: "object"
+                    properties:
+                      code:
+                        type: "string"
+                      message:
+                        type: "string"
+                      hint:
+                        type: "string"
+  "/reports/v1/list_report_types":
+    post:
+      operationId: "list_report_types"
+      summary: "List report types"
+      description: "List the report types this org offers (what a report is built on, such as Opportunity, Accounts, or a custom type), as {type, label, category, description}. Use it before query_report or create_report to find the `reportType` value. Next step: describe_report_type to see its columns."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                search:
+                  type: "string"
+                  description: "Text to find in the type name, label or category, for example \"opportunit\" or \"case\"."
+                limit:
+                  type: "integer"
+                  minimum: 1
+                  maximum: 500
+                  description: "Maximum types. Default 50."
               additionalProperties: false
       responses:
         "200":
@@ -534,6 +619,231 @@ paths:
                   maximum: 2000
                   description: "Cap on detail rows returned. Default is the server's setting (200); Salesforce itself never returns more than 2000."
               required: ["reportId"]
+              additionalProperties: false
+      responses:
+        "200":
+          description: "The JSON the local tool returns."
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                additionalProperties: true
+        "400":
+          description: "The error body the door returns."
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  error:
+                    type: "object"
+                    properties:
+                      code:
+                        type: "string"
+                      message:
+                        type: "string"
+                      hint:
+                        type: "string"
+        "404":
+          description: "The error body the door returns."
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  error:
+                    type: "object"
+                    properties:
+                      code:
+                        type: "string"
+                      message:
+                        type: "string"
+                      hint:
+                        type: "string"
+        "500":
+          description: "The error body the door returns."
+          content:
+            "application/json":
+              schema:
+                type: "object"
+                properties:
+                  error:
+                    type: "object"
+                    properties:
+                      code:
+                        type: "string"
+                      message:
+                        type: "string"
+                      hint:
+                        type: "string"
+  "/reports/v1/query_report":
+    post:
+      operationId: "query_report"
+      summary: "Run an ad hoc report"
+      description: "Define a report in the call and run it at once. Nothing is saved. Use it to answer a data question: pick a report type (list_report_types), check column names (describe_report_type), then give columns, groupings, aggregates and filters. Returns the same tidy result as run_report. Different from run_report, which runs a saved report by id. If the user likes the result, offer create_report with the same definition."
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: "object"
+              properties:
+                reportType:
+                  type: "string"
+                  description: "Report type API name, for example Opportunity or AccountList. Find it with list_report_types. Required to create a report or to run one with query_report."
+                format:
+                  type: "string"
+                  enum: ["TABULAR", "SUMMARY", "MATRIX"]
+                  description: "TABULAR is a flat list, SUMMARY groups rows down, MATRIX groups down and across. When omitted it follows from the groupings. Joined reports are not supported."
+                columns:
+                  type: "array"
+                  items:
+                    type: "string"
+                  description: "Detail columns, by API name from describe_report_type, for example OPPORTUNITY_NAME and AMOUNT. A column that is also a grouping is left out."
+                groupingsDown:
+                  type: "array"
+                  items:
+                    type: "object"
+                    properties:
+                      column:
+                        type: "string"
+                        description: "Column API name, for example STAGE_NAME or CLOSE_DATE. Names come from describe_report_type."
+                      sortOrder:
+                        type: "string"
+                        enum: ["Asc", "Desc"]
+                        description: "Sort direction. Default Asc."
+                      dateGranularity:
+                        type: "string"
+                        enum: ["None", "Day", "Week", "Month", "Quarter", "Year", "FiscalPeriod", "FiscalQuarter", "FiscalWeek", "FiscalYear", "MonthInYear", "DayInMonth"]
+                        description: "For date columns: the bucket to group by, for example Month or FiscalQuarter. Default None."
+                    required: ["column"]
+                    additionalProperties: false
+                  maxItems: 3
+                  description: "Up to 3 row groupings. Makes the report SUMMARY or MATRIX."
+                groupingsAcross:
+                  type: "array"
+                  items:
+                    type: "object"
+                    properties:
+                      column:
+                        type: "string"
+                        description: "Column API name, for example STAGE_NAME or CLOSE_DATE. Names come from describe_report_type."
+                      sortOrder:
+                        type: "string"
+                        enum: ["Asc", "Desc"]
+                        description: "Sort direction. Default Asc."
+                      dateGranularity:
+                        type: "string"
+                        enum: ["None", "Day", "Week", "Month", "Quarter", "Year", "FiscalPeriod", "FiscalQuarter", "FiscalWeek", "FiscalYear", "MonthInYear", "DayInMonth"]
+                        description: "For date columns: the bucket to group by, for example Month or FiscalQuarter. Default None."
+                    required: ["column"]
+                    additionalProperties: false
+                  maxItems: 2
+                  description: "Up to 2 column groupings. MATRIX only."
+                aggregates:
+                  type: "array"
+                  items:
+                    anyOf:
+                      -
+                        type: "object"
+                        properties:
+                          fn:
+                            type: "string"
+                            enum: ["sum", "avg", "min", "max", "unique"]
+                            description: "sum, avg, min, max or unique (unique count)."
+                          column:
+                            type: "string"
+                            description: "Column API name, for example AMOUNT."
+                        required: ["fn", "column"]
+                        additionalProperties: false
+                      -
+                        type: "string"
+                        description: "\"RowCount\" for the record count, or a raw aggregate such as \"s!AMOUNT\" or a custom summary formula name."
+                  description: "Measures to compute per group. Default [\"RowCount\"]. Example: [\"RowCount\", {\"fn\":\"sum\",\"column\":\"AMOUNT\"}]."
+                filters:
+                  type: "array"
+                  items:
+                    type: "object"
+                    properties:
+                      column:
+                        type: "string"
+                        description: "Column API name, for example STAGE_NAME."
+                      operator:
+                        type: "string"
+                        description: "For example equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith, includes, excludes. The valid set per data type comes from describe_report_type."
+                      value:
+                        description: "The value to compare with. Separate several values with a comma. Relative dates such as THIS_QUARTER are allowed."
+                        anyOf:
+                          -
+                            type: "string"
+                          -
+                            type: "number"
+                          -
+                            type: "boolean"
+                    required: ["column", "operator", "value"]
+                    additionalProperties: false
+                  description: "Row filters. Sending filters replaces the saved list when updating a report."
+                filterLogic:
+                  type: "string"
+                  description: "How the numbered filters combine, for example \"1 AND (2 OR 3)\". Filters are numbered from 1 in the order given."
+                dateFilter:
+                  type: "object"
+                  properties:
+                    column:
+                      type: "string"
+                      description: "Date column API name, for example CLOSE_DATE or CREATED_DATE."
+                    duration:
+                      type: "string"
+                      description: "Relative range such as THIS_FISCAL_QUARTER, LAST_N_DAYS:30, THIS_YEAR or CUSTOM. Omit when you give startDate and endDate."
+                    startDate:
+                      type: "string"
+                      description: "ISO date, YYYY-MM-DD. Sends CUSTOM when there is no duration."
+                    endDate:
+                      type: "string"
+                      description: "ISO date, YYYY-MM-DD."
+                  required: ["column"]
+                  additionalProperties: false
+                  description: "The standard date filter (the date range at the top of a report)."
+                sortBy:
+                  type: "array"
+                  items:
+                    type: "object"
+                    properties:
+                      column:
+                        type: "string"
+                      order:
+                        type: "string"
+                        enum: ["Asc", "Desc"]
+                    required: ["column", "order"]
+                    additionalProperties: false
+                  description: "Sort for a tabular report."
+                topRows:
+                  type: "object"
+                  properties:
+                    rowLimit:
+                      type: "integer"
+                      exclusiveMinimum: 0
+                    direction:
+                      type: "string"
+                      enum: ["Asc", "Desc"]
+                  required: ["rowLimit", "direction"]
+                  additionalProperties: false
+                  description: "Keep only the top or bottom N rows by the sort column."
+                scope:
+                  type: "string"
+                  description: "Whose records: for example organization, user (my records) or team. Valid values depend on the report type."
+                reportMetadata:
+                  type: "object"
+                  additionalProperties: true
+                  description: "Advanced: raw Salesforce reportMetadata fields, merged last and sent unchanged. Use for settings this shape does not cover, such as standardFilters."
+                detail:
+                  type: "boolean"
+                  description: "Return the detail rows. Default: yes for a tabular report, no for summary and matrix (the group table is usually what you want)."
+                maxRows:
+                  type: "integer"
+                  minimum: 1
+                  maximum: 2000
+                  description: "Cap on detail rows returned. Default is the server's setting (200); Salesforce itself never returns more than 2000."
               additionalProperties: false
       responses:
         "200":

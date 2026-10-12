@@ -4,7 +4,7 @@
  *
  * The bearer token comes only from SF_MCP_TOKEN: an access token with the mcp_api scope, from the External
  * Client App's OAuth flow (the CLI's own token is refused). --org finds the endpoint in the org's API Catalog
- * through the Salesforce CLI; --url gives it directly. The check calls tools/list, requires the six door tool
+ * through the Salesforce CLI; --url gives it directly. The check calls tools/list, requires the door tool
  * names exactly, then calls search_reports and run_report on a report it finds. It prints no token.
  * --dump writes the hosted tools/list result to a file, for the findings doc.
  */
@@ -112,7 +112,7 @@ const { tools } = await rpc("tools/list", {});
 if (values.dump) writeFileSync(values.dump, JSON.stringify(tools, null, 2));
 const names: string[] = tools.map((t: Json) => t.name).sort();
 const expected = [...DOOR_TOOLS].sort();
-check(JSON.stringify(names) === JSON.stringify(expected), "tools/list has the six door tools exactly", names.join(", "));
+check(JSON.stringify(names) === JSON.stringify(expected), "tools/list has the door tools exactly", names.join(", "));
 for (const t of tools) console.log(`      ${t.name}: input ${Object.keys(t.inputSchema?.properties ?? {}).join(", ") || "(none)"}`);
 const byName = (name: string) => tools.find((t: Json) => t.name === name);
 

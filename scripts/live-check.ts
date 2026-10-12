@@ -32,7 +32,16 @@ if (values.door !== undefined && values.door !== "apex") {
 }
 const apexDoor = values.door === "apex";
 /** The tools the in-org door answers. Everything else runs on the local server. */
-const APEX_TOOLS = new Set(["search_reports", "list_report_folders", "describe_report", "describe_report_type", "run_report", "combine_reports"]);
+const APEX_TOOLS = new Set([
+  "search_reports",
+  "list_report_folders",
+  "list_report_types",
+  "describe_report",
+  "describe_report_type",
+  "run_report",
+  "query_report",
+  "combine_reports",
+]);
 
 const connection = resolveConnection({ org: values.org });
 const reports = new ReportsApi(createClient(connection));
@@ -126,19 +135,15 @@ try {
   await step("1. list report types", async () => {
     const out = await call("list_report_types", { search: "opportunit" });
     expect(out.types.some((t: Json) => t.type === "Opportunity"), "no Opportunity type");
-  }, { apex: "skip" });
+  });
 
-  // The apex door reads a report type through a saved report of that type, so on that door step 2 runs after 4a.
-  const describeOpportunity = async () => {
+  await step("2. describe Opportunity", async () => {
     const out = await call("describe_report_type", { type: "Opportunity", search: "amount" });
     const names = out.sections.flatMap((s: Json) => s.fields.map((f: Json) => f.name));
     expect(names.includes("AMOUNT"), "no AMOUNT field");
     expect(out.dateGranularities.includes("Month"), "no Month granularity");
-    // Apex has no filter operators, so the apex door returns none and says so in a note.
-    if (!apexDoor) expect(out.filterOperators.string?.includes("equals"), "no string operators");
-  };
-  if (apexDoor) console.log("SKIP  2. describe Opportunity: skipped on the apex door here, because it needs a saved Opportunity report; it runs after 4a");
-  else await step("2. describe Opportunity", describeOpportunity);
+    expect(out.filterOperators.string?.includes("equals"), "no string operators");
+  });
 
   await step("2b. list_report_folders includes the org-wide Public Reports folder", async () => {
     const out = await call("list_report_folders");
@@ -166,7 +171,7 @@ try {
     const labels = out.groups.measures.map((m: Json) => m.label).join("|");
     for (const word of ["Sum", "Average", "Smallest", "Largest", "Unique"]) expect(labels.includes(word), `aggregate prefix gave no "${word}" measure: ${labels}`);
     expect(out.totals && out.totals.values.length === 6, "no totals");
-  }, { apex: "skip" });
+  });
 
   await step("3b. date granularity changes the groups", async () => {
     const out = await call("query_report", {
@@ -175,7 +180,7 @@ try {
       dateFilter: { column: "CLOSE_DATE", duration: "THIS_YEAR" },
     });
     expect(/Q\d/.test(String(out.groups.rows[0]?.[0])), `label ${out.groups.rows[0]?.[0]}`);
-  }, { apex: "skip" });
+  });
 
   await step("3c. query a matrix report", async () => {
     const out = await call("query_report", {
@@ -188,7 +193,7 @@ try {
     expect(out.report.format === "MATRIX", `format ${out.report.format}`);
     expect(out.groups.dimensions.length === 2, "expected two dimensions");
     expect(out.groups.rows.length > 0, "no matrix rows");
-  }, { apex: "skip" });
+  });
 
   await step("3d. query a tabular report with detail rows, sort and top rows", async () => {
     const out = await call("query_report", {
@@ -202,7 +207,7 @@ try {
     expect(out.detail.rows.length === 2, `rows ${out.detail.rows.length}`);
     expect(out.detail.truncated === true && out.notes.length > 0, "cut by maxRows should be noted");
     expect(typeof out.detail.rows[0][1] === "number", "amount should be a number");
-  }, { apex: "skip" });
+  });
 
   let firstId = "";
   await step("4a. create a report in Private Reports", async () => {
@@ -212,8 +217,6 @@ try {
     expect(/^00O/.test(out.id), "no id");
     expect(out.folder === "Private Reports", `folder ${out.folder}`);
   }, { apex: "local" });
-
-  if (apexDoor) await step("2. describe Opportunity (apex door, through the report from 4a)", describeOpportunity);
 
   await step("4b. describe it", async () => {
     const out = await call("describe_report", { reportId: firstId });
@@ -306,6 +309,18 @@ try {
     });
     expect(out.groups.measures.some((m: Json) => m.label.startsWith("high: ")), "no aliased measure");
     expect(out.groups.rows.length > 0, "no joined rows");
+  });
+
+  await step("6c. combine a saved report with a definition (stack)", async () => {
+    const out = await call("combine_reports", {
+      mode: "stack",
+      inputs: [
+        { alias: "saved", reportId: firstId, overrides: { filters: [] } },
+        { alias: "defined", definition: summaryDefinition },
+      ],
+    });
+    const sources = new Set(out.groups.rows.map((r: Json) => r[0]));
+    expect(sources.has("saved") && sources.has("defined"), `sources ${JSON.stringify([...sources])}`);
   });
 
   await step("7. delete everything the check created", async () => {

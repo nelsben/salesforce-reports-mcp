@@ -3,6 +3,8 @@
  * Usage: npm run parity -- --org <alias>
  * Creates three private reports named zz-parity-* through the local API, runs every case through both doors,
  * diffs the JSON, deletes the reports, and exits non-zero on any difference or on a report left behind.
+ * query_report, list_report_types and describe_report_type reach the org's REST API from Apex (phase 3a), so their
+ * cases also check that callout.
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -120,6 +122,19 @@ async function same(label: string, tool: string, args: Record<string, unknown>, 
   }
 }
 
+/** Both doors fail, with the same error body. */
+async function sameError(label: string, tool: string, args: Record<string, unknown>): Promise<void> {
+  try {
+    const [l, a] = [await local(tool, args), await apex(tool, args)];
+    if (l.ok) return line(false, label, `local succeeded: ${clip(l.body)}`);
+    if (a.ok) return line(false, label, `apex succeeded: ${clip(a.body)}`);
+    const diff = firstDiff(l.body, a.body);
+    line(!diff, label, diff ?? `apex answered ${a.status}`);
+  } catch (error) {
+    line(false, label, error instanceof Error ? error.message : String(error));
+  }
+}
+
 /** A contract case for the in-org door only. */
 async function apexAnswers(label: string, tool: string, args: Record<string, unknown>, status: number, code: string): Promise<void> {
   try {
@@ -135,6 +150,47 @@ const prefix = "zz-parity";
 const stamp = Date.now().toString(36);
 const created: string[] = [];
 const range = { column: "CLOSE_DATE", startDate: "2020-01-01", endDate: "2030-12-31" };
+const tabularDef = {
+  reportType: "Opportunity",
+  columns: [
+    "OPPORTUNITY_NAME", "ACCOUNT_NAME", "FULL_NAME", "AMOUNT", "PROBABILITY", "STAGE_NAME", "TYPE",
+    "CLOSE_DATE", "CLOSED", "FISCAL_YEAR", "AGE", "OPPORTUNITY_ID", "OWNER_EMAIL", "NEXT_STEP",
+  ],
+  sortBy: [{ column: "AMOUNT", order: "Desc" }],
+  dateFilter: range,
+};
+const summaryDef = {
+  reportType: "Opportunity",
+  columns: ["OPPORTUNITY_NAME", "AMOUNT", "CLOSE_DATE"],
+  groupingsDown: [{ column: "STAGE_NAME" }],
+  aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }],
+  dateFilter: range,
+};
+const matrixDef = {
+  reportType: "Opportunity",
+  columns: ["OPPORTUNITY_NAME", "AMOUNT", "PROBABILITY"],
+  groupingsDown: [{ column: "STAGE_NAME", sortOrder: "Desc" }],
+  groupingsAcross: [{ column: "CLOSE_DATE", dateGranularity: "Quarter" }],
+  aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }, { fn: "avg", column: "PROBABILITY" }],
+  filters: [{ column: "AMOUNT", operator: "greaterThan", value: 0 }],
+  dateFilter: range,
+};
+
+/**
+ * A report type this user has no saved report of, for describe_report_type's callout path. Report.ReportTypeApiName
+ * can carry a suffix after "@", so a saved report counts when its name is the type or starts with the type and "@".
+ */
+async function typeWithoutReport(): Promise<string> {
+  const listed = await local("list_report_types", { limit: 500 });
+  if (!listed.ok) throw new Error(`list_report_types failed: ${clip(listed.body)}`);
+  const offered = new Set<string>(listed.body.types.map((t: Json) => t.type));
+  const saved = (await reports.soql("SELECT ReportTypeApiName FROM Report")).map((r) => String(r.ReportTypeApiName ?? "").toLowerCase());
+  for (const type of ["AccountList", "LeadList", "CaseList", "ContactList", "ContractList", "Activity"]) {
+    const t = type.toLowerCase();
+    if (offered.has(type) && !saved.some((s) => s === t || s.startsWith(`${t}@`))) return type;
+  }
+  throw new Error("Every candidate report type has a saved report here. Add a candidate to typeWithoutReport().");
+}
 
 async function create(name: string, definition: Record<string, unknown>): Promise<string> {
   const out = await local("create_report", { name: `${prefix}-${name}-${stamp}`, ...definition });
@@ -144,31 +200,9 @@ async function create(name: string, definition: Record<string, unknown>): Promis
 }
 
 try {
-  const tabular = await create("tabular", {
-    reportType: "Opportunity",
-    columns: [
-      "OPPORTUNITY_NAME", "ACCOUNT_NAME", "FULL_NAME", "AMOUNT", "PROBABILITY", "STAGE_NAME", "TYPE",
-      "CLOSE_DATE", "CLOSED", "FISCAL_YEAR", "AGE", "OPPORTUNITY_ID", "OWNER_EMAIL", "NEXT_STEP",
-    ],
-    sortBy: [{ column: "AMOUNT", order: "Desc" }],
-    dateFilter: range,
-  });
-  const summary = await create("summary", {
-    reportType: "Opportunity",
-    columns: ["OPPORTUNITY_NAME", "AMOUNT", "CLOSE_DATE"],
-    groupingsDown: [{ column: "STAGE_NAME" }],
-    aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }],
-    dateFilter: range,
-  });
-  const matrix = await create("matrix", {
-    reportType: "Opportunity",
-    columns: ["OPPORTUNITY_NAME", "AMOUNT", "PROBABILITY"],
-    groupingsDown: [{ column: "STAGE_NAME", sortOrder: "Desc" }],
-    groupingsAcross: [{ column: "CLOSE_DATE", dateGranularity: "Quarter" }],
-    aggregates: ["RowCount", { fn: "sum", column: "AMOUNT" }, { fn: "avg", column: "PROBABILITY" }],
-    filters: [{ column: "AMOUNT", operator: "greaterThan", value: 0 }],
-    dateFilter: range,
-  });
+  const tabular = await create("tabular", tabularDef);
+  const summary = await create("summary", summaryDef);
+  const matrix = await create("matrix", matrixDef);
   console.log(`Created ${created.length} zz-parity reports.\n`);
 
   await same("run_report tabular as saved", "run_report", { reportId: tabular });
@@ -232,15 +266,63 @@ try {
       { alias: "big", reportId: summary, overrides: { filters: [{ column: "AMOUNT", operator: "greaterThan", value: 100000 }] } },
     ],
   });
-  await same("describe_report_type Opportunity, search amount", "describe_report_type", { type: "Opportunity", search: "amount" }, [
-    "filterOperators",
-    "notes",
-  ]);
-  await same("describe_report_type Opportunity, limit 40", "describe_report_type", { type: "Opportunity", limit: 40 }, [
-    "filterOperators",
-    "notes",
-  ]);
-  await apexAnswers("apex: query_report is not on this door (404)", "query_report", { reportType: "Opportunity" }, 404, "UNKNOWN_TOOL");
+  await same("describe_report_type Opportunity, search amount", "describe_report_type", { type: "Opportunity", search: "amount" });
+  await same("describe_report_type Opportunity, limit 40", "describe_report_type", { type: "Opportunity", limit: 40 });
+  const unsaved = await typeWithoutReport();
+  await same(`describe_report_type ${unsaved}, a type with no saved report`, "describe_report_type", { type: unsaved });
+  await same("list_report_types", "list_report_types", {});
+  await same("list_report_types search opportunit", "list_report_types", { search: "opportunit" });
+  await same("list_report_types search account, limit 3", "list_report_types", { search: "account", limit: 3 });
+  await same("query_report tabular", "query_report", tabularDef);
+  await same("query_report summary", "query_report", summaryDef);
+  await same("query_report matrix", "query_report", matrixDef);
+  await same("query_report summary with detail rows", "query_report", { ...summaryDef, detail: true });
+  await same("query_report matrix with detail rows and a maxRows cut", "query_report", { ...matrixDef, detail: true, maxRows: 3 });
+  await same("query_report tabular with sort, top rows and a maxRows cut", "query_report", {
+    reportType: "Opportunity",
+    columns: ["OPPORTUNITY_NAME", "AMOUNT", "STAGE_NAME", "CLOSE_DATE"],
+    sortBy: [{ column: "AMOUNT", order: "Desc" }],
+    topRows: { rowLimit: 5, direction: "Desc" },
+    dateFilter: range,
+    maxRows: 2,
+  });
+  await same("query_report grouped with no detail column (one is added)", "query_report", {
+    reportType: "Opportunity",
+    groupingsDown: [{ column: "CLOSE_DATE", dateGranularity: "Quarter" }],
+    dateFilter: range,
+  });
+  await same("query_report filter logic and a column dropped for its grouping", "query_report", {
+    reportType: "Opportunity",
+    columns: ["STAGE_NAME", "OPPORTUNITY_NAME"],
+    groupingsDown: [{ column: "STAGE_NAME" }],
+    aggregates: [{ fn: "max", column: "AMOUNT" }],
+    filters: [
+      { column: "AMOUNT", operator: "greaterThan", value: 0 },
+      { column: "STAGE_NAME", operator: "notEqual", value: "Closed Lost" },
+    ],
+    filterLogic: "1 AND 2",
+    dateFilter: range,
+  });
+  await sameError("query_report with an unknown column gives the local error body", "query_report", {
+    reportType: "Opportunity",
+    columns: ["NO_SUCH_COLUMN"],
+  });
+  await same("combine_reports stack of a saved report and a definition", "combine_reports", {
+    mode: "stack",
+    inputs: [
+      { alias: "saved", reportId: summary },
+      { alias: "adhoc", definition: { ...summaryDef, filters: [{ column: "AMOUNT", operator: "greaterThan", value: 100000 }] } },
+    ],
+  });
+  await same("combine_reports join of two definitions", "combine_reports", {
+    mode: "join",
+    inputs: [
+      { alias: "all", definition: summaryDef },
+      { alias: "big", definition: { ...summaryDef, filters: [{ column: "AMOUNT", operator: "greaterThan", value: 100000 }] } },
+    ],
+  });
+  await apexAnswers("apex: create_report is not on this door (404)", "create_report", { name: "x", reportType: "Opportunity" }, 404, "UNKNOWN_TOOL");
+  await apexAnswers("apex: query_report without reportType answers 400", "query_report", { columns: ["AMOUNT"] }, 400, "INVALID_INPUT");
   await apexAnswers("apex: an unknown tool answers 404", "no_such_tool", {}, 404, "UNKNOWN_TOOL");
   await apexAnswers("apex: a bad report id answers 400", "run_report", { reportId: "not-an-id" }, 400, "INVALID_INPUT");
 } catch (error) {

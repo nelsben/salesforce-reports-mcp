@@ -1,5 +1,7 @@
 /**
- * Reports.ReportResults to ReportResult, ported from src/reports/shape.ts.
+ * A report run to ReportResult, ported from src/reports/shape.ts. Two inputs share one frame: shapeResult reads the
+ * Reports.ReportResults of ReportManager.runReport (run_report), and shapeJson reads the REST JSON of
+ * /analytics/reports/query (query_report). The header, the row budget, the detail table and the notes are built once.
  * Detail rows past the cap are counted but never built, to keep heap low.
  */
 public with sharing class ReportsShape {
@@ -12,12 +14,14 @@ public with sharing class ReportsShape {
         return Math.min(HARD_ROW_CEILING, CELL_BUDGET / Math.max(1, columns));
     }
 
+    public static ReportsApi.ApiException tooLarge() {
+        return ReportsApi.apiError(500, 'RESULT_TOO_LARGE', 'The report result is too large for the in-org door\'s memory.',
+            'Narrow the filters, lower maxRows, drop columns, or use the local server.');
+    }
+
     /** Stop with the error shape before the heap limit, which Apex cannot catch. */
     public static void guardHeap() {
-        if (Limits.getHeapSize() > Limits.getLimitHeapSize() * 0.8) {
-            throw ReportsApi.apiError(500, 'RESULT_TOO_LARGE', 'The report result is too large for the in-org door\'s memory.',
-                'Narrow the filters, lower maxRows, drop columns, or use the local server.');
-        }
+        if (Limits.getHeapSize() > Limits.getLimitHeapSize() * 0.8) throw tooLarge();
     }
 
     class Leaf {
@@ -29,130 +33,157 @@ public with sharing class ReportsShape {
         }
     }
 
-    public static Map<String, Object> shapeResult(Reports.ReportResults raw, Integer maxRowsIn, Boolean includeDetail, String baseUrl, List<String> notesIn) {
-        Map<String, Object> meta = ReportsSummary.metadataMap(raw.getReportMetadata());
-        ReportsSummary.InfoMaps maps = ReportsSummary.infoMaps(raw.getReportExtendedMetadata());
-        Map<String, Reports.ReportFact> factMap = raw.getFactMap() == null ? new Map<String, Reports.ReportFact>() : raw.getFactMap();
-        Integer requested = Math.min(Math.max(maxRowsIn, 0), HARD_ROW_CEILING);
-        List<String> notes = notesIn == null ? new List<String>() : new List<String>(notesIn);
-        String id = (String) meta.get('id');
-        String format = (String) meta.get('reportFormat');
-
-        List<String> downNames = names((List<Object>) meta.get('groupingsDown'));
-        List<String> acrossNames = names((List<Object>) meta.get('groupingsAcross'));
+    /** What both inputs share: the header, the dimensions and measures, the row budget, and the rows walked so far. */
+    class Frame {
+        Map<String, Object> result;
+        List<String> notes;
+        ReportsSummary.InfoMaps maps;
+        String format;
+        List<String> downNames;
+        List<String> acrossNames;
+        List<String> measureNames;
         List<Object> dimensions = new List<Object>();
-        for (String name : downNames) dimensions.add(new Map<String, Object>{ 'name' => name, 'label' => ReportsSummary.columnLabel(name, maps), 'axis' => 'down' });
-        for (String name : acrossNames) dimensions.add(new Map<String, Object>{ 'name' => name, 'label' => ReportsSummary.columnLabel(name, maps), 'axis' => 'across' });
-        Boolean grouped = !dimensions.isEmpty();
-
-        List<String> measureNames = (List<String>) meta.get('aggregates');
         List<Object> measures = new List<Object>();
         List<String> measureTypes = new List<String>();
-        for (String name : measureNames) {
-            Map<String, String> info = maps.aggregate.get(name);
-            String label = info == null ? null : info.get('label');
-            String dt = info == null ? null : info.get('dataType');
-            measures.add(new Map<String, Object>{ 'name' => name, 'label' => label != null ? label : ReportsSummary.humanize(name), 'dataType' => dt != null ? dt : 'double' });
-            measureTypes.add(dt != null ? dt : 'double');
-        }
-
-        Map<String, Object> report = new Map<String, Object>{ 'id' => id, 'name' => meta.get('name') != null ? meta.get('name') : 'Unsaved report', 'format' => format };
-        Map<String, Object> type = (Map<String, Object>) meta.get('reportType');
-        if (type != null && type.get('type') != null) report.put('reportType', type.get('type'));
-        String url = ReportsSummary.reportUrl(baseUrl, id);
-        if (url != null) report.put('url', url);
-        Map<String, Object> result = new Map<String, Object>{
-            'report' => report,
-            'filters' => ReportsSummary.describeFilters(meta, maps),
-            'notes' => notes
-        };
-
-        Reports.ReportFact grandTotal = factMap.get('T!T');
-        if (grandTotal != null && grandTotal.getAggregates() != null) {
-            result.put('totals', new Map<String, Object>{ 'measures' => measureNames, 'values' => aggregates(new List<Object>(), grandTotal.getAggregates(), measureTypes) });
-        }
-
-        // Walk the leaf combinations once. They carry both the group rows and the detail rows.
-        List<String> detailColumnNames = (List<String>) meta.get('detailColumns');
-        Integer columnCount = dimensions.size() + detailColumnNames.size();
-        Integer ceiling = inOrgCeiling(columnCount);
-        Integer maxRows = Math.min(requested, ceiling);
-        List<Leaf> combos = new List<Leaf>();
-        if (!grouped) {
-            combos.add(new Leaf('T!T', new List<Object>()));
-        } else {
-            List<Leaf> downs = downNames.isEmpty() ? new List<Leaf>{ new Leaf('T', new List<Object>()) } : leaves(raw.getGroupingsDown() == null ? null : raw.getGroupingsDown().getGroupings(), new List<Object>());
-            List<Leaf> acrosses = acrossNames.isEmpty() ? new List<Leaf>{ new Leaf('T', new List<Object>()) } : leaves(raw.getGroupingsAcross() == null ? null : raw.getGroupingsAcross().getGroupings(), new List<Object>());
-            for (Leaf d : downs) {
-                for (Leaf a : acrosses) {
-                    List<Object> labels = new List<Object>(d.labels);
-                    labels.addAll(a.labels);
-                    combos.add(new Leaf(d.key + '!' + a.key, labels));
-                }
-            }
-        }
+        List<String> detailColumnNames;
+        Boolean grouped;
+        Boolean includeDetail;
+        Integer requested;
+        Integer columnCount;
+        Integer ceiling;
+        Integer maxRows;
         List<Object> groupRows = new List<Object>();
         List<Object> detailRows = new List<Object>();
         Integer total = 0;
-        for (Leaf combo : combos) {
+
+        /** True while one more detail row should be built; every row is still counted. */
+        Boolean wantsRow() {
+            total++;
+            return includeDetail && detailRows.size() < maxRows;
+        }
+    }
+
+    static Frame frame(Map<String, Object> meta, ReportsSummary.InfoMaps maps, String id, String name, Integer maxRowsIn, Boolean includeDetail, String baseUrl, List<String> notesIn) {
+        Frame f = new Frame();
+        f.maps = maps;
+        f.includeDetail = includeDetail;
+        f.requested = Math.min(Math.max(maxRowsIn, 0), HARD_ROW_CEILING);
+        f.notes = notesIn == null ? new List<String>() : new List<String>(notesIn);
+        f.format = (String) meta.get('reportFormat');
+        f.downNames = names(meta.get('groupingsDown'));
+        f.acrossNames = names(meta.get('groupingsAcross'));
+        for (String n : f.downNames) f.dimensions.add(new Map<String, Object>{ 'name' => n, 'label' => ReportsSummary.columnLabel(n, maps), 'axis' => 'down' });
+        for (String n : f.acrossNames) f.dimensions.add(new Map<String, Object>{ 'name' => n, 'label' => ReportsSummary.columnLabel(n, maps), 'axis' => 'across' });
+        f.grouped = !f.dimensions.isEmpty();
+
+        f.measureNames = strings(meta.get('aggregates'));
+        for (String n : f.measureNames) {
+            Map<String, String> info = maps.aggregate.get(n);
+            String label = info == null ? null : info.get('label');
+            String dt = info == null ? null : info.get('dataType');
+            f.measures.add(new Map<String, Object>{ 'name' => n, 'label' => label != null ? label : ReportsSummary.humanize(n), 'dataType' => dt != null ? dt : 'double' });
+            f.measureTypes.add(dt != null ? dt : 'double');
+        }
+
+        Map<String, Object> report = new Map<String, Object>{ 'id' => id, 'name' => name != null ? name : 'Unsaved report', 'format' => f.format };
+        Object type = meta.get('reportType');
+        if (type instanceof Map<String, Object> && ((Map<String, Object>) type).get('type') != null) report.put('reportType', ((Map<String, Object>) type).get('type'));
+        String url = ReportsSummary.reportUrl(baseUrl, id);
+        if (url != null) report.put('url', url);
+        f.result = new Map<String, Object>{ 'report' => report, 'filters' => ReportsSummary.describeFilters(meta, maps), 'notes' => f.notes };
+
+        f.detailColumnNames = strings(meta.get('detailColumns'));
+        f.columnCount = f.dimensions.size() + f.detailColumnNames.size();
+        f.ceiling = inOrgCeiling(f.columnCount);
+        f.maxRows = Math.min(f.requested, f.ceiling);
+        return f;
+    }
+
+    /** The leaf combinations to walk, in the local server's order. A flat report has the one key T!T. */
+    static List<Leaf> combos(Frame f, List<Leaf> downLeaves, List<Leaf> acrossLeaves) {
+        List<Leaf> out = new List<Leaf>();
+        if (!f.grouped) {
+            out.add(new Leaf('T!T', new List<Object>()));
+            return out;
+        }
+        List<Leaf> downs = f.downNames.isEmpty() ? new List<Leaf>{ new Leaf('T', new List<Object>()) } : downLeaves;
+        List<Leaf> acrosses = f.acrossNames.isEmpty() ? new List<Leaf>{ new Leaf('T', new List<Object>()) } : acrossLeaves;
+        for (Leaf d : downs) {
+            for (Leaf a : acrosses) {
+                List<Object> labels = new List<Object>(d.labels);
+                labels.addAll(a.labels);
+                out.add(new Leaf(d.key + '!' + a.key, labels));
+            }
+        }
+        return out;
+    }
+
+    static Map<String, Object> finish(Frame f, List<Object> totals, Boolean allData) {
+        Map<String, Object> result = f.result;
+        if (totals != null) result.put('totals', new Map<String, Object>{ 'measures' => f.measureNames, 'values' => totals });
+        if (f.grouped) result.put('groups', new Map<String, Object>{ 'dimensions' => f.dimensions, 'measures' => f.measures, 'rows' => f.groupRows });
+        if (f.includeDetail && (!f.grouped || f.total > 0 || f.format == 'TABULAR')) {
+            List<Object> columns = new List<Object>();
+            for (Object o : f.dimensions) {
+                String name = (String) ((Map<String, Object>) o).get('name');
+                String dt = f.maps.grouping.containsKey(name) ? f.maps.grouping.get(name).get('dataType') : null;
+                columns.add(new Map<String, Object>{ 'name' => name, 'label' => ((Map<String, Object>) o).get('label'), 'dataType' => dt != null ? dt : 'string' });
+            }
+            for (String name : f.detailColumnNames) {
+                String dt = f.maps.detail.containsKey(name) ? f.maps.detail.get(name).get('dataType') : null;
+                columns.add(new Map<String, Object>{ 'name' => name, 'label' => ReportsSummary.columnLabel(name, f.maps), 'dataType' => dt != null ? dt : 'string' });
+            }
+            Boolean cut = f.total > f.maxRows;
+            result.put('detail', new Map<String, Object>{ 'columns' => columns, 'rows' => f.detailRows, 'rowCount' => f.total, 'truncated' => cut || !allData });
+            if (cut && f.maxRows < f.requested) {
+                f.notes.add('Showing ' + f.maxRows + ' of ' + f.total + ' detail rows. The in-org door returns at most ' + f.ceiling + ' rows for ' + f.columnCount
+                    + ' columns (a 50,000-cell budget). Add filters, drop columns, or use the local server for more.');
+            } else if (cut) {
+                f.notes.add('Showing ' + f.maxRows + ' of ' + f.total + ' detail rows. Raise maxRows (up to ' + HARD_ROW_CEILING + ') or add filters.');
+            }
+        }
+        if (!allData) f.notes.add('Salesforce stopped at 2,000 rows (allData is false), so the results are incomplete. Narrow the filters.');
+        return result;
+    }
+
+    // ---- run_report: Reports.ReportResults ----
+
+    public static Map<String, Object> shapeResult(Reports.ReportResults raw, Integer maxRowsIn, Boolean includeDetail, String baseUrl, List<String> notesIn) {
+        Map<String, Object> meta = ReportsSummary.metadataMap(raw.getReportMetadata());
+        Map<String, Reports.ReportFact> factMap = raw.getFactMap() == null ? new Map<String, Reports.ReportFact>() : raw.getFactMap();
+        Frame f = frame(meta, ReportsSummary.infoMaps(raw.getReportExtendedMetadata()), (String) meta.get('id'), (String) meta.get('name'), maxRowsIn, includeDetail, baseUrl, notesIn);
+
+        Reports.ReportFact grandTotal = factMap.get('T!T');
+        List<Object> totals = grandTotal != null && grandTotal.getAggregates() != null ? aggregates(new List<Object>(), grandTotal.getAggregates(), f.measureTypes) : null;
+
+        // Walk the leaf combinations once. They carry both the group rows and the detail rows.
+        List<Leaf> downLeaves = f.downNames.isEmpty() ? null : leaves(raw.getGroupingsDown() == null ? null : raw.getGroupingsDown().getGroupings(), new List<Object>());
+        List<Leaf> acrossLeaves = f.acrossNames.isEmpty() ? null : leaves(raw.getGroupingsAcross() == null ? null : raw.getGroupingsAcross().getGroupings(), new List<Object>());
+        for (Leaf combo : combos(f, downLeaves, acrossLeaves)) {
             Reports.ReportFact fact = factMap.get(combo.key);
             if (fact == null) continue;
-            if (grouped) groupRows.add(aggregates(new List<Object>(combo.labels), fact.getAggregates(), measureTypes));
+            if (f.grouped) f.groupRows.add(aggregates(new List<Object>(combo.labels), fact.getAggregates(), f.measureTypes));
             if (!(fact instanceof Reports.ReportFactWithDetails)) continue;
             List<Reports.ReportDetailRow> rows = ((Reports.ReportFactWithDetails) fact).getRows();
             if (rows == null) continue;
             for (Reports.ReportDetailRow dr : rows) {
-                total++;
-                if (!includeDetail || detailRows.size() >= maxRows) continue;
+                if (!f.wantsRow()) continue;
                 List<Object> row = new List<Object>(combo.labels);
                 List<Reports.ReportDataCell> cells = dr.getDataCells();
                 for (Integer i = 0; i < cells.size(); i++) {
-                    String dt = maps.cellType(i < detailColumnNames.size() ? detailColumnNames[i] : '');
-                    row.add(cell(cells[i].getValue(), cells[i].getLabel(), dt));
+                    row.add(cell(cells[i].getValue(), cells[i].getLabel(), f.maps.cellType(i < f.detailColumnNames.size() ? f.detailColumnNames[i] : '')));
                 }
-                detailRows.add(row);
-                if (Math.mod(detailRows.size(), 100) == 0) guardHeap();
+                f.detailRows.add(row);
+                if (Math.mod(f.detailRows.size(), 100) == 0) guardHeap();
             }
         }
-
-        if (grouped) result.put('groups', new Map<String, Object>{ 'dimensions' => dimensions, 'measures' => measures, 'rows' => groupRows });
-
-        Boolean allData = raw.getAllData() != false;
-        if (includeDetail && (!grouped || total > 0 || format == 'TABULAR')) {
-            List<Object> columns = new List<Object>();
-            for (Object o : dimensions) {
-                String name = (String) ((Map<String, Object>) o).get('name');
-                String dt = maps.grouping.containsKey(name) ? maps.grouping.get(name).get('dataType') : null;
-                columns.add(new Map<String, Object>{ 'name' => name, 'label' => ((Map<String, Object>) o).get('label'), 'dataType' => dt != null ? dt : 'string' });
-            }
-            for (String name : detailColumnNames) {
-                String dt = maps.detail.containsKey(name) ? maps.detail.get(name).get('dataType') : null;
-                columns.add(new Map<String, Object>{ 'name' => name, 'label' => ReportsSummary.columnLabel(name, maps), 'dataType' => dt != null ? dt : 'string' });
-            }
-            Boolean cut = total > maxRows;
-            result.put('detail', new Map<String, Object>{ 'columns' => columns, 'rows' => detailRows, 'rowCount' => total, 'truncated' => cut || !allData });
-            if (cut && maxRows < requested) {
-                notes.add('Showing ' + maxRows + ' of ' + total + ' detail rows. The in-org door returns at most ' + ceiling + ' rows for ' + columnCount
-                    + ' columns (a 50,000-cell budget). Add filters, drop columns, or use the local server for more.');
-            } else if (cut) {
-                notes.add('Showing ' + maxRows + ' of ' + total + ' detail rows. Raise maxRows (up to ' + HARD_ROW_CEILING + ') or add filters.');
-            }
-        }
-
-        if (!allData) notes.add('Salesforce stopped at 2,000 rows (allData is false), so the results are incomplete. Narrow the filters.');
-        return result;
+        return finish(f, totals, raw.getAllData() != false);
     }
 
     static List<Object> aggregates(List<Object> row, List<Reports.SummaryValue> values, List<String> types) {
         if (values == null) return row;
         for (Integer i = 0; i < values.size(); i++) row.add(cell(values[i].getValue(), values[i].getLabel(), i < types.size() ? types[i] : null));
         return row;
-    }
-
-    static List<String> names(List<Object> groupings) {
-        List<String> out = new List<String>();
-        for (Object g : groupings) out.add((String) ((Map<String, Object>) g).get('name'));
-        return out;
     }
 
     static List<Leaf> leaves(List<Reports.GroupingValue> nodes, List<Object> trail) {
@@ -168,6 +199,91 @@ public with sharing class ReportsShape {
         return out;
     }
 
+    // ---- query_report: the REST JSON of /analytics/reports/query ----
+
+    /** The REST report result (reportMetadata, reportExtendedMetadata, groupings, factMap, allData) as a ReportResult. */
+    public static Map<String, Object> shapeJson(Map<String, Object> raw, Integer maxRowsIn, Boolean includeDetail, String baseUrl, List<String> notesIn) {
+        Map<String, Object> meta = jsonMap(raw.get('reportMetadata'));
+        Map<String, Object> attributes = jsonMap(raw.get('attributes'));
+        Map<String, Object> factMap = jsonMap(raw.get('factMap'));
+        String id = str(meta.get('id') != null ? meta.get('id') : attributes.get('reportId'));
+        String name = str(meta.get('name') != null ? meta.get('name') : attributes.get('reportName'));
+        Frame f = frame(meta, ReportsSummary.infoMapsJson(jsonMap(raw.get('reportExtendedMetadata'))), id, name, maxRowsIn, includeDetail, baseUrl, notesIn);
+
+        Map<String, Object> grandTotal = jsonMap(factMap.get('T!T'));
+        List<Object> totals = grandTotal.get('aggregates') != null ? jsonAggregates(new List<Object>(), grandTotal.get('aggregates'), f.measureTypes) : null;
+
+        List<Leaf> downLeaves = f.downNames.isEmpty() ? null : jsonLeaves(jsonMap(raw.get('groupingsDown')).get('groupings'), new List<Object>());
+        List<Leaf> acrossLeaves = f.acrossNames.isEmpty() ? null : jsonLeaves(jsonMap(raw.get('groupingsAcross')).get('groupings'), new List<Object>());
+        for (Leaf combo : combos(f, downLeaves, acrossLeaves)) {
+            Object found = factMap.get(combo.key);
+            if (found == null) continue;
+            Map<String, Object> fact = (Map<String, Object>) found;
+            if (f.grouped) f.groupRows.add(jsonAggregates(new List<Object>(combo.labels), fact.get('aggregates'), f.measureTypes));
+            for (Object r : items(fact.get('rows'))) {
+                if (!f.wantsRow()) continue;
+                List<Object> row = new List<Object>(combo.labels);
+                List<Object> cells = items(((Map<String, Object>) r).get('dataCells'));
+                for (Integer i = 0; i < cells.size(); i++) {
+                    Map<String, Object> c = (Map<String, Object>) cells[i];
+                    row.add(cell(c.get('value'), str(c.get('label')), f.maps.cellType(i < f.detailColumnNames.size() ? f.detailColumnNames[i] : '')));
+                }
+                f.detailRows.add(row);
+                if (Math.mod(f.detailRows.size(), 100) == 0) guardHeap();
+            }
+        }
+        return finish(f, totals, raw.get('allData') != false);
+    }
+
+    static List<Object> jsonAggregates(List<Object> row, Object values, List<String> types) {
+        List<Object> given = items(values);
+        for (Integer i = 0; i < given.size(); i++) {
+            Map<String, Object> a = (Map<String, Object>) given[i];
+            row.add(cell(a.get('value'), str(a.get('label')), i < types.size() ? types[i] : null));
+        }
+        return row;
+    }
+
+    static List<Leaf> jsonLeaves(Object nodes, List<Object> trail) {
+        List<Leaf> out = new List<Leaf>();
+        for (Object o : items(nodes)) {
+            Map<String, Object> node = (Map<String, Object>) o;
+            List<Object> labels = new List<Object>(trail);
+            labels.add(groupLabel(str(node.get('label'))));
+            List<Object> children = items(node.get('groupings'));
+            if (!children.isEmpty()) out.addAll(jsonLeaves(children, labels));
+            else out.add(new Leaf(str(node.get('key')), labels));
+        }
+        return out;
+    }
+
+    // ---- shared helpers ----
+
+    static List<String> names(Object groupings) {
+        List<String> out = new List<String>();
+        for (Object g : items(groupings)) out.add((String) ((Map<String, Object>) g).get('name'));
+        return out;
+    }
+
+    /** A list of names, whether Apex built it (List<String>) or JSON did (List<Object>). */
+    static List<String> strings(Object value) {
+        List<String> out = new List<String>();
+        for (Object o : items(value)) out.add(str(o));
+        return out;
+    }
+
+    static List<Object> items(Object value) {
+        return value instanceof List<Object> ? (List<Object>) value : new List<Object>();
+    }
+
+    static Map<String, Object> jsonMap(Object value) {
+        return value instanceof Map<String, Object> ? (Map<String, Object>) value : new Map<String, Object>();
+    }
+
+    static String str(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
     @TestVisible
     static Object groupLabel(String label) {
         return label == null || label == '-' ? null : label;
@@ -180,6 +296,14 @@ public with sharing class ReportsShape {
     public static Object cell(Object value, String label, String dataType) {
         if (value == null) return null;
         if (value instanceof Reports.ReportCurrency) return ((Reports.ReportCurrency) value).getAmount();
+        // REST writes a currency cell as {"amount": 12.5, "currency": null}.
+        if (value instanceof Map<String, Object>) {
+            Map<String, Object> m = (Map<String, Object>) value;
+            Object amount = m.get('amount');
+            if (isNumber(amount)) return amount;
+            if (amount == null && m.containsKey('amount')) return null;
+            return label != null ? label : '';
+        }
         if (dataType == 'int' || dataType == 'double' || dataType == 'currency' || dataType == 'percent') {
             if (isNumber(value)) return value;
             try {
