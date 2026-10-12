@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- v0.2 phase 3b: the in-org door adds `create_report`, `update_report` and `clone_report`, through `ReportsCallout`. They need the new permission set `Salesforce_Reports_MCP_Write` (custom permission `Reports_MCP_Write`) and answer 403 `WRITE_NOT_ALLOWED` without it. The hosted server now carries eleven tools; run `npm run mcp:setup` after deploying to add the three new tool rows. `delete_report` stays local-only.
 - v0.2 phase 3a: the in-org door adds `list_report_types` and `query_report`, `describe_report_type` gains filter operators and types with no saved report, and `combine_reports` takes definition inputs. All three call the org's own REST API through one Apex helper, `ReportsCallout`. The hosted server now carries eight tools; run `npm run mcp:setup` after deploying to add the two new tool rows.
 - `mcp:setup` and `mcp:teardown` take any org you name: pass `--yes`, or set `SF_REPORTS_SETUP_ORGS` to the aliases they may change (an alias off that list is refused even with `--yes`). No alias is hard-coded, and both print the alias and instance URL before they write.
 - v0.2 phase 2, the in-org MCP door: `salesforce/` adds the API Catalog entry `ReportsApi` (one operation per tool, schemas generated from the local server by `npm run mcp:generate`), the hosted MCP server `SalesforceReports` with the six read tools, a permission set, `npm run mcp:setup` and `mcp:teardown`, an External Client App for sign-in, and `npm run mcp-check`. The README's "In the org" section has the admin steps.

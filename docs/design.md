@@ -101,6 +101,7 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 - **Lookup cells carry the record id in `value` and the readable name in `label`**; percent cells are numbers (`90` for `90%`); currency cells are `{amount, currency}`; booleans are booleans.
 - **`GET /analytics/reportTypes/{type}` and `GET /analytics/report-types/{type}` both work.** The server uses the first, as designed.
 - **`DELETE` returns 204; `POST /analytics/reports?cloneId=` with `{"reportMetadata":{"name":…}}` clones into Private Reports.**
+- **Saved metadata comes back with its keys in alphabetical order.** Apex's `JSON.deserializeUntyped` loses key order, so the in-org door writes `update_report`'s change lines with sorted keys to match what `JSON.stringify` writes locally (found in phase 3b).
 
 ### ReportResult (output)
 
@@ -243,6 +244,10 @@ Built 2026-10-11 (`docs/probes/v0.2-phase2.md`). The server `SalesforceReports` 
 
 Built 2026-10-11 (`docs/probes/v0.2-phase3.md`). `list_report_types`, `query_report` and a full `describe_report_type` reach the in-org door through one helper, `ReportsCallout`, which calls the org's own REST API under the user's session. `combine_reports` takes definition inputs. The hosted server carries eight tools. Parity holds on 44 cases with no ignore list, the live check passes with `--door apex`, and 38 Apex tests pass. `query_report` asks for detail rows only when the result shows them. A grouped query over 2,000 rows can therefore lack the local "stopped at 2,000 rows" note. A refused session answers `CALLOUT_SESSION`, and `describe_report_type` then falls back to the phase 1 path. Open: whether the callout works under a hosted MCP sign-in, whose External Client App has only the `mcp_api` and `refresh_token` scopes. If it does not, the fixes are the `Api` scope (which widens the token to the whole API as that user) or a per-user Named Credential.
 
+### Phase 3b result
+
+Built 2026-10-11 (`docs/probes/v0.2-phase3b.md`). `create_report` (from a definition, or from `fromReportId` plus changes), `update_report` and `clone_report` reach the in-org door through `ReportsCallout`. Each checks the custom permission `Reports_MCP_Write`, held by the permission set `Salesforce_Reports_MCP_Write`, before it reads its input or calls out, and answers 403 `WRITE_NOT_ALLOWED` without it. The hosted server carries eleven tools. No MCP Tooling object has a user or permission field, so one hosted server cannot hide tools per user: the save tools stay listed for everyone and the door refuses users without the permission. Parity holds on 49 cases, the live check runs every save step through the door (delete stays local), and 50 Apex tests pass, including a user without the permission whose call makes no callout. Open, as in 3a: whether the callout works under a hosted MCP sign-in.
+
 ### Phases
 
 | Phase | Work | Done when |
@@ -251,7 +256,7 @@ Built 2026-10-11 (`docs/probes/v0.2-phase3.md`). `list_report_types`, `query_rep
 | 1. REST door, runner tools | `ReportsApi` with `search_reports`, `list_report_folders`, `describe_report`, `run_report`, `combine_reports`, and `describe_report_type` through a saved report of the type; the shaper ported from `shape.ts`, with the cell cap from probe 4; Apex tests; `scripts/parity-check.ts` | Parity on every fixture, and the live check's read steps pass with `--door apex` |
 | 2. MCP door | The `McpServerDefinition`, the `ExternalServiceRegistration`, the permission set, and the admin steps in the README (External Client App, tool rows, sign-in); the runner skill rehearsed against hosted MCP, with Ben signing in once | The in-org runner rehearsal matches the local one |
 | 3a. Callout reads | `list_report_types`, `query_report` and `describe_report_type` through one callout helper; `combine_reports` over definitions | Parity on the new cases (done, see Phase 3a result) |
-| 3b. Saves | `create_report`, `update_report` and `clone_report` through the same helper, behind a custom permission. If the hosted sign-in cannot call out, a Named Credential the admin sets up, or saving stays local-only. | The designer rehearsal passes in the org |
+| 3b. Saves | `create_report`, `update_report` and `clone_report` through the same helper, behind a custom permission. If the hosted sign-in cannot call out, a Named Credential the admin sets up, or saving stays local-only. | Built, parity on 49 cases (see Phase 3b result). Open: the designer rehearsal in the org |
 | 4. Docs and skills | The README's three doors, the changelog, the runner's fallback when `query_report` is missing | The skills read the same on every door |
 
 `report-deploy` stays local-only: it needs the `sf` CLI, and its description already says so.
@@ -260,5 +265,5 @@ Built 2026-10-11 (`docs/probes/v0.2-phase3.md`). `list_report_types`, `query_rep
 
 - `ReportsApi` is `with sharing` and runs as the signed-in user, so sharing, folder access and field-level security stay Salesforce's own.
 - The permission set grants the Apex class and nothing else.
-- The write tools check a custom permission, `Reports_MCP_Write`, held by a second permission set. Without it they are left out, as `--read-only` does locally.
+- The save tools check a custom permission, `Reports_MCP_Write`, held by a second permission set, before any input is read or callout made. Without it they answer 403 `WRITE_NOT_ALLOWED`. They stay listed on the hosted server, because a tool list is not a security boundary: the REST door can be called directly, and one hosted server cannot vary its tools per user.
 - No `delete_report` in the org.
