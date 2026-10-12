@@ -34,7 +34,7 @@ flowchart TB
   end
 
   subgraph forceapp [Package force-app: the REST adapter and the core]
-    API["ReportsApi @RestResource<br/>/services/apexrest/reports/v1/&lt;tool&gt;<br/>parses the URL and body, sets status codes"]
+    API["ReportsApi @RestResource<br/>/services/apexrest/reports/v1/{tool}<br/>parses the URL and body, sets status codes"]
     SVC["ReportsService (proposed split)<br/>dispatch by tool name, with sharing<br/>checks Reports_MCP_Write for saves"]
     SHAPE["ReportsShape, ReportsSummary<br/>factMap to ReportResult"]
     CALL["ReportsCallout<br/>the org calling its own Reports REST API"]
@@ -143,7 +143,7 @@ sequenceDiagram
   CLI->>TOOL: one McpServerToolDefinition and McpServerToolApiDefinition per tool<br/>ApiSource API_CATALOG, ApiIdentifier ar:ReportsApi, Operation = tool name
   A->>SETUP: API Catalog, ReportsApi, activate the operations
   Note over A,SETUP: The only step with no API. Salesforce requires the click.
-  A->>SETUP: Assign Salesforce_Reports_MCP; Salesforce_Reports_MCP_Write to the few who save
+  A->>SETUP: Assign Salesforce_Reports_MCP to users, and Salesforce_Reports_MCP_Write to the few who save
   A-->>A: Share the endpoint URL and the consumer key (a public id, not a secret)
 ```
 
