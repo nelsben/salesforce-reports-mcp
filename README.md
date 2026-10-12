@@ -185,6 +185,10 @@ The skills live in `skills/`: `report-runner`, `report-designer` and `report-dep
 
 The runner and designer work over any door: the local MCP server, the hosted MCP server, or the in-org REST door. The REST door needs no MCP server, only the `sf` CLI signed in to the org and the package from `salesforce/` deployed there, so it suits Claude Code and any agent with a shell. Each skill's [transport.md](skills/report-runner/transport.md) says how to tell which door is there, how to call each tool through `sf api request rest`, and what the refusals `WRITE_NOT_ALLOWED` and `CALLOUT_SESSION` mean.
 
+## Architecture
+
+[docs/architecture.md](docs/architecture.md) maps the three doors, the Apex layers and the security model, with sequence diagrams for the REST door, the hosted MCP setup and runtime, and the write path. [docs/decisions/](docs/decisions/README.md) holds one page per decision behind it: why one contract, why `Reports.ReportManager` before a callout, why saves sit behind a custom permission and not a hidden tool list, why there is no delete in the org, and what each choice costs.
+
 ## Develop
 
 ```
