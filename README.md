@@ -196,8 +196,6 @@ Each user signs in as themselves, so sharing, folder access and field-level secu
 
 To remove the MCP door, run `npm run mcp:teardown -- --org <alias> --yes` (the same `--yes` or `SF_REPORTS_SETUP_ORGS` rule applies), then the `mcp-app` removal in `salesforce/README.md`. The REST door stays and keeps working.
 
-down -- --org <alias> --yes` (the same `--yes` or `SF_REPORTS_SETUP_ORGS` rule applies), then use the removal command in `salesforce/README.md`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy again.
-
 ## The skills
 
 The skills live in `skills/`: `report-runner`, `report-designer` and `report-deploy`. Each has a `description` that makes Claude pick it for its own experience, and the designer and runner keep a `reference.md` with the definition grammar and how to read a result. The plugin installs all three.
