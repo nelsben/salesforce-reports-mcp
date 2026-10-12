@@ -1,6 +1,6 @@
 /**
  * Core layer: the report tools, whichever door calls them. call takes a tool name and the JSON body text, checks that
- * the tool exists, checks the Reports_MCP_Write custom permission for a save tool before it reads the input or calls
+ * the tool exists, checks the Reports_Write custom permission for a save tool before it reads the input or calls
  * out, then dispatches to the tool and answers with the JSON map the local tool returns (ported from src/server.ts).
  * Every failure leaves as a ReportsException with a category, never an HTTP status. The SOQL tools and
  * Reports.ReportManager run here, the callout tools go through ReportsCallout, and the class runs with sharing and its
@@ -15,8 +15,8 @@ public with sharing class ReportsService {
     /** The save tools. Each needs WRITE_PERMISSION, checked before the input is read and before any callout. */
     static final Set<String> SAVE_TOOLS = new Set<String>{ 'create_report', 'update_report', 'clone_report' };
     static final Set<String> LOCAL_ONLY = new Set<String>{ 'delete_report' };
-    public static final String WRITE_PERMISSION = 'Reports_MCP_Write';
-    public static final String WRITE_PERMISSION_SET = 'Salesforce_Reports_MCP_Write';
+    public static final String WRITE_PERMISSION = 'Reports_Write';
+    public static final String WRITE_PERMISSION_SET = 'Salesforce_Reports_Write';
     /** The longest report name Salesforce takes, as the local tools check it. */
     static final Integer MAX_NAME = 40;
     static final String OPERATOR_NOTE = 'Filter operators are not on the in-org door, because Apex does not expose them. Common ones: equals, notEqual, lessThan, greaterThan, lessOrEqual, greaterOrEqual, contains, notContain, startsWith, includes, excludes.';
@@ -306,7 +306,7 @@ public with sharing class ReportsService {
 
     // ---- save tools (phase 3b), ported from src/server.ts ----
 
-    /** The save tools need the Reports_MCP_Write custom permission. The read tools never check it. */
+    /** The save tools need the Reports_Write custom permission. The read tools never check it. */
     static void requireWrite() {
         if (FeatureManagement.checkPermission(WRITE_PERMISSION)) return;
         throw ReportsException.create(ReportsException.ErrorCategory.FORBIDDEN, 'WRITE_NOT_ALLOWED',

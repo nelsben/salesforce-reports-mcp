@@ -36,7 +36,7 @@
         <apexClass>ReportsSummary</apexClass>
         <enabled>true</enabled>
     </classAccesses>
-    <description>Use the report tools in the org: the ReportsApi Apex REST door and the Salesforce Reports hosted MCP server.</description>
+    <description>Use the report tools in the org (Salesforce_Reports): the ReportsApi Apex REST door and the Salesforce Reports hosted MCP server, when installed.</description>
     <hasActivationRequired>false</hasActivationRequired>
-    <label>Salesforce Reports MCP</label>
+    <label>Salesforce Reports</label>
 </PermissionSet>

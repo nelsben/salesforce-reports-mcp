@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <customPermissions>
+        <enabled>true</enabled>
+        <name>Reports_Write</name>
+    </customPermissions>
+    <description>Save reports through the in-org door (create_report, update_report, clone_report). Assign it with Salesforce_Reports, which grants the Apex classes. The user also needs Create and Customize Reports.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <label>Salesforce Reports Write</label>
+</PermissionSet>

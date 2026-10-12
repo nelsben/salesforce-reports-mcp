@@ -16,3 +16,4 @@ One page per architectural decision: the context, the decision, what it costs, a
 | [0008](0008-result-limits.md) | Result limits: a row cap from the heap, and notes that say so | Accepted |
 | [0009](0009-two-shipping-units.md) | Two Salesforce shipping units: the REST door and the MCP adapter | Accepted |
 | [0010](0010-verification-by-parity.md) | Verification by parity between doors, against a real org | Accepted |
+| [0011](0011-name-permissions-for-the-capability.md) | Name the permissions for the capability, not the door | Accepted |

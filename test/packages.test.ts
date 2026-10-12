@@ -20,7 +20,7 @@ function files(dir: string): string[] {
 
 const MCP_METADATA = /\.(externalServiceRegistration|mcpServerDefinition|eca|ecaGlblOauth|ecaOauth)-meta\.xml$/;
 const CODE = /\.(cls|trigger)(-meta\.xml)?$/;
-const WRITE_SENTENCES = "In the org, this tool needs the permission set Salesforce_Reports_MCP_Write. Without it, the call answers WRITE_NOT_ALLOWED.";
+const WRITE_SENTENCES = "In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED.";
 
 describe("Salesforce packages", () => {
   it("sfdx-project.json lists exactly force-app (default) and mcp-app", () => {

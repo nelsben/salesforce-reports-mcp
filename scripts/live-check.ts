@@ -3,7 +3,7 @@
  * Usage: npm run live -- --org <alias> --allow-delete [--door apex]
  * Creates private reports named zz-live-check-*, deletes them, and fails if any remain.
  * With --door apex, the read and save steps go through the in-org REST door (salesforce/, class ReportsApi). Saving
- * there needs the Salesforce_Reports_MCP_Write permission set. Reports are still deleted through the local server,
+ * there needs the Salesforce_Reports_Write permission set. Reports are still deleted through the local server,
  * and steps for tools the door lacks print "skipped on the apex door".
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";

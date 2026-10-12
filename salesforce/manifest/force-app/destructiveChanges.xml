@@ -19,7 +19,7 @@
         <name>ApexClass</name>
     </types>
     <types>
-        <members>Reports_MCP_Write</members>
+        <members>Reports_Write</members>
         <name>CustomPermission</name>
     </types>
     <version>68.0</version>
