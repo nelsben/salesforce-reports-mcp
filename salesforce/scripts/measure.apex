@@ -13,7 +13,7 @@ for (Report r : saved) {
     Reports.ReportResults rr = Reports.ReportManager.runReport(r.Id, true);
     Integer hRun = Limits.getHeapSize() - h0;
     Integer cRun = Limits.getCpuTime() - c0;
-    Map<String, Object> shaped = ReportsShape.shapeResult(rr, ReportsApi.DEFAULT_MAX_ROWS, true, ReportsApi.baseUrl(), new List<String>());
+    Map<String, Object> shaped = ReportsShape.shapeResult(rr, ReportsService.DEFAULT_MAX_ROWS, true, ReportsService.baseUrl(), new List<String>());
     Integer hShape = Limits.getHeapSize() - h0;
     Integer cShape = Limits.getCpuTime() - c0;
     Blob body = Blob.valueOf(JSON.serialize(shaped));
@@ -39,7 +39,7 @@ if (widest != null) {
     for (Integer k = 1; k <= 24; k++) {
         if (Limits.getHeapSize() > Limits.getLimitHeapSize() * 0.6) break;
         Reports.ReportResults rr = Reports.ReportManager.runReport(widest.Id, true);
-        Map<String, Object> shaped = ReportsShape.shapeResult(rr, ReportsApi.DEFAULT_MAX_ROWS, true, ReportsApi.baseUrl(), new List<String>());
+        Map<String, Object> shaped = ReportsShape.shapeResult(rr, ReportsService.DEFAULT_MAX_ROWS, true, ReportsService.baseUrl(), new List<String>());
         Blob body = Blob.valueOf(JSON.serialize(shaped));
         kept.add(rr);
         kept.add(shaped);

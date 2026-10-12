@@ -1,6 +1,13 @@
 # In-org REST door
 
-An Apex REST resource, `ReportsApi`, that answers the runner tools from inside the org. It takes the same JSON input as the local server's tool and returns the same JSON. `ReportsApi` is a thin adapter over the core class `ReportsService`, as [docs/architecture.md](../docs/architecture.md) draws it. The contract is in [docs/design.md](../docs/design.md), section "v0.2: the in-org doors". Phase 1 results are in [docs/probes/v0.2-phase1.md](../docs/probes/v0.2-phase1.md), phase 3a (the callout tools) in [docs/probes/v0.2-phase3.md](../docs/probes/v0.2-phase3.md), and phase 3b (the save tools) in [docs/probes/v0.2-phase3b.md](../docs/probes/v0.2-phase3b.md).
+Two Salesforce package directories, as [decision 0009](../docs/decisions/0009-two-shipping-units.md) sets out:
+
+| Directory | Holds | Depends on |
+| --- | --- | --- |
+| `force-app` (default) | the REST door: the Apex classes and tests, the permission sets `Salesforce_Reports_MCP` and `Salesforce_Reports_MCP_Write`, and the custom permission `Reports_MCP_Write` | nothing |
+| `mcp-app` | the hosted MCP door: the API Catalog entry `ReportsApi`, the MCP server `SalesforceReports` and the External Client App `SalesforceReportsMcp`. No code. | `force-app` |
+
+The REST door is an Apex REST resource, `ReportsApi`, that answers the runner tools from inside the org. It takes the same JSON input as the local server's tool and returns the same JSON. `ReportsApi` is a thin adapter over the core class `ReportsService`, as [docs/architecture.md](../docs/architecture.md) draws it. The contract is in [docs/design.md](../docs/design.md), section "v0.2: the in-org doors". Phase 1 results are in [docs/probes/v0.2-phase1.md](../docs/probes/v0.2-phase1.md), phase 3a (the callout tools) in [docs/probes/v0.2-phase3.md](../docs/probes/v0.2-phase3.md), and phase 3b (the save tools) in [docs/probes/v0.2-phase3b.md](../docs/probes/v0.2-phase3b.md).
 
 ```
 POST /services/apexrest/reports/v1/<tool>
@@ -62,7 +69,7 @@ The save tools check the custom permission `Reports_MCP_Write` with `FeatureMana
 | `ReportsCombine` | core | `src/reports/combine.ts`: stack and join. |
 | `ReportsCallout` | outbound HTTP adapter | `src/salesforce/client.ts`: the one call to the org's REST API. It reads the upstream status, and throws `ReportsException`. |
 
-The dependency rule: no class but `ReportsApi` and its tests names `ReportsApi`, so the core does not know which door called it. `ReportsApi` keeps `baseUrl()` and `DEFAULT_MAX_ROWS` as one-line pass-throughs to `ReportsService`, for `scripts/measure.apex` and `scripts/measure-query.apex`.
+The dependency rule: no class but `ReportsApi` and its tests names `ReportsApi`, so the core does not know which door called it. `scripts/measure.apex` and `scripts/measure-query.apex` call the core directly, with the row cap and base URL from `ReportsService`, and call `ReportsApi.handle` only where they measure the door itself.
 
 `ReportsApiTest` covers the adapter: status codes, error bodies, unknown tools and `delete_report`. The other test classes call the door through `ReportsApi.handle` or the core classes directly. The tests that run reports use `@IsTest(SeeAllData='true')` and the org's own saved reports. They create no reports. `ReportsCalloutTest` and `ReportsSaveTest` answer every callout with an `HttpCalloutMock`. `ReportsSaveTest` creates, in its test setup, a Chatter Free user without the write permission (so it takes no Salesforce license), and assigns the write permission set to the running user if it lacks it. Both roll back with the test.
 
@@ -70,16 +77,17 @@ The dependency rule: no class but `ReportsApi` and its tests names `ReportsApi`,
 
 Run these from this folder (`salesforce/`). Replace `<alias>` with a Salesforce CLI alias.
 
-Deploy:
+Deploy the REST door, then, for the MCP door, `mcp-app` on top of it:
 
 ```bash
 sf project deploy start -d force-app -o <alias>
+sf project deploy start -d mcp-app -o <alias>
 ```
 
 Test, with coverage:
 
 ```bash
-sf apex run test -o <alias> --class-names ReportsApiTest --class-names ReportsDefinitionTest --class-names ReportsSummaryTest --class-names ReportsCombineTest --class-names ReportsCalloutTest --class-names ReportsSaveTest --code-coverage --result-format human --wait 10
+sf apex run test -o <alias> --class-names ReportsApiTest --class-names ReportsDefinitionTest --class-names ReportsSummaryTest --class-names ReportsCombineTest --class-names ReportsCalloutTest --class-names ReportsSaveTest --code-coverage --result-format human --wait 20
 ```
 
 Call it:
@@ -100,28 +108,45 @@ Run the live check's read and save steps through this door, from the repo root. 
 npm run live -- --org <alias> --door apex --allow-delete
 ```
 
-Remove everything: first the MCP rows and server access (from the repo root), then the server, the API Catalog entry, the two permission sets, the custom permission and the classes. Unassign both permission sets from every user first, since an assigned permission set cannot be deleted. Check the second command first with `--dry-run`. A server that is still active cannot be deleted ("Server must be inactive before making changes"), and a class an API Catalog entry names cannot be deleted before the entry, which is why the manifest has a pre and a post step.
+### Removal
 
-- The pre step, `destructiveChangesPre.xml`, removes what names the classes: the API Catalog entry (it names `ReportsApi`), the MCP server, and the two permission sets (`Salesforce_Reports_MCP` grants every non-test class, `ReportsService`, `ReportsInput` and `ReportsException` among them).
-- The post step, `destructiveChanges.xml`, then removes the custom permission and all fifteen classes: the adapter, the core, the callout and their tests. Every class is in the post step, the new ones too: in the pre step the API Catalog entry still names `ReportsApi`, and `ReportsApi` names `ReportsService`.
+Remove the units in the opposite order: `mcp-app` first, then `force-app`. Salesforce will not delete a class an API Catalog entry names, and the MCP door is useless without the REST door. Each unit has its own manifest folder, `manifest/mcp-app/` and `manifest/force-app/`, with an empty `package.xml`, a pre step and a post step. Check a removal first with `--dry-run`.
+
+To remove the MCP door, first remove the tool rows and server access (from the repo root), then the metadata. A server that is still active cannot be deleted ("Server must be inactive before making changes"), which is why the teardown runs first.
+
+- The pre step, `manifest/mcp-app/destructiveChangesPre.xml`, removes the External Client App's two OAuth settings and the MCP server, which names the API Catalog entry.
+- The post step, `manifest/mcp-app/destructiveChanges.xml`, then removes the External Client App and the API Catalog entry.
 
 ```bash
 npm run mcp:teardown -- --org <alias> --yes
-sf project deploy start --manifest manifest/package.xml --pre-destructive-changes manifest/destructiveChangesPre.xml --post-destructive-changes manifest/destructiveChanges.xml -o <alias>
+sf project deploy start --manifest manifest/mcp-app/package.xml --pre-destructive-changes manifest/mcp-app/destructiveChangesPre.xml --post-destructive-changes manifest/mcp-app/destructiveChanges.xml -o <alias>
+```
+
+Removing the External Client App ends every Claude connector that signs in through it. Deploying `mcp-app` again creates the app anew, so read its consumer key again and reconnect.
+
+To remove the REST door after that, unassign both permission sets from every user first, since an assigned permission set cannot be deleted.
+
+- The pre step, `manifest/force-app/destructiveChangesPre.xml`, removes the two permission sets (`Salesforce_Reports_MCP` grants every non-test class, `ReportsService`, `ReportsInput` and `ReportsException` among them).
+- The post step, `manifest/force-app/destructiveChanges.xml`, then removes the custom permission and all fifteen classes: the adapter, the core, the callout and their tests.
+
+```bash
+sf project deploy start --manifest manifest/force-app/package.xml --pre-destructive-changes manifest/force-app/destructiveChangesPre.xml --post-destructive-changes manifest/force-app/destructiveChanges.xml -o <alias>
 ```
 
 ## Hosted MCP door
 
-The same class is also a Salesforce hosted MCP server. The admin steps are in the repo's [README](../README.md), section "In the org", and the platform findings are in [docs/probes/v0.2-phase2.md](../docs/probes/v0.2-phase2.md).
+The same class is also a Salesforce hosted MCP server. Everything it adds is in `mcp-app`, deployed on top of `force-app`, and none of it is code. The admin steps are in the repo's [README](../README.md), section "In the org", and the platform findings are in [docs/probes/v0.2-phase2.md](../docs/probes/v0.2-phase2.md).
 
 | Piece | Source | Made by |
 | --- | --- | --- |
-| API Catalog entry `ReportsApi` (ExternalServiceRegistration, ApexRest, inline OpenAPI 3) | `force-app/main/default/externalServiceRegistrations/` | `npm run mcp:generate`, from the local tool list |
-| MCP server `SalesforceReports`, with eleven tools on `ar:ReportsApi`. The save tools are not marked read-only. | `force-app/main/default/mcpServerDefinitions/` | `npm run mcp:generate` |
-| Permission set `Salesforce_Reports_MCP` (the nine non-test classes) | `force-app/main/default/permissionsets/` | by hand |
-| Custom permission `Reports_MCP_Write`, and the permission set `Salesforce_Reports_MCP_Write` that grants it | `force-app/main/default/customPermissions/`, `permissionsets/` | by hand |
-| External Client App `SalesforceReportsMcp` (PKCE, `mcp_api`, `refresh_token`, callback for claude.ai) | `eca/` | by hand; deploy it with `-d eca` |
+| API Catalog entry `ReportsApi` (ExternalServiceRegistration, ApexRest, inline OpenAPI 3) | `mcp-app/main/default/externalServiceRegistrations/` | `npm run mcp:generate`, from the local tool list |
+| MCP server `SalesforceReports`, with eleven tools on `ar:ReportsApi`. The save tools are not marked read-only, and their descriptions name the write permission set. | `mcp-app/main/default/mcpServerDefinitions/` | `npm run mcp:generate` |
+| External Client App `SalesforceReportsMcp` (PKCE, `mcp_api`, `refresh_token`, callback for claude.ai) | `mcp-app/main/default/externalClientApps/`, `extlClntAppGlobalOauthSets/`, `extlClntAppOauthSettings/` | by hand |
 | Tool rows and server access | not metadata | `npm run mcp:setup -- --org <alias> --yes`, removed by `npm run mcp:teardown -- --org <alias> --yes` |
+
+The permission sets and the custom permission it relies on are in `force-app`, since the REST door needs them too.
+
+For the three save tools, the generator adds two sentences after the local description, in the OpenAPI operation, the server's `descriptionOverride` and the tool row: "In the org, this tool needs the permission set Salesforce_Reports_MCP_Write. Without it, the call answers WRITE_NOT_ALLOWED." `src/server.ts` stays as it is.
 
 The setup script writes each tool row's ReadOnly, Destructive, Idempotent and OpenWorld flags from the local server's annotations. A hosted server lists its tools to every user who can reach it: there is no per-user or per-permission field on the tool, server or access rows. So the save tools are listed for everyone, and the door refuses a user without the write permission.
 

@@ -190,8 +190,6 @@ private class ReportsApiTest {
         }
         // No hint, no hint key.
         assertBody(errorBody('INVALID_INPUT', 'Bad.', null), ReportsApi.failure(ReportsException.invalidInput('Bad.')).body);
-        Assert.areEqual(200, ReportsApi.DEFAULT_MAX_ROWS);
-        Assert.areEqual(ReportsService.baseUrl(), ReportsApi.baseUrl());
     }
 
     @IsTest

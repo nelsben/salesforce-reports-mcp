@@ -269,7 +269,9 @@ There is no `delete_report` in the org. Deleting is left to the report builder a
 | --- | --- | --- | --- |
 | `salesforce/force-app` | classes, tests, permission sets, custom permission | `sf project deploy start -d force-app` | nothing |
 | `salesforce/mcp-app` | ExternalServiceRegistration, McpServerDefinition, External Client App; `npm run mcp:setup` | `sf project deploy start -d mcp-app`, then the script, then the Setup click | `force-app` |
+
+Removal runs the other way: `npm run mcp:teardown` and the `manifest/mcp-app` destructive deploy first, then the `manifest/force-app` one. `salesforce/README.md` has the commands.
 | `skills/` | report-runner, report-designer, report-deploy; each names the tools and, in one short section, the three transports | upload to claude.ai, or install as a Claude Code plugin | any door |
 | npm package | the local MCP server | `npm install -g` | nothing |
 
-The reasons behind each choice on this page are in [docs/decisions/](decisions/README.md). Still open: moving the MCP metadata from `force-app` into `mcp-app`, with its own manifest and README section ([0009](decisions/0009-two-shipping-units.md)). Settled: one skill set, with the REST call form in each skill's `transport.md`.
+The reasons behind each choice on this page are in [docs/decisions/](decisions/README.md). Settled: one skill set, with the REST call form in each skill's `transport.md`.

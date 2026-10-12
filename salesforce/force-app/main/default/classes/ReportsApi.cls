@@ -16,9 +16,6 @@ global with sharing class ReportsApi {
         ReportsException.ErrorCategory.FAILED => 500
     };
 
-    /** Kept for salesforce/scripts/measure.apex, which reads the default row cap here. */
-    public static final Integer DEFAULT_MAX_ROWS = ReportsService.DEFAULT_MAX_ROWS;
-
     /** A status and the body to write as JSON. */
     public class Answer {
         public Integer status;
@@ -58,10 +55,5 @@ global with sharing class ReportsApi {
         Map<String, Object> error = new Map<String, Object>{ 'code' => code, 'message' => message };
         if (hintText != null) error.put('hint', hintText);
         return new Map<String, Object>{ 'error' => error };
-    }
-
-    /** Kept for salesforce/scripts/measure.apex and measure-query.apex, which build report links through this class. */
-    public static String baseUrl() {
-        return ReportsService.baseUrl();
     }
 }

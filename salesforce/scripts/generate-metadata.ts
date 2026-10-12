@@ -5,6 +5,7 @@
  *   tool name, request body schema equal to the tool's inputSchema (as OpenAPI 3.0: $ref inlined, type lists
  *   as anyOf, no $schema);
  * - the McpServerDefinition SalesforceReports with one <tools> entry per door tool (ar:ReportsApi, API_CATALOG).
+ * Both land in salesforce/mcp-app. The save tools' door descriptions name the write permission set (door-tools.ts).
  *
  * Usage, from the repo root:
  *   npm run mcp:generate              write both files
@@ -20,7 +21,8 @@ import { API_IDENTIFIER, API_SOURCE, REGISTRATION, SERVER } from "./org.js";
 type Json = any;
 
 
-const DEFAULT = join(dirname(fileURLToPath(import.meta.url)), "..", "force-app", "main", "default");
+/** The hosted MCP door's own package directory, deployed on top of force-app (docs/decisions/0009). */
+const DEFAULT = join(dirname(fileURLToPath(import.meta.url)), "..", "mcp-app", "main", "default");
 const REGISTRATION_FILE = join(DEFAULT, "externalServiceRegistrations", `${REGISTRATION}.externalServiceRegistration-meta.xml`);
 const SERVER_FILE = join(DEFAULT, "mcpServerDefinitions", `${SERVER}.mcpServerDefinition-meta.xml`);
 
