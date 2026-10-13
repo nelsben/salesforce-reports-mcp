@@ -2,7 +2,7 @@
 
 Claude finds, builds, runs and saves Salesforce reports. You ask a question in plain words and get the answer, with the report behind it.
 
-This repo is working software, and a demonstration. It takes one useful job, reports, and delivers it to Claude three ways, from a server on your laptop to a feature that lives inside Salesforce. Every design choice is written down with what it costs. It comes from the team building Plesio.
+This repo is working software, and a demonstration. It takes one useful job, reports, and delivers it to Claude three ways, from a server on your laptop to a feature that lives inside Salesforce. Every design choice is written down with what it costs. Built by [Ben Nelsen](https://github.com/nelsben).
 
 > **You:** List the report types I can build on, then build me an opportunity report grouped by stage without saving it.
 >
