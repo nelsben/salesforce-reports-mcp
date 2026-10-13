@@ -119,7 +119,30 @@ The script copies `callout-app` to a temp folder, fills it there and deletes the
 | 3 | Read the app's consumer key from `apps/oauth/credentials/<app id>`, a listing with no secret. Fill `__CONSUMER_KEY__`, `__MY_DOMAIN__` and `__AUDIENCE__` (`https://<My Domain>`), and deploy the external credential, the named credential and the permission set. |
 | 4 | Deploy the app's OAuth policy, which pre-authorizes users with the permission set. It needs the set, so it goes last. |
 
-Running it again is safe: it keeps the certificate and redeploys the rest. The certificate expires a year after it is made; renewing it is not scripted yet ([decision 0012](../docs/decisions/0012-per-user-jwt-named-credential.md)).
+Running it again is safe: it keeps the certificate and redeploys the rest. It ends by printing the certificate's expiry.
+
+**Renewing the certificate.** The certificate expires a year after it is made, at midnight UTC on that day. When it has expired, the org can no longer mint a token, and the hosted door's callout tools answer `CALLOUT_CREDENTIAL`. Renew it in the month before it expires, from the repo root:
+
+```bash
+SF_REPORTS_SETUP_ORGS=<alias> npm run callout:renew -- --org <alias>
+```
+
+Read the expiry date with a Tooling query, or in Setup under Certificate and Key Management:
+
+```bash
+sf data query -t -q "SELECT DeveloperName, ExpirationDate FROM Certificate WHERE DeveloperName LIKE 'SalesforceReportsCallout%'" -o <alias>
+```
+
+`npm run callout:renew` is `npm run callout:setup` with `--renew-certificate`. It needs `callout-app` already set up, and it refuses aliases as the setup does. It switches the certificate twice, so a new one ends under the name `SalesforceReportsCallout`, which the external credential and the removal manifest use:
+
+| Switch | What |
+| --- | --- |
+| 1 | Deploy a new certificate `SalesforceReportsCallout2`. In one deploy, point the app's global OAuth settings (its `certificate`) and the external credential's signing certificate at it. Then remove `SalesforceReportsCallout`. |
+| 2 | The same, back to a new `SalesforceReportsCallout`. Then remove `SalesforceReportsCallout2`. |
+
+The org makes each key pair. The script reads back only public certificates and the app's consumer key, and prints no filled value. Permission set assignments are untouched, and no user clicks anything. Tokens already minted keep working until they expire. Each deploy passes `--ignore-conflicts`, since the renewal overwrites what the setup deployed.
+
+If a renewal stops part way, `SalesforceReportsCallout2` is left in the org. Run `npm run callout:renew` again: it keeps the newer certificate, removes the older and finishes the switches, without making a third. Until then `npm run callout:setup` stops and says so. Finish a renewal before a removal too, since the removal manifest names only `SalesforceReportsCallout`.
 
 Test, with coverage:
 
