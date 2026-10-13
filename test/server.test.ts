@@ -121,6 +121,20 @@ describe("run_report and query_report", () => {
     expect(requests.some((r) => r.method === "PATCH")).toBe(false);
   });
 
+  it("run_report says when Salesforce ignored an empty standardFilters override (the summary fixture keeps both)", async () => {
+    const { call, requests } = await connect((method, path, body) =>
+      method === "POST" && path.startsWith(`/analytics/reports/${ID}`) ? fixture("summary") : routes(method, path, body),
+    );
+    const { body } = await call("run_report", { reportId: ID, overrides: { reportMetadata: { standardFilters: [] } } });
+    expect(requests.find((r) => r.method === "POST")!.body).toEqual({ reportMetadata: { standardFilters: [] } });
+    expect(body.filters).toContain("Standard filter probability: >0");
+    expect(body.notes).toContain(
+      "Salesforce ignored reportMetadata.standardFilters: an empty list does not clear a report's standard filters, so these still apply: open: all, probability: >0. To change one, list it by name with another of its values.",
+    );
+    const plain = await call("run_report", { reportId: ID, overrides: { filters: [{ column: "AMOUNT", operator: "greaterThan", value: 5 }] } });
+    expect(plain.body.notes.some((n: string) => n.includes("standardFilters"))).toBe(false);
+  });
+
   it("query_report maps the definition and returns a ReportResult for a grouped report", async () => {
     const { call, requests } = await connect(routes);
     const { body } = await call("query_report", {

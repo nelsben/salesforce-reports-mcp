@@ -242,6 +242,13 @@ public with sharing class ReportsService {
             Reports.ReportMetadata metadata = Reports.ReportManager.describeReport(reportId).getReportMetadata();
             ReportsDefinition.applyTo(metadata, mapped.metadata);
             results = Reports.ReportManager.runReport(reportId, metadata, wantsDetail);
+            Map<String, Object> raw = ReportsInput.optMap(overrides, 'reportMetadata');
+            if (raw != null && raw.containsKey('standardFilters')) {
+                List<Map<String, Object>> applied = new List<Map<String, Object>>();
+                List<Reports.StandardFilter> standard = results.getReportMetadata().getStandardFilters();
+                if (standard != null) for (Reports.StandardFilter f : standard) applied.add(new Map<String, Object>{ 'name' => f.getName(), 'value' => f.getValue() });
+                notes.addAll(ReportsShape.standardFilterNotes(raw.get('standardFilters'), applied));
+            }
         } else {
             results = Reports.ReportManager.runReport(reportId, wantsDetail);
         }
@@ -267,6 +274,13 @@ public with sharing class ReportsService {
         ReportsShape.guardHeap();
         Map<String, Object> result = ReportsInput.asMap(raw, 'The query result');
         Object meta = result.get('reportMetadata');
+        Map<String, Object> asked = ReportsInput.optMap(definition, 'reportMetadata');
+        if (asked != null && asked.containsKey('standardFilters')) {
+            List<Map<String, Object>> applied = new List<Map<String, Object>>();
+            Object standard = meta instanceof Map<String, Object> ? ((Map<String, Object>) meta).get('standardFilters') : null;
+            if (standard instanceof List<Object>) for (Object o : (List<Object>) standard) if (o instanceof Map<String, Object>) applied.add((Map<String, Object>) o);
+            notes.addAll(ReportsShape.standardFilterNotes(asked.get('standardFilters'), applied));
+        }
         Boolean tabular = meta instanceof Map<String, Object> && ((Map<String, Object>) meta).get('reportFormat') == 'TABULAR';
         Integer limitRows = Math.min(maxRows == null ? DEFAULT_MAX_ROWS : maxRows, ReportsShape.HARD_ROW_CEILING);
         return ReportsShape.shapeJson(result, limitRows, detail != null ? detail : tabular, baseUrl(), notes);

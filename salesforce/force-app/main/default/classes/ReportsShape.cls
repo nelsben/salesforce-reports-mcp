@@ -24,6 +24,49 @@ public with sharing class ReportsShape {
         if (Limits.getHeapSize() > Limits.getLimitHeapSize() * 0.8) throw tooLarge();
     }
 
+    /**
+     * Notes on a reportMetadata.standardFilters override, ported from standardFilterNotes in src/reports/summarize.ts;
+     * keep the words the same. Salesforce ignores an empty list, keeps the saved value of a standard filter the list
+     * leaves out, and applies one named with a valid value. Call it only when the caller gave standardFilters.
+     */
+    public static List<String> standardFilterNotes(Object sent, List<Map<String, Object>> applied) {
+        List<String> notes = new List<String>();
+        List<Map<String, Object>> now = new List<Map<String, Object>>();
+        if (applied != null) for (Map<String, Object> f : applied) if (f != null && f.get('name') instanceof String) now.add(f);
+        if (now.isEmpty()) return notes;
+        List<Map<String, Object>> given = new List<Map<String, Object>>();
+        if (sent instanceof List<Object>) {
+            for (Object o : (List<Object>) sent) {
+                if (o instanceof Map<String, Object> && ((Map<String, Object>) o).get('name') instanceof String) given.add((Map<String, Object>) o);
+            }
+        }
+        if (given.isEmpty()) {
+            notes.add('Salesforce ignored reportMetadata.standardFilters: an empty list does not clear a report\'s standard filters, so these still apply: '
+                + standardFilterWords(now) + '. To change one, list it by name with another of its values.');
+            return notes;
+        }
+        Set<String> named = new Set<String>();
+        for (Map<String, Object> g : given) {
+            named.add((String) g.get('name'));
+            for (Map<String, Object> f : now) {
+                if (f.get('name') == g.get('name') && String.valueOf(f.get('value')) != String.valueOf(g.get('value'))) {
+                    notes.add('Salesforce ran with ' + f.get('name') + ': ' + f.get('value') + ', not the ' + g.get('name') + ': ' + g.get('value') + ' that was sent.');
+                    break;
+                }
+            }
+        }
+        List<Map<String, Object>> kept = new List<Map<String, Object>>();
+        for (Map<String, Object> f : now) if (!named.contains((String) f.get('name'))) kept.add(f);
+        if (!kept.isEmpty()) notes.add('Standard filters left out of reportMetadata.standardFilters keep their saved values: ' + standardFilterWords(kept) + '.');
+        return notes;
+    }
+
+    static String standardFilterWords(List<Map<String, Object>> filters) {
+        List<String> words = new List<String>();
+        for (Map<String, Object> f : filters) words.add(f.get('name') + ': ' + f.get('value'));
+        return String.join(words, ', ');
+    }
+
     class Leaf {
         String key;
         List<Object> labels;

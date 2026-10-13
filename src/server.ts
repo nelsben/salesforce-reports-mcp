@@ -5,7 +5,7 @@ import { ReportsApi, soqlLike, soqlString } from "./reports/api.js";
 import { combineResults, type CombineInput } from "./reports/combine.js";
 import { aggregateColumns, definitionShape, ReportDefinitionSchema, toReportMetadata, type ReportDefinition } from "./reports/definition.js";
 import { HARD_ROW_CEILING, shapeResult, type ReportResult } from "./reports/shape.js";
-import { reportUrl, summarizeReport, type FolderInfo, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
+import { reportUrl, standardFilterNotes, summarizeReport, type FolderInfo, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
 
 export interface ServerOptions {
   readOnly: boolean;
@@ -99,6 +99,8 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     } else {
       throw new InputError("Give a reportId or a definition.");
     }
+    const asked = (input.reportId ? input.overrides : input.definition)?.reportMetadata;
+    if (asked && "standardFilters" in asked) notes.push(...standardFilterNotes(asked.standardFilters, raw.reportMetadata?.standardFilters));
     const format = raw.reportMetadata?.reportFormat;
     return shapeResult(raw, {
       maxRows: limitFor(input.maxRows),
