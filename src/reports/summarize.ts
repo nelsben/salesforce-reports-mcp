@@ -70,6 +70,33 @@ export function describeFilters(meta: Json, maps: ColumnInfoMaps): string[] {
   return lines;
 }
 
+/**
+ * Notes on a reportMetadata.standardFilters override, from what was sent and what the run applied. Salesforce ignores an
+ * empty list (it does not clear a report's standard filters), keeps the saved value of a standard filter the list leaves
+ * out, and applies one that is named with a valid value (docs/design.md, live findings). `sent` is undefined when the
+ * caller gave no standardFilters. Ported to ReportsShape.standardFilterNotes in Apex; keep the words the same.
+ */
+export function standardFilterNotes(sent: unknown, applied: Json[] | undefined): string[] {
+  if (sent === undefined) return [];
+  const now = (applied ?? []).filter((f) => f && typeof f.name === "string");
+  if (!now.length) return [];
+  const words = (list: Json[]) => list.map((f) => `${f.name}: ${f.value}`).join(", ");
+  const given = (Array.isArray(sent) ? sent : []).filter((f) => f && typeof f === "object" && typeof f.name === "string") as Json[];
+  if (!given.length) {
+    return [
+      `Salesforce ignored reportMetadata.standardFilters: an empty list does not clear a report's standard filters, so these still apply: ${words(now)}. To change one, list it by name with another of its values.`,
+    ];
+  }
+  const notes: string[] = [];
+  for (const g of given) {
+    const f = now.find((x) => x.name === g.name);
+    if (f && String(f.value) !== String(g.value)) notes.push(`Salesforce ran with ${f.name}: ${f.value}, not the ${g.name}: ${g.value} that was sent.`);
+  }
+  const kept = now.filter((f) => !given.some((g) => g.name === f.name));
+  if (kept.length) notes.push(`Standard filters left out of reportMetadata.standardFilters keep their saved values: ${words(kept)}.`);
+  return notes;
+}
+
 export interface FolderInfo {
   id: string;
   name: string | null;

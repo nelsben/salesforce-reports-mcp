@@ -151,4 +151,33 @@ private class ReportsDefinitionTest {
         Assert.areEqual('10', ReportsDefinition.filterValue(10.0));
         Assert.areEqual('7', ReportsDefinition.filterValue(7L));
     }
+
+    /** The same cases and words as standardFilterNotes in test/shape.test.ts. */
+    @IsTest
+    static void notesWhatHappenedToStandardFilters() {
+        List<Map<String, Object>> applied = new List<Map<String, Object>>{
+            new Map<String, Object>{ 'name' => 'open', 'value' => 'all' },
+            new Map<String, Object>{ 'name' => 'probability', 'value' => '>0' }
+        };
+        String ignored = 'Salesforce ignored reportMetadata.standardFilters: an empty list does not clear a report\'s standard filters, so these still apply: open: all, probability: >0. To change one, list it by name with another of its values.';
+        Assert.areEqual(new List<String>{ ignored }, ReportsShape.standardFilterNotes(new List<Object>(), applied));
+        Assert.areEqual(new List<String>{ ignored }, ReportsShape.standardFilterNotes(null, applied));
+        Assert.areEqual(new List<String>(), ReportsShape.standardFilterNotes(new List<Object>(), new List<Map<String, Object>>()));
+        Assert.areEqual(
+            new List<String>{ 'Standard filters left out of reportMetadata.standardFilters keep their saved values: probability: >0.' },
+            ReportsShape.standardFilterNotes(json('{"s":[{"name":"open","value":"all"}]}').get('s'), applied)
+        );
+        Assert.areEqual(
+            new List<String>{ 'Salesforce ran with open: all, not the open: closed that was sent.' },
+            ReportsShape.standardFilterNotes(json('{"s":[{"name":"open","value":"closed"},{"name":"probability","value":">0"}]}').get('s'), applied)
+        );
+        Assert.areEqual(
+            new List<String>(),
+            ReportsShape.standardFilterNotes(json('{"s":[{"name":"open","value":"all"},{"name":"probability","value":">0"}]}').get('s'), applied)
+        );
+        // A null list is skipped on the way in, as Salesforce skips an empty one.
+        Reports.ReportMetadata m = new Reports.ReportMetadata();
+        ReportsDefinition.applyTo(m, json('{"standardFilters":null}'));
+        Assert.isTrue(m.getStandardFilters() == null || m.getStandardFilters().isEmpty());
+    }
 }

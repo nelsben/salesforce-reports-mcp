@@ -203,6 +203,8 @@ public with sharing class ReportsDefinition {
                         m.setScope((String) v);
                     }
                     when 'standardFilters' {
+                        // Salesforce ignores an empty list, so null is ignored the same way; notes say so.
+                        if (v == null) continue;
                         List<Reports.StandardFilter> out = new List<Reports.StandardFilter>();
                         for (Object o : (List<Object>) v) {
                             Map<String, Object> s = (Map<String, Object>) o;

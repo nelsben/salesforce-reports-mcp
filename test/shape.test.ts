@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cell, shapeResult } from "../src/reports/shape.js";
+import { standardFilterNotes } from "../src/reports/summarize.js";
 import { fixture } from "./helpers.js";
 
 const BASE = "https://example.my.salesforce.com";
@@ -87,5 +88,38 @@ describe("cell", () => {
   it("gives null for an empty cell", () => {
     expect(cell(null, "-", "currency")).toBeNull();
     expect(cell(undefined, "-", "string")).toBeNull();
+  });
+});
+
+/** The same cases and words as notesWhatHappenedToStandardFilters in ReportsDefinitionTest.cls. */
+describe("standardFilterNotes", () => {
+  const applied = [
+    { name: "open", value: "all" },
+    { name: "probability", value: ">0" },
+  ];
+  const ignored =
+    "Salesforce ignored reportMetadata.standardFilters: an empty list does not clear a report's standard filters, so these still apply: open: all, probability: >0. To change one, list it by name with another of its values.";
+
+  it("says an empty or null list was ignored, and which filters still apply", () => {
+    expect(standardFilterNotes([], applied)).toEqual([ignored]);
+    expect(standardFilterNotes(null, applied)).toEqual([ignored]);
+    expect(standardFilterNotes([], [])).toEqual([]);
+  });
+
+  it("says nothing when no standardFilters were sent", () => {
+    expect(standardFilterNotes(undefined, applied)).toEqual([]);
+  });
+
+  it("names the standard filters a partial list left at their saved values", () => {
+    expect(standardFilterNotes([{ name: "open", value: "all" }], applied)).toEqual([
+      "Standard filters left out of reportMetadata.standardFilters keep their saved values: probability: >0.",
+    ]);
+  });
+
+  it("says when Salesforce ran with another value than the one sent", () => {
+    expect(standardFilterNotes([{ name: "open", value: "closed" }, { name: "probability", value: ">0" }], applied)).toEqual([
+      "Salesforce ran with open: all, not the open: closed that was sent.",
+    ]);
+    expect(standardFilterNotes(applied, applied)).toEqual([]);
   });
 });

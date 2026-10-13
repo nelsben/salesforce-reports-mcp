@@ -287,6 +287,16 @@ try {
       filterLogic: "1 AND 2",
     },
   });
+  // Salesforce ignores an empty standardFilters list and keeps the saved value of one left out (docs/design.md).
+  await same("run_report overrides: standardFilters [] is ignored and notes say so", "run_report", {
+    reportId: summary,
+    overrides: { reportMetadata: { standardFilters: [] } },
+  });
+  await same("run_report overrides: standardFilters open closed applies, probability is kept", "run_report", {
+    reportId: summary,
+    overrides: { reportMetadata: { standardFilters: [{ name: "open", value: "closed" }] } },
+  });
+  await same("query_report standardFilters [] is ignored and notes say so", "query_report", { ...summaryDef, reportMetadata: { standardFilters: [] } });
   await same("run_report maxRows cut", "run_report", { reportId: tabular, maxRows: 3 });
   await same("describe_report tabular", "describe_report", { reportId: tabular });
   await same("describe_report summary", "describe_report", { reportId: summary });
