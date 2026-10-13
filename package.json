@@ -33,7 +33,8 @@
     "mcp:generate": "tsx salesforce/scripts/generate-metadata.ts",
     "mcp:setup": "tsx salesforce/scripts/mcp-setup.ts",
     "mcp:teardown": "tsx salesforce/scripts/mcp-teardown.ts",
-    "callout:setup": "tsx salesforce/scripts/callout-setup.ts"
+    "callout:setup": "tsx salesforce/scripts/callout-setup.ts",
+    "callout:renew": "tsx salesforce/scripts/callout-setup.ts --renew-certificate"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
