@@ -11,4 +11,6 @@ How they were run:
 - The first runner run was made before any saved pipeline report existed, so it took the "no saved report" path. The rest started from the fixture.
 - The REST door runs (`runner-rest.md`, `designer-rest.md`) used no MCP server at all: `--strict-mcp-config` with an MCP config that has no servers, so the plugin's own server did not start. `--allowedTools` was limited to `Skill`, `Bash(sf api request rest:*)`, `Read` on the plugin's `skills/` folder (so the skill could read its own `transport.md` and `reference.md`), and `Write` under `/tmp/sf-reports/` for body files (the model wrote them to its own session scratchpad instead, which needs no rule). Each prompt named the CLI alias, so the run did not stop to ask for it. The package with all eleven tools was deployed in `dev-frontend-2`, the fixture was "zz-rehearsal Pipeline by Stage", made through the door's own `create_report`, and every report was deleted afterwards with curl.
 
+`runner-hosted.md` is the exception: interactive runs in claude.ai over the hosted MCP door, described in the file.
+
 Tool names below are the server's own, without the `mcp__salesforce-reports__` prefix.
