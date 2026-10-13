@@ -1,6 +1,6 @@
 # 0012. The hosted door calls out through a per-user JWT named credential, in an optional package
 
-Status: Proposed, 2026-10-12. It becomes Accepted when a call through the hosted server in claude.ai answers `list_report_types` with a list. Follows [0007](0007-callout-identity-under-hosted-mcp.md).
+Status: Accepted, 2026-10-12. Proposed the same day and settled by a call through the hosted server in claude.ai; see "Result". Follows [0007](0007-callout-identity-under-hosted-mcp.md).
 
 ## Context
 
@@ -33,7 +33,16 @@ The probe's quirks are kept: the app's scopes are `Api` and `RefreshToken`, `iss
 - The certificate expires a year after it is made. Renewing it means a new certificate and the app's `certificate` updated with it. Not yet scripted: the setup keeps a certificate that is already in the org.
 - The External Client App `SalesforceReportsCallout` carries the `Api` scope. Its tokens are minted only by the org itself, for users the permission set pre-authorizes, and they never leave the org. The connector's own app, `SalesforceReportsMcp`, keeps `mcp_api` and `refresh_token` only.
 - Each callout may mint a token. A tool makes at most a few calls, so this is inferred to be cheap (phase 3c).
-- Not yet tested: the call from a real hosted sign-in in claude.ai. The credential mints its token from the running user's username, so it should not depend on how the user signed in. This record stays Proposed until that call is made.
+- The credential mints its token from the running user's username, so it does not depend on how the user signed in. The result below bears this out.
+
+## Result
+
+Settled 2026-10-12 in claude.ai, through the hosted server, signed in to `dev-frontend-2` through the connector's External Client App (`mcp_api`, `refresh_token`), with `callout-app` installed and `Salesforce_Reports_Callout` assigned. In a new chat:
+
+- `list_report_types` answered with the org's 156 report types, where it had answered `CALLOUT_SESSION` before.
+- `query_report` ran an unsaved Opportunity summary grouped by stage: 8 opportunities across 6 stages, 3,091,000 in total. That is the same figure the saved report gave through `run_report` on the hosted door, and through the REST door. Nothing was saved.
+
+[Rehearsal: the runner over the hosted door](../rehearsals/runner-hosted.md) has both runs.
 
 ## Alternatives
 
