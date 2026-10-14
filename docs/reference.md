@@ -21,6 +21,8 @@ The tools, what a result holds, the safety rails and the limits. The full contra
 
 Every run returns the same shape: the filters that were applied (including Salesforce's defaults), a table of groups with their measures, grand totals, optional detail rows, and notes that say when anything was cut.
 
+On the local server, `run_report` and `query_report` also return the result as `structuredContent` and name a report view (`ui://salesforce-reports/report`). Hosts that draw MCP Apps, such as Claude Desktop, show it as a report card in the chat. Other hosts use the text.
+
 ## Safety
 
 - MCP clients ask you before a tool call, and the skills tell Claude to save, change or delete only when you ask.
