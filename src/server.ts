@@ -1,11 +1,13 @@
+import { RESOURCE_MIME_TYPE, registerAppResource, registerAppTool } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { fail, InputError, ok, type ToolResult } from "./format.js";
+import { fail, InputError, ok, okView, type ToolResult } from "./format.js";
 import { ReportsApi, soqlLike, soqlString } from "./reports/api.js";
 import { combineResults, type CombineInput } from "./reports/combine.js";
 import { aggregateColumns, definitionShape, ReportDefinitionSchema, toReportMetadata, type ReportDefinition } from "./reports/definition.js";
 import { HARD_ROW_CEILING, shapeResult, type ReportResult } from "./reports/shape.js";
 import { reportUrl, standardFilterNotes, summarizeReport, type FolderInfo, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
+import { REPORT_VIEW_URI, reportViewHtml } from "./widget/view.js";
 
 export interface ServerOptions {
   readOnly: boolean;
@@ -258,7 +260,11 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     },
   );
 
-  server.registerTool(
+  // run_report and query_report carry the report view: a host that draws MCP Apps shows the result as a card.
+  const VIEW = { ui: { resourceUri: REPORT_VIEW_URI } };
+
+  registerAppTool(
+    server,
     "run_report",
     {
       title: "Run a saved report",
@@ -272,17 +278,19 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
         ...resultControls,
       },
       annotations: READ,
+      _meta: VIEW,
     },
     async (args) => {
       try {
-        return ok(await runToResult(args));
+        return okView(await runToResult(args));
       } catch (error) {
         return fail(error);
       }
     },
   );
 
-  server.registerTool(
+  registerAppTool(
+    server,
     "query_report",
     {
       title: "Run an ad hoc report",
@@ -290,10 +298,11 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
         "Define a report in the call and run it at once. Nothing is saved. Use it to answer a data question: pick a report type (list_report_types), check column names (describe_report_type), then give columns, groupings, aggregates and filters. Returns the same tidy result as run_report. Different from run_report, which runs a saved report by id. If the user likes the result, offer create_report with the same definition.",
       inputSchema: { ...definitionShape, ...resultControls },
       annotations: READ,
+      _meta: VIEW,
     },
     async ({ detail, maxRows, ...definition }) => {
       try {
-        return ok(await runToResult({ definition, detail, maxRows }));
+        return okView(await runToResult({ definition, detail, maxRows }));
       } catch (error) {
         return fail(error);
       }
@@ -349,6 +358,14 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
         return fail(error);
       }
     },
+  );
+
+  registerAppResource(
+    server,
+    "Report view",
+    REPORT_VIEW_URI,
+    { description: "Draws a run_report or query_report result as a report card: title, filters, group table, totals, detail rows and notes." },
+    async () => ({ contents: [{ uri: REPORT_VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: reportViewHtml() }] }),
   );
 
   if (options.readOnly) return server;

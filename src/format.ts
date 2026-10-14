@@ -5,11 +5,20 @@ import { SalesforceError } from "./salesforce/client.js";
 export interface ToolResult {
   [key: string]: unknown;
   content: { type: "text"; text: string }[];
+  structuredContent?: { [key: string]: unknown };
   isError?: boolean;
 }
 
 export function ok(value: unknown): ToolResult {
   return { content: [{ type: "text", text: JSON.stringify(value) }] };
+}
+
+/**
+ * ok() for a tool that carries the report view: the same text result, plus the value as
+ * structuredContent for a host that draws MCP Apps. Hosts without UI read the text, as before.
+ */
+export function okView(value: object): ToolResult {
+  return { ...ok(value), structuredContent: value as { [key: string]: unknown } };
 }
 
 export function fail(error: unknown): ToolResult {
