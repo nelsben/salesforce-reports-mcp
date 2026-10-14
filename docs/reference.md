@@ -37,7 +37,7 @@ On the local server, `run_report` and `query_report` also return the result as `
 - A report takes at most **100 columns**.
 - Salesforce allows **500 synchronous report runs per org per hour**. The server runs the inputs of `combine_reports` one at a time.
 - **Joined reports are not supported.** Tabular, summary and matrix are.
-- Salesforce applies default filters to some report types (for Opportunity, the current fiscal quarter and probability above 0). They are listed in the result's `filters`, so check them against the question.
+- Salesforce applies default filters to some report types. For Opportunity they are the current fiscal quarter, `open: all` and `probability: >0`; the last is Salesforce's "All" and keeps Closed Lost. They are listed in the result's `filters`, so check them against the question.
 
 ## Why the local server uses the REST API, and not Apex
 
