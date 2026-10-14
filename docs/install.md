@@ -24,7 +24,7 @@ This gives you the server without the skills.
 **Claude Code**
 
 ```
-claude mcp add salesforce-reports -- npx -y github:nelsben/salesforce-reports-mcp --org <alias>
+claude mcp add salesforce-reports -- npx -y salesforce-reports-mcp --org <alias>
 ```
 
 **Claude Desktop**: add this to `claude_desktop_config.json`, then restart Claude Desktop.
@@ -34,13 +34,13 @@ claude mcp add salesforce-reports -- npx -y github:nelsben/salesforce-reports-mc
   "mcpServers": {
     "salesforce-reports": {
       "command": "npx",
-      "args": ["-y", "github:nelsben/salesforce-reports-mcp", "--org", "<alias>"]
+      "args": ["-y", "salesforce-reports-mcp", "--org", "<alias>"]
     }
   }
 }
 ```
 
-The first run builds the package, which takes a few seconds. To add the skills without the plugin, copy `skills/report-runner`, `skills/report-designer` and `skills/report-deploy` into `~/.claude/skills/`.
+The server comes from npm as `salesforce-reports-mcp`. To run the latest `main` instead, put `github:nelsben/salesforce-reports-mcp` in place of the package name; that first run builds it, which takes a few seconds. To add the skills without the plugin, copy `skills/report-runner`, `skills/report-designer` and `skills/report-deploy` into `~/.claude/skills/`.
 
 ### Authentication
 
