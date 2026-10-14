@@ -9,6 +9,13 @@ import { HARD_ROW_CEILING, shapeResult, type ReportResult } from "./reports/shap
 import { reportUrl, standardFilterNotes, summarizeReport, type FolderInfo, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
 import { REPORT_VIEW_URI, reportViewHtml } from "./widget/view.js";
 
+/**
+ * The last sentence of the run_report and query_report descriptions on the local door, where a host may draw
+ * the report view. The hosted door draws no card, so doorDescription (salesforce/scripts/door-tools.ts) strips it.
+ */
+export const VIEW_HINT =
+  " Hosts that draw MCP Apps, such as Claude Desktop, show this result as a report card above your reply; there, answer in words and do not repeat the table.";
+
 export interface ServerOptions {
   readOnly: boolean;
   allowDelete: boolean;
@@ -262,8 +269,6 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
 
   // run_report and query_report carry the report view: a host that draws MCP Apps shows the result as a card.
   const VIEW = { ui: { resourceUri: REPORT_VIEW_URI } };
-  const VIEW_HINT =
-    " Hosts that draw MCP Apps, such as Claude Desktop, show this result as a report card above your reply; there, answer in words and do not repeat the table.";
 
   registerAppTool(
     server,

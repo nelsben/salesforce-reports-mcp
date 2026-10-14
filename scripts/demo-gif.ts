@@ -17,7 +17,7 @@ import { bundleHost, drawReport, fixture, openHost, settle, viewFrame, viewHtml 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const VIDEO_DIR = join(ROOT, "test", "render", ".video");
 const OUT = join(ROOT, "docs", "assets", "report-view.gif");
-const SIZE = { width: 800, height: 940 };
+const SIZE = { width: 800, height: 1080 };
 const FPS = 12;
 const GIF_WIDTH = 720;
 const HOLD_MS = 2500;
@@ -73,6 +73,8 @@ async function main() {
 
   await page.evaluate(() => window.testHost.setWidth(360));
   await settle(page, await viewFrame(page));
+  const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+  if (pageHeight > SIZE.height) console.warn(`The narrow card is ${pageHeight}px tall; raise SIZE.height so the GIF shows all of it.`);
   await page.waitForTimeout(HOLD_MS);
 
   const video = page.video();
