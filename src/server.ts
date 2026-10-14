@@ -9,6 +9,13 @@ import { HARD_ROW_CEILING, shapeResult, type ReportResult } from "./reports/shap
 import { reportUrl, standardFilterNotes, summarizeReport, type FolderInfo, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
 import { REPORT_VIEW_URI, reportViewHtml } from "./widget/view.js";
 
+/**
+ * The last sentence of the run_report and query_report descriptions on the local door, where a host may draw
+ * the report view. The hosted door draws no card, so doorDescription (salesforce/scripts/door-tools.ts) strips it.
+ */
+export const VIEW_HINT =
+  " Hosts that draw MCP Apps, such as Claude Desktop, show this result as a report card above your reply; there, answer in words and do not repeat the table.";
+
 export interface ServerOptions {
   readOnly: boolean;
   allowDelete: boolean;
@@ -269,7 +276,7 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     {
       title: "Run a saved report",
       description:
-        "Run a saved report and return its numbers as one tidy result: filters in words, a group table (one row per group, grouping labels then measures), grand totals, and detail rows when asked. Use it for a report that already exists. `overrides` change this run only and are never saved (for example a different date range or extra filter), which makes it the way to compare periods. Different from query_report, which runs a report you define in the call without saving anything. Notes in the result say when rows were cut.",
+        "Run a saved report and return its numbers as one tidy result: filters in words, a group table (one row per group, grouping labels then measures), grand totals, and detail rows when asked. Use it for a report that already exists. `overrides` change this run only and are never saved (for example a different date range or extra filter), which makes it the way to compare periods. Different from query_report, which runs a report you define in the call without saving anything. Notes in the result say when rows were cut." + VIEW_HINT,
       inputSchema: {
         reportId,
         overrides: ReportDefinitionSchema.optional().describe(
@@ -295,7 +302,7 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     {
       title: "Run an ad hoc report",
       description:
-        "Define a report in the call and run it at once. Nothing is saved. Use it to answer a data question: pick a report type (list_report_types), check column names (describe_report_type), then give columns, groupings, aggregates and filters. Returns the same tidy result as run_report. Different from run_report, which runs a saved report by id. If the user likes the result, offer create_report with the same definition.",
+        "Define a report in the call and run it at once. Nothing is saved. Use it to answer a data question: pick a report type (list_report_types), check column names (describe_report_type), then give columns, groupings, aggregates and filters. Returns the same tidy result as run_report. Different from run_report, which runs a saved report by id. If the user likes the result, offer create_report with the same definition." + VIEW_HINT,
       inputSchema: { ...definitionShape, ...resultControls },
       annotations: READ,
       _meta: VIEW,

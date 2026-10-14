@@ -7,7 +7,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ReportsApi } from "../../src/reports/api.js";
 import type { SalesforceApi } from "../../src/salesforce/client.js";
-import { buildServer } from "../../src/server.js";
+import { buildServer, VIEW_HINT } from "../../src/server.js";
 
 /**
  * The eleven tools ReportsApi answers, in the order the door lists them: the six phase 1 tools, list_report_types
@@ -35,9 +35,13 @@ export const SAVE_TOOLS: readonly string[] = ["create_report", "update_report", 
 export const WRITE_PERMISSION_SENTENCES =
   "In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED.";
 
-/** A tool's description on the door: the local description, plus the write permission sentences for a save tool. */
+/**
+ * A tool's description on the door: the local description without the report view hint (the hosted door draws no
+ * report card), plus the write permission sentences for a save tool.
+ */
 export function doorDescription(name: string, local: string): string {
-  return SAVE_TOOLS.includes(name) ? `${local} ${WRITE_PERMISSION_SENTENCES}` : local;
+  const base = local.endsWith(VIEW_HINT) ? local.slice(0, -VIEW_HINT.length) : local;
+  return SAVE_TOOLS.includes(name) ? `${base} ${WRITE_PERMISSION_SENTENCES}` : base;
 }
 
 export interface DoorTool {
