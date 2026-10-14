@@ -19,3 +19,4 @@ One page per architectural decision: the context, the decision, what it costs, a
 | [0011](0011-name-permissions-for-the-capability.md) | Name the permissions for the capability, not the door | Accepted |
 | [0012](0012-per-user-jwt-named-credential.md) | The hosted door calls out through a per-user JWT named credential, in an optional package | Accepted |
 | [0013](0013-report-view-as-an-mcp-app.md) | The report view is an MCP App on the local door only, beside an unchanged text result | Accepted |
+| [0014](0014-render-tests-through-a-test-host.md) | The report view is render-tested through a test host page with the real AppBridge | Accepted |

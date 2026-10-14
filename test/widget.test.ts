@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ReportsApi } from "../src/reports/api.js";
 import { SalesforceError, type SalesforceApi } from "../src/salesforce/client.js";
 import { buildServer, type ServerOptions } from "../src/server.js";
+import { doorDescription } from "../salesforce/scripts/door-tools.js";
 import { inlineBundle } from "../src/widget/view.js";
 import { fixture } from "./helpers.js";
 
@@ -50,6 +51,19 @@ describe("report view", () => {
       expect((tool._meta as { ui: { resourceUri: string } }).ui.resourceUri).toBe(VIEW_URI);
       expect(tool.outputSchema).toBeUndefined();
     }
+  });
+
+  it("tells Claude not to repeat the table on run_report and query_report only", async () => {
+    const client = await connect();
+    const { tools } = await client.listTools();
+    const withHint = tools.filter((t) => (t.description ?? "").includes("do not repeat the table")).map((t) => t.name).sort();
+    expect(withHint).toEqual(["query_report", "run_report"]);
+    for (const name of withHint) {
+      expect(tools.find((t) => t.name === name)!.description).toMatch(/report card above your reply; there, answer in words and do not repeat the table\.$/);
+    }
+    // The hosted door draws no card, so its description drops the hint.
+    const local = tools.find((t) => t.name === "run_report")!.description!;
+    expect(doorDescription("run_report", local)).not.toContain("do not repeat the table");
   });
 
   it("run_report returns structuredContent equal to its text result", async () => {

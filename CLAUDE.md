@@ -18,6 +18,8 @@ Read the relevant one before changing behaviour, and update it in the same chang
 npm install
 npm run build                       # tsc, strict
 npm test                            # vitest: unit, fixtures, MCP server tests
+npm run test:render                 # Playwright: draws the report view through a test host (after npm run build)
+npm run demo:gif                    # remakes docs/assets/report-view.gif from the test host (needs ffmpeg)
 npm run live -- --org <alias> --allow-delete   # every tool against a real org; leaves no report behind
 npm run capture -- --org <alias>    # recapture test fixtures (then anonymise; see below)
 node dist/index.js --org <alias>    # run the server over stdio
