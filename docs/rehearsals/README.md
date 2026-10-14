@@ -13,6 +13,8 @@ How they were run:
 
 `designer-refusal.md` is a REST door run for a user without the write permission set: the save is refused with `WRITE_NOT_ALLOWED`, and the file also records the refusal on the hosted door. No fixture was needed and no report was made.
 
+Correction, 2026-10-14: several runs say the Opportunity default `probability: >0` hides Closed Lost. The skills said so at the time, and it was wrong: the filter is Salesforce's "All" and keeps 0 percent deals ([live finding](../design.md#live-findings-checked-2026-10-11-api-v620-scriptslive-checkts)). The records keep what Claude said.
+
 `runner-hosted.md` is the exception: interactive runs in claude.ai over the hosted MCP door, described in the file.
 
 Tool names below are the server's own, without the `mcp__salesforce-reports__` prefix.

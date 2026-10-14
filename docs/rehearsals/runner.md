@@ -10,7 +10,7 @@ Tool calls: `Skill(report-runner)`, `search_reports("pipeline")` (0), `search_re
 
 Final answer: a headline ("$3.09M across 8 open opportunities"), a by-stage table, a by-owner table, four worries (one owner holds 91 percent of the dollars, one deal is 29 percent of the pipeline, no closed-won rows this fiscal year, one deal has no amount), the default `probability > 0` caveat in words, and four next cuts, one of them "save this as a report, I won't do that unless you say yes". Nothing was saved.
 
-What the skill got right: it searched first, fell back to `query_report` as the skill says, named the hidden Closed Lost default, offered but did not save. What it got wrong: nothing material. It did not call `describe_report`, correctly, since there was no report.
+What the skill got right: it searched first, fell back to `query_report` as the skill says, named the probability default, offered but did not save. It called that default a filter that hides Closed Lost, as the skill then taught; a later check showed it hides nothing ([live finding](../design.md#live-findings-checked-2026-10-11-api-v620-scriptslive-checkts)). What it got wrong: nothing material. It did not call `describe_report`, correctly, since there was no report.
 
 ## Run 2: a saved report exists
 
