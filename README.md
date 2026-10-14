@@ -1,228 +1,145 @@
 # salesforce-reports-mcp
 
-An MCP server and three Claude skills for Salesforce reports. Claude can find, define, run, save and combine reports through the Salesforce Reports and Dashboards REST API, and hands you the answer, not the plumbing. It comes from the team building Plesio.
+Claude finds, builds, runs and saves Salesforce reports. You ask a question in plain words and get the answer, with the report behind it.
 
-## Three experiences
+This repo is working software, and a demonstration. It takes one useful job, reports, and delivers it to Claude three ways, from a server on your laptop to a feature that lives inside Salesforce. Every design choice is written down with what it costs. Built by [Ben Nelsen](https://github.com/nelsben).
 
-Each one is a skill. Claude picks the right one from what you say.
+> **You:** List the report types I can build on, then build me an opportunity report grouped by stage without saving it.
+>
+> **Claude:** The org has 156 report types; here they are by category. Opportunities by stage: 8 open deals, $3,091,000. Negotiation/Review holds 3 of them and 39% of the value. Salesforce applied its default filters: close date this fiscal quarter, probability above 0. Nothing was saved. Want it across all close dates, or saved to your Private Reports?
+>
+> *claude.ai, through the MCP server hosted by Salesforce, signed in as the user ([rehearsal](docs/rehearsals/runner-hosted.md)).*
 
-### Explore: report-runner
+## What this repo shows
 
-For a seller or manager who wants an answer. Claude finds the report, says in plain words what it counts and for whom, runs it, leads with the answer, and offers the next slice. It never saves anything.
+| Claim | Where to look | Evidence you can check |
+| --- | --- | --- |
+| **1. Three ways to connect Salesforce and Claude**, each with its own trade-offs | [Three ways to connect](#three-ways-to-connect) | One tool contract and result shape on every door (12 tools locally, 11 in the org); a [parity check](docs/decisions/0010-verification-by-parity.md) runs the same calls through two doors against a real org and compares them |
+| **2. A useful feature added to Salesforce itself**, packaged the way an admin expects | [A feature inside Salesforce](#a-feature-inside-salesforce) | Three package directories; layered Apex with a CI test that fails if the layers leak; 65 Apex tests at 98% coverage |
+| **3. Security, authentication and integration** done deliberately, per door | [Security and identity](#security-and-identity) | A different identity per door, a per-user JWT named credential with no stored secret, writes behind a custom permission, and a test that keeps org values out of the repo |
+| **4. Product and architecture judgment**, shown in the work | [How it was built](#how-it-was-built) | Personas and [experiences](docs/experiences.md), [6 probes](docs/probes/) before building, [14 decision records](docs/decisions/README.md), [live findings](docs/design.md), [7 rehearsals](docs/rehearsals/README.md) |
 
-> **You:** How is our pipeline looking this fiscal year? Anything I should worry about?
-> **Claude:** $3.09M across 8 open deals, from "Pipeline by Stage" (opportunities closing this fiscal year, whole org; the report hides Closed Lost). One owner holds 91% of it, and five of the eight deals are one account. Link to the report. Want it by close month, or against last year?
+## The product
 
-### Design: report-designer
+**The problem.** Reports are how a Salesforce org answers questions, and they are hard to use. A seller wants a number, not Report Builder. An analyst wants to try three versions of a report before saving one. An admin wants a report in another org or in git. As of October 2026, Salesforce's own Claude skills and its standard hosted MCP servers had no report tools, and the closest open-source servers could run or create a report, but none could change, clone or combine one, or run one that was never saved.
 
-For someone who wants a report changed or made. Claude drafts the report in your words, previews it on real data, changes it until you like it, then saves it in one step: as a new report, or over the original if you ask. A saved report lands in your Private Reports folder unless you pick a folder.
+**Three experiences.** Each is a Claude skill, and Claude picks the right one from what you say.
+
+| Skill | For | What Claude does |
+| --- | --- | --- |
+| [report-runner](skills/report-runner/SKILL.md) | A seller or manager who wants an answer | Finds the report, says in plain words what it counts, runs it, leads with the answer, offers the next slice. Never saves. |
+| [report-designer](skills/report-designer/SKILL.md) | Someone who wants a report changed or made | Drafts the report in your words, previews it on real data, changes it until you like it, saves it in one step when you ask. |
+| [report-deploy](skills/report-deploy/SKILL.md) | An admin moving a report between orgs or into git | Retrieves the report's metadata, checks it with a dry run, deploys only after you say yes. |
 
 > **You:** Start from my Pipeline by Stage report. Add Next Step and group it by owner, then save it as Pipeline by Owner.
+>
 > **Claude:** Preview, with 8 deals under two owners. Saved as a new report in your Private Reports; the original is untouched. Link.
 
-Salesforce cannot rename a standard column header through the API. Claude says so and offers a formula column with the label you want. Conditional highlighting and joined-report blocks need Report Builder.
+**Answers you can trust.** Every run returns the same compact shape: the filters that were applied, including the ones Salesforce adds on its own, the groups and totals, and notes that say when rows were cut or Salesforce ignored part of the request. The [experiences page](docs/experiences.md) has the personas and the facts that shaped them.
 
-### Deploy: report-deploy
+**A report card in the chat.** In Claude Desktop, a report run on the local server also draws as a card the way Salesforce draws it: the title, the filters, the groups with totals, a link to open it in Salesforce and, for an unsaved report, a button that asks Claude to save it. It is an MCP App that loads nothing from the network. Clients that show only text, such as Claude Code, get the same result as text ([decision 0013](docs/decisions/0013-report-view-as-an-mcp-app.md)).
 
-For an admin who needs a report in another org or in git. Claude reads the report's metadata name, retrieves it with the Salesforce CLI, checks it with a dry run against the target, and deploys only after you say yes. A report in Private Reports cannot be retrieved, so Claude offers to move it to a shared folder first.
+![The report card for an unsaved opportunity report grouped by stage, drawn in light, then dark, then at phone width](docs/assets/report-view.gif)
 
-> **You:** Move Pipeline by Stage from dev-frontend-2 to dev-backend. Dry run only.
-> **Claude:** Retrieved it as `unfiled$public/Pipeline_by_Stage_...`; the dry run against dev-backend passed (1 of 1 components). Say the word and I will run the real deploy.
+*Drawn by the [render test](docs/decisions/0014-render-tests-through-a-test-host.md)'s host page from anonymised test data.*
 
-## Install
+## Three ways to connect
 
-You need Node.js 20 or later and a way to authenticate (see Authentication below). The deploy skill also needs the Salesforce CLI.
+The same tools reach Claude three ways. They differ in where the code runs, who hosts it and how the user signs in.
 
-### As a Claude Code plugin
+```mermaid
+flowchart LR
+  subgraph Laptop["Your machine"]
+    CC["Claude Code / Desktop"]
+    LS["Local MCP server<br/>(Node)"]
+    CLI["sf CLI"]
+  end
+  subgraph Cloud["claude.ai"]
+    CAI["Claude"]
+  end
+  subgraph SF["Salesforce org"]
+    GW["Hosted MCP<br/>(Salesforce gateway)"]
+    REST["ReportsApi<br/>(Apex REST)"]
+    CORE["Reports service<br/>(Apex)"]
+    API["Reports REST API"]
+  end
+  CC -- "1. stdio" --> LS -- "REST" --> API
+  CC -- "2. skills + CLI" --> CLI -- "Apex REST" --> REST
+  CAI -- "3. MCP over OAuth" --> GW --> REST
+  REST --> CORE --> API
+```
 
-The plugin bundles the three skills and the MCP server.
+| | 1. Local MCP server | 2. In-org REST door with skills | 3. Hosted MCP door |
+| --- | --- | --- | --- |
+| **Direction** | Claude reaches into Salesforce | Salesforce offers a feature; Claude calls it | Salesforce serves Claude directly |
+| **Runs** | Node on your machine | Apex in the org | Salesforce's MCP gateway, then the same Apex |
+| **Installed in the org** | Nothing | `force-app` | `force-app`, `mcp-app`, optionally `callout-app` |
+| **Signs in with** | Your `sf` CLI session or a token | Your own Salesforce session | OAuth with PKCE through an External Client App |
+| **Clients** | Claude Code, Claude Desktop, any MCP client | Claude Code and any agent with a shell; Flow, Agentforce, any HTTP client | claude.ai and any remote MCP client, with nothing to host |
+| **Tools** | All 12, delete only with a flag | 11, no delete | 11, no delete |
+| **Choose it when** | One person, no org change allowed | An admin wants the feature in the org, used from scripts and agents | A team wants Claude in the browser, governed by the org |
+
+Each door gets the same tool names, the same input and the same result ([decision 0001](docs/decisions/0001-one-contract-three-doors.md)). The skills bind to tool names, not to a door, so one skill works over all three. [docs/architecture.md](docs/architecture.md) has the sequence diagrams.
+
+## A feature inside Salesforce
+
+The in-org doors are a Salesforce feature an admin installs, not a script. They ship as three package directories in [salesforce/](salesforce/README.md) ([decision 0009](docs/decisions/0009-two-shipping-units.md)):
+
+| Package | Holds | Needs |
+| --- | --- | --- |
+| `force-app` | The Apex service, its tests, two permission sets and a custom permission | Nothing else; complete on its own |
+| `mcp-app` | The API Catalog entry, the MCP server definition and the External Client App Claude signs in through. No code. | `force-app` |
+| `callout-app` | The per-user named credential that lets the hosted door call the org's own API as the user. No code. | `force-app`; used by the hosted door |
+
+The Apex is layered as ports and adapters ([decision 0003](docs/decisions/0003-one-apex-class-behind-both-in-org-doors.md)). One service does the work; the REST class is only an adapter, and [a test](test/apex-layers.test.ts) fails CI if the core ever names it or sets an HTTP status. Reads use `Reports.ReportManager` inside the org; only what Apex cannot do (list report types, run an unsaved report, save) calls the org's own REST API ([decision 0004](docs/decisions/0004-reportmanager-first-callout-for-the-rest.md)). There is no delete in the org ([decision 0006](docs/decisions/0006-no-delete-in-the-org.md)).
+
+## Security and identity
+
+Each door signs in differently, and each is least privilege by default.
+
+| Door | Identity | What it can do |
+| --- | --- | --- |
+| Local | The user's `sf` CLI session, refetched on expiry; never written anywhere | Whatever the user can do. `--read-only` removes every write tool; `delete_report` exists only with `--allow-delete`. |
+| REST | The caller's own Salesforce session | Reads with `Salesforce_Reports`. Saves only with `Salesforce_Reports_Write`, checked in the service, not by hiding tools ([decision 0005](docs/decisions/0005-saves-behind-a-custom-permission.md)). |
+| Hosted MCP | OAuth with PKCE through the External Client App `SalesforceReportsMcp`, scopes `mcp_api` and `refresh_token` only | The same permission sets. For the calls that need the org's REST API, a per-user JWT named credential mints a token for the signed-in user. |
+
+Sharing, folder access and field-level security apply on every door, because every call runs as the user.
+
+**The hard part, and how it was solved.** Under a hosted MCP sign-in, Apex has no session, and asking for one throws an exception no `catch` block can stop. The first version leaked a raw platform error to claude.ai. The fix came in two steps, each with a decision record:
+
+1. The hosted door got its own route, so the code knows which door called before it asks for a session, and answers a clear `CALLOUT_SESSION` instead ([decision 0007](docs/decisions/0007-callout-identity-under-hosted-mcp.md)).
+2. A probe showed that a [per-user JWT named credential](docs/probes/v0.2-phase3c.md) lets the org mint a token for the running user from a certificate it made itself. No secret is stored, no user clicks anything, and the connector's own app keeps its narrow scopes ([decision 0012](docs/decisions/0012-per-user-jwt-named-credential.md)). `npm run callout:renew` renews the certificate.
+
+No token, consumer key, org address or certificate reaches the repo, logs or error messages. The tracked metadata holds placeholders that setup scripts fill at deploy time, and a test enforces it.
+
+## How it was built
+
+The method was the same for every feature: probe the platform, decide in writing, build, then check against a real org.
+
+| Step | What it produced |
+| --- | --- |
+| **Probe** before building | [6 probe write-ups](docs/probes/): can a hosted MCP server wrap Apex, can Apex call its own org's API, how big a result fits in the heap, which identity works under a hosted sign-in |
+| **Decide** in writing | [14 decision records](docs/decisions/README.md), each with what it costs and what was turned down |
+| **Build** to one contract | [design.md](docs/design.md): the input and output shapes, and the live findings where Salesforce did not behave as documented |
+| **Verify** against a real org | 161 unit and server tests, 8 render tests that draw the report card in a browser, 65 Apex tests, a live end-to-end check that leaves no report behind, and a parity check across doors |
+| **Rehearse** the experience | [7 rehearsals](docs/rehearsals/README.md): real Claude runs of each skill on each door, with what went wrong and what changed |
+
+## Get started
+
+| You want | Start here |
+| --- | --- |
+| Claude Code or Desktop on your own org, nothing installed in Salesforce | [Local MCP server](docs/install.md#the-local-mcp-server) |
+| The feature inside your org, called from the CLI, scripts or agents | [The REST door](docs/install.md#the-rest-door) |
+| Claude in the browser, signed in through Salesforce | [The MCP door](docs/install.md#the-mcp-door), then [the callout tools](docs/install.md#the-callout-tools-on-the-mcp-door) |
+
+The quickest try is the Claude Code plugin, which bundles the skills and the local server:
 
 ```
 claude plugin marketplace add nelsben/salesforce-reports-mcp
 claude plugin install salesforce-reports@salesforce-reports
 ```
 
-The plugin starts the server with no org baked in. It uses the org in the `SF_ORG` environment variable, or your Salesforce CLI default org. To point it at an org, set `SF_ORG=<alias>` in the environment you start Claude Code from (`SF_ORG=my-sandbox claude`). To use a token you already hold, set `SF_INSTANCE_URL` and `SF_ACCESS_TOKEN` the same way. For other options, such as `--read-only`, use the manual setup below instead of the plugin's server.
-
-### Manual MCP config
-
-This gives you the server without the skills.
-
-**Claude Code**
-
-```
-claude mcp add salesforce-reports -- npx -y github:nelsben/salesforce-reports-mcp --org <alias>
-```
-
-**Claude Desktop**: add this to `claude_desktop_config.json`, then restart Claude Desktop.
-
-```json
-{
-  "mcpServers": {
-    "salesforce-reports": {
-      "command": "npx",
-      "args": ["-y", "github:nelsben/salesforce-reports-mcp", "--org", "<alias>"]
-    }
-  }
-}
-```
-
-The first run builds the package, which takes a few seconds. To add the skills without the plugin, copy `skills/report-runner`, `skills/report-designer` and `skills/report-deploy` into `~/.claude/skills/`.
-
-## Why the REST API, and not Apex
-
-Apex has `Reports.ReportManager`, which can describe a report and run it, even with changed filters and groupings. It cannot save a report. The Reports and Dashboards REST API can do all of it: run a report defined in the request with no saved report behind it, then create, update, clone and delete. So this server uses the REST API for everything, and it needs nothing deployed to your org. Saving a report needs no deploy. The Metadata API is only for moving a report between orgs or into source control, which is what report-deploy does.
-
-## Authentication
-
-Pick one.
-
-1. **Salesforce CLI (recommended).** Log in once with `sf org login web --alias <alias>` and pass `--org <alias>` (or set `SF_ORG`). With no `--org`, the server uses your `sf` default org. The server asks the CLI for the instance URL and a fresh access token, and asks again once if Salesforce answers 401. It never writes the token anywhere.
-2. **A token you already hold.** Set `SF_INSTANCE_URL` (for example `https://yourcompany.my.salesforce.com`) and `SF_ACCESS_TOKEN`. These win over `--org` when both are set. The server cannot refresh this token, so it stops with a clear message when it expires.
-
-Everything runs as the authenticated user. Salesforce sharing, folder access and field-level security apply as usual. The user needs the Run Reports permission, and Create and Customize Reports to save.
-
-## Options
-
-| Flag | Environment variable | Default | Meaning |
-| --- | --- | --- | --- |
-| `--org <alias>` | `SF_ORG` | the `sf` default org | Authenticate through the Salesforce CLI. |
-| | `SF_INSTANCE_URL`, `SF_ACCESS_TOKEN` | | Authenticate with a token you hold. |
-| `--api-version <v>` | `SF_API_VERSION` | `62.0` | REST API version. |
-| `--read-only` | `SF_REPORTS_READ_ONLY=1` | off | Register no write tools. |
-| `--allow-delete` | `SF_REPORTS_ALLOW_DELETE=1` | off | Register `delete_report`. |
-| `--max-rows <n>` | `SF_REPORTS_MAX_ROWS` | `200` | Default cap on detail rows per result. The ceiling is 2,000. |
-
-## Tools
-
-| Tool | Writes | What it does |
-| --- | --- | --- |
-| `search_reports` | no | Find saved reports by name, folder or format. Returns ids and links. |
-| `list_report_folders` | no | List the report folders you can see, including the org-wide Public Reports folder. |
-| `list_report_types` | no | List the report types in the org, optionally filtered. |
-| `describe_report_type` | no | List a type's fields by section, with the API names, date filters, granularities and filter operators. |
-| `describe_report` | no | Summarize one saved report: columns, groupings, aggregates, filters in words, plus `developerName` and the folder as `{id, name, developerName, isPrivate}`. |
-| `run_report` | no | Run a saved report. Optional `overrides` change that run only. |
-| `query_report` | no | Define a report in the call and run it. Nothing is saved. |
-| `combine_reports` | no | Run 2 to 5 reports and stack them (compare periods) or join them (side-by-side measures). |
-| `create_report` | yes | Save a new report, from a definition or from a saved report (`fromReportId` plus the changes). It lands in Private Reports unless you give a folder. |
-| `update_report` | yes | Change a saved report. Send only the fields to change. |
-| `clone_report` | yes | Copy a saved report. |
-| `delete_report` | yes | Delete a report (Recycle Bin). Registered only with `--allow-delete`. |
-
-Every run returns the same shape: the filters that were applied (including Salesforce's defaults), a table of groups with their measures, grand totals, optional detail rows, and notes that say when anything was cut.
-
-## Safety
-
-- MCP clients ask you before a tool call, and the skills tell Claude to save, change or delete only when you ask.
-- `--read-only` registers no write tools at all.
-- `delete_report` does not exist unless you start the server with `--allow-delete`. A deleted report goes to the Recycle Bin.
-- A new report with no folder goes to the user's **Private Reports** folder. Only that user can see it until they move it.
-- The server never prints, logs or returns an access token, and calls the Salesforce CLI with an argument list and no shell. On Windows, `sf.cmd` needs a shell, so there the org alias is checked against a short list of safe characters first.
-
-## Limits
-
-- Salesforce returns at most **2,000 detail rows** per run. When it stops there, the result says so in `notes`.
-- A report takes at most **100 columns**.
-- Salesforce allows **500 synchronous report runs per org per hour**. The server runs the inputs of `combine_reports` one at a time.
-- **Joined reports are not supported.** Tabular, summary and matrix are.
-- Salesforce applies default filters to some report types (for Opportunity, the current fiscal quarter and probability above 0). They are listed in the result's `filters`, so check them against the question.
-
-## In the org
-
-There are three doors to the same tools. Each takes the same tool names and inputs and returns the same JSON.
-
-| Door | What runs | Who uses it | Tools |
-| --- | --- | --- | --- |
-| Local MCP | This Node server, on your machine | Claude Code, Claude Desktop, any MCP client that starts a process | All 12 |
-| In-org REST | The Apex class `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce, other agents | 11: the eight read tools and three save tools |
-| In-org MCP | Salesforce hosted MCP over `ReportsApi`, server `SalesforceReports` | claude.ai and other remote MCP clients, with nothing to host | 11: the eight read tools and three save tools |
-
-The eight read tools are `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`. The three save tools are `create_report`, `update_report` and `clone_report`. They work only for a user with the permission set `Salesforce_Reports_Write`, and answer `WRITE_NOT_ALLOWED` (HTTP 403) to anyone else. `delete_report` is on the local server only. The save tools, `list_report_types`, `query_report` and `describe_report_type` call the org's own REST API under the user's session. On the REST door that works. A hosted MCP sign-in gives Apex no session ([decision 0007](docs/decisions/0007-callout-identity-under-hosted-mcp.md)). The optional package `callout-app` gives the hosted door a per-user named credential instead, so every tool but `delete_report` works there as the signed-in user ([decision 0012](docs/decisions/0012-per-user-jwt-named-credential.md)). Without it, on the hosted door `search_reports`, `list_report_folders`, `describe_report`, `run_report` and `combine_reports` over saved reports work, `describe_report_type` reads the type through a saved report, and `list_report_types`, `query_report` and the save tools answer `CALLOUT_SESSION`. The in-org doors ship as Salesforce package directories in `salesforce/` ([decision 0009](docs/decisions/0009-two-shipping-units.md)): `force-app` is the REST door, complete on its own, `mcp-app` adds the hosted MCP door on top of it with no code of its own, and `callout-app` adds the callout identity for the hosted door, also with no code. `salesforce/README.md` has the details. Hosted MCP needs API 67.0 or later.
-
-### The REST door
-
-`salesforce/force-app` holds the Apex classes and tests, the two permission sets and the custom permission. An admin installs it once per org. Replace `<alias>` with a Salesforce CLI alias, and `<user>` with a username.
-
-1. Deploy it from `salesforce/`. Add `--ignore-conflicts` if a scratch org reports source conflicts.
-
-   ```bash
-   sf project deploy start -d force-app -o <alias>
-   ```
-
-2. Give each user the permission set.
-
-   ```bash
-   sf org assign permset -n Salesforce_Reports -o <alias> --on-behalf-of <user>
-   ```
-
-3. Give the write permission set to each user who may save reports. It grants the custom permission `Reports_Write`. The save tools refuse a user without it. A user who saves also needs Create and Customize Reports.
-
-   ```bash
-   sf org assign permset -n Salesforce_Reports_Write -o <alias> --on-behalf-of <user>
-   ```
-
-4. Call it. From a terminal, `sf api request rest "/services/apexrest/reports/v1/search_reports" --method POST --body '{"query":"pipeline"}' -o <alias>`. From Claude Code or Cowork, the skills call it the same way through the Salesforce CLI (see "The skills").
-
-To remove the REST door, remove the MCP door first if it is installed, then unassign both permission sets from every user and run the `force-app` removal in `salesforce/README.md`.
-
-### The MCP door
-
-`salesforce/mcp-app` holds the API Catalog entry `ReportsApi`, the MCP server `SalesforceReports` with its eleven tools, and the External Client App that Claude signs in through. It holds no code: install the REST door first.
-
-1. Deploy it from `salesforce/`, on top of `force-app`.
-
-   ```bash
-   sf project deploy start -d mcp-app -o <alias>
-   ```
-
-2. Run the setup script from the repo root. It writes the eleven tool rows if they are missing, turns the server on, and prints the server's URL. Name the org with `--org`, then either pass `--yes` or set `SF_REPORTS_SETUP_ORGS` to the aliases these scripts may change (comma-separated). When that variable is set, an alias not on it is refused even with `--yes`. The script prints the alias and instance URL before it writes.
-
-   ```bash
-   npm run mcp:setup -- --org <alias> --yes
-   ```
-
-3. If the script says operations are inactive and a tool call fails, open Setup, go to API Catalog, open `ReportsApi`, select its eleven operations, and click Activate. No API does this.
-4. Read the External Client App's consumer key. It is a public client with PKCE and the `mcp_api` and `refresh_token` scopes. Run the query, then pass the Id it prints to the second command. Run both from `salesforce/`.
-
-   ```bash
-   sf data query -t -q "SELECT Id FROM ExternalClientApplication WHERE DeveloperName = 'SalesforceReportsMcp'" -o <alias>
-   sf api request rest "/services/data/v68.0/apps/oauth/credentials/<app id>" -o <alias>
-   ```
-
-5. Connect Claude. In claude.ai, open Settings, then Connectors, then Add custom connector. Paste the URL from step 2. Under Advanced settings, paste the consumer key as the OAuth Client ID. Click Add, then Connect, and sign in to the org. A sandbox or scratch org uses `https://api.salesforce.com/platform/mcp/v1/sandbox/custom/SalesforceReports`. Production and Developer Edition use the same URL without `sandbox/`.
-
-Each user signs in as themselves, so sharing, folder access and field-level security apply. The save tools are listed for every user, and refuse anyone without `Salesforce_Reports_Write`. To check the door from a terminal, run `SF_MCP_TOKEN=<token> npm run mcp-check -- --org <alias>` with an access token from that sign-in. It lists the tools and runs `search_reports` and `run_report`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy `mcp-app` again.
-
-### The callout tools on the MCP door
-
-Without more setup, `list_report_types`, `query_report`, `combine_reports` with definitions and the save tools answer `CALLOUT_SESSION` on the MCP door. `salesforce/callout-app` fixes that with a per-user named credential: the org mints a token for each signed-in user itself, so no user clicks anything and no secret is stored. It holds no code, and the tracked files hold placeholders only.
-
-1. Run its setup script from the repo root. It fills the org's My Domain, the app's consumer key and the certificate the org makes into a temp copy, deploys it, and prints none of them. The same `--yes` or `SF_REPORTS_SETUP_ORGS` rule applies.
-
-   ```bash
-   npm run callout:setup -- --org <alias> --yes
-   ```
-
-2. Assign its permission set to each user of the MCP door. A user without it gets `CALLOUT_CREDENTIAL`, with a hint naming the set.
-
-   ```bash
-   sf org assign permset -n Salesforce_Reports_Callout -o <alias> --on-behalf-of <user>
-   ```
-
-`salesforce/README.md` has the steps the script runs and the removal.
-
-To remove the MCP door, run `npm run mcp:teardown -- --org <alias> --yes` (the same `--yes` or `SF_REPORTS_SETUP_ORGS` rule applies), then the `mcp-app` removal in `salesforce/README.md`. The REST door stays and keeps working.
-
-## The skills
-
-The skills live in `skills/`: `report-runner`, `report-designer` and `report-deploy`. Each has a `description` that makes Claude pick it for its own experience, and the designer and runner keep a `reference.md` with the definition grammar and how to read a result. The plugin installs all three.
-
-The runner and designer work over any door: the local MCP server, the hosted MCP server, or the in-org REST door. The REST door needs no MCP server, only the `sf` CLI signed in to the org and the package from `salesforce/` deployed there, so it suits Claude Code and any agent with a shell. Each skill's [transport.md](skills/report-runner/transport.md) says how to tell which door is there, how to call each tool through `sf api request rest`, and what the refusals `WRITE_NOT_ALLOWED` and `CALLOUT_SESSION` mean.
-
-## Architecture
-
-[docs/architecture.md](docs/architecture.md) maps the three doors, the Apex layers and the security model, with sequence diagrams for the REST door, the hosted MCP setup and runtime, and the write path. [docs/decisions/](docs/decisions/README.md) holds one page per decision behind it: why one contract, why `Reports.ReportManager` before a callout, why saves sit behind a custom permission and not a hidden tool list, why there is no delete in the org, and what each choice costs.
+The tools, the result shape, the safety rails and the limits are in [docs/reference.md](docs/reference.md).
 
 ## Develop
 
@@ -230,18 +147,18 @@ The runner and designer work over any door: the local MCP server, the hosted MCP
 npm install
 npm run build
 npm test
+npm run test:render                            # draw the report card in Chromium and compare screenshots
 npm run live -- --org <alias> --allow-delete   # end-to-end run against an org you can write to
 npm run capture -- --org <alias>               # refresh the test fixtures (anonymised)
 ```
 
-`npm run live` creates several private reports named `zz-live-check-*`, deletes them, and fails if any remain. Use a sandbox or scratch org. The design and the facts checked against a live org are in `docs/design.md`.
+`npm run live` creates several private reports named `zz-live-check-*`, deletes them, and fails if any remain. Use a sandbox or scratch org.
 
 ## Roadmap
 
-- **v0.2, the in-org doors.** A REST endpoint and a hosted MCP server inside the org, over one Apex class, so you choose how to connect: this local server, plain REST, or claude.ai through Salesforce hosted MCP with nothing to host (an admin still installs the package and enables the server). Same tool names and result shape on every door. The plan and the phase 0 findings are in `docs/design.md`.
+- Publishing to npm.
 - Dashboards: list, describe, refresh, and read component data.
 - Joined reports, report charts, and subscriptions.
-- Publishing to npm.
 
 ## License
 
