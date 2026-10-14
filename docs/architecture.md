@@ -14,7 +14,9 @@ Every door exposes the same tool names, takes the same `ReportDefinition` and re
 | In-org REST | Salesforce package `force-app` plus the skills | Claude Code and Cowork through the `sf` CLI; Postman, Flow HTTP callouts, Agentforce, any HTTP client | the Salesforce org | the caller's own Salesforce session |
 | In-org hosted MCP | Salesforce package `mcp-app`, deployed on top of `force-app`, and optionally `callout-app` for the callout tools | claude.ai, Claude Desktop, any MCP client with OAuth | Salesforce's MCP gateway, then the org | OAuth against the External Client App, scope `mcp_api` |
 
-Nothing in the local server depends on the org packages. The hosted MCP door depends on the REST door, because Salesforce builds a custom MCP server from an API Catalog registration of an Apex REST class. That dependency is the platform's, not ours, and the layering below keeps it honest. The third package, `callout-app`, is optional and holds no code: a per-user named credential that lets the hosted door call the org's own REST API as the user ([decision 0012](decisions/0012-per-user-jwt-named-credential.md)). `force-app` never depends on it.
+Nothing in the local server depends on the org packages. The hosted MCP door depends on the REST door, because Salesforce builds a custom MCP server from an API Catalog registration of an Apex REST class. That dependency is the platform's, not ours, and the layering below keeps it honest.
+
+The local door alone also carries a report view: `run_report` and `query_report` return their result as `structuredContent` too, with an MCP App resource, `ui://salesforce-reports/report`, that draws it as a report card in Claude Desktop, claude.ai and Cowork. The text result is unchanged, so Claude Code sees no difference. The in-org doors carry no view ([decision 0013](decisions/0013-report-view-as-an-mcp-app.md)). The third package, `callout-app`, is optional and holds no code: a per-user named credential that lets the hosted door call the org's own REST API as the user ([decision 0012](decisions/0012-per-user-jwt-named-credential.md)). `force-app` never depends on it.
 
 ## Layers
 

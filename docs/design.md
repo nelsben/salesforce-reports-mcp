@@ -22,7 +22,10 @@ Checked on 2026-10-11 against a Developer Edition scratch org, API v66.0.
 ```
 src/
   index.ts              CLI entry: read flags and env, build the connection, start the stdio server
-  server.ts             buildServer(api, options): registers the tools
+  server.ts             buildServer(api, options): registers the tools and the report view resource
+  widget/
+    report.html         the report view: inline CSS and script, with the ext-apps client inlined when served
+    view.ts             serves the view as one self-contained HTML document
   salesforce/
     connection.ts       resolve instance URL and token (sf CLI or env); refetch once on 401
     client.ts           request(method, path, body): JSON in and out, error mapping, API version
@@ -37,7 +40,7 @@ scripts/live-check.ts                end-to-end run against a real org
 test/                                unit and server tests, with fixtures
 ```
 
-Runtime: Node 20 or later, TypeScript in strict mode, ESM, `@modelcontextprotocol/sdk` 1.x, `zod` 3.25 or later. Tests run in vitest. The only runtime dependencies are the SDK and zod. Requests use the global `fetch`.
+Runtime: Node 20 or later, TypeScript in strict mode, ESM, `@modelcontextprotocol/sdk` 1.x, `zod` 3.25 or later. Tests run in vitest. The only runtime dependencies are the SDK, zod and `@modelcontextprotocol/ext-apps` 1.x (the report view only). Requests use the global `fetch`.
 
 ## Configuration
 
@@ -149,6 +152,14 @@ Takes 2 to 5 inputs. Each input is `{alias, reportId?, overrides?, definition?}`
 - **`mode: "join"`** joins the inputs' `groups` tables on their grouping labels as a full outer join. `joinOn` names the dimensions to match, and defaults to each input's first down grouping. Keys match on the trimmed, case-insensitive label. Each measure column is labelled `"<alias>: <measure label>"`. This answers "pipeline by owner next to closed-won by owner".
 
 The result is a `ReportResult` with `report.name` set to `combined: <aliases>`, and each input's notes kept with the alias in front.
+
+### Report view
+
+`run_report` and `query_report` carry an MCP App on the local door ([decision 0013](decisions/0013-report-view-as-an-mcp-app.md)). Their `_meta.ui.resourceUri` is `ui://salesforce-reports/report`, and they return the `ReportResult` twice: as the text content, byte for byte what they returned before, and as `structuredContent`. No `outputSchema` is declared. Every other tool returns text only.
+
+The resource is one self-contained HTML document of type `text/html;profile=mcp-app`: inline CSS, the view script, and the ext-apps browser client inlined from the installed package when the view is first served. It loads nothing from the network, so it needs no csp block. If a file is missing, the resource answers a short page that says so and the server runs on. The view draws the report name (linked to the report when it is saved), the filters as chips, the group table with a totals row, the detail rows with a line when they were cut, and the notes. It offers "Open in Salesforce" when the result has a URL, and "Save this report" for an unsaved `query_report` result, which asks Claude in the chat to save it with `create_report`. The view never calls a tool by itself.
+
+Claude Desktop, claude.ai and Cowork draw the card. Claude Code and other hosts without MCP Apps show the text result, unchanged. The in-org doors carry no ui resource: the REST door answers JSON, and the hosted door is built from an API Catalog registration that cannot carry `ui://`.
 
 ## Safety
 

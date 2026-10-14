@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salesforce report</title>
+<style>
+  :root {
+    --fallback-bg: #ffffff;
+    --fallback-bg-2: #f4f6f9;
+    --fallback-text: #181818;
+    --fallback-text-2: #5c5c5c;
+    --fallback-border: #dddbda;
+    --fallback-accent: #0b5cab;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fallback-bg: #1f1f1e;
+      --fallback-bg-2: #2b2b29;
+      --fallback-text: #ececea;
+      --fallback-text-2: #a8a8a3;
+      --fallback-border: #3d3d3a;
+      --fallback-accent: #78b0fd;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fallback-bg: #1f1f1e;
+    --fallback-bg-2: #2b2b29;
+    --fallback-text: #ececea;
+    --fallback-text-2: #a8a8a3;
+    --fallback-border: #3d3d3a;
+    --fallback-accent: #78b0fd;
+  }
+  :root {
+    --bg: var(--color-background-primary, var(--fallback-bg));
+    --bg-2: var(--color-background-secondary, var(--fallback-bg-2));
+    --text: var(--color-text-primary, var(--fallback-text));
+    --text-2: var(--color-text-secondary, var(--fallback-text-2));
+    --border: var(--color-border-primary, var(--fallback-border));
+    --accent: var(--color-text-info, var(--fallback-accent));
+    --radius: var(--border-radius-md, 8px);
+    --radius-full: var(--border-radius-full, 999px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+    font-size: var(--font-text-sm-size, 14px);
+    line-height: var(--font-text-sm-line-height, 1.45);
+  }
+  .card { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  h1 {
+    margin: 0;
+    font-size: var(--font-heading-sm-size, 17px);
+    line-height: var(--font-heading-sm-line-height, 1.3);
+    font-weight: var(--font-weight-semibold, 600);
+    overflow-wrap: anywhere;
+  }
+  h1 a { color: inherit; text-decoration: none; }
+  h1 a:hover { text-decoration: underline; }
+  .meta { color: var(--text-2); font-size: var(--font-text-xs-size, 12px); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .chips li {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+    font-size: var(--font-text-xs-size, 12px);
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  th { background: var(--bg-2); color: var(--text-2); font-weight: var(--font-weight-medium, 500); font-size: var(--font-text-xs-size, 12px); }
+  td.num, th.num { text-align: right; }
+  tbody tr:last-child td { border-bottom: none; }
+  tr.total td { font-weight: var(--font-weight-semibold, 600); background: var(--bg-2); border-top: 1px solid var(--border); }
+  .section-title { margin: 0 0 6px; font-size: var(--font-text-xs-size, 12px); color: var(--text-2); font-weight: var(--font-weight-medium, 500); text-transform: uppercase; letter-spacing: 0.04em; }
+  .cut { margin: 6px 0 0; color: var(--text-2); font-size: var(--font-text-xs-size, 12px); }
+  .notes { margin: 0; padding-left: 18px; color: var(--text-2); font-size: var(--font-text-xs-size, 12px); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    font: inherit;
+    font-size: var(--font-text-sm-size, 14px);
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .empty { color: var(--text-2); }
+</style>
+</head>
+<body>
+<main class="card" id="root"><p class="empty">Waiting for the report.</p></main>
+<script type="module">
+/*@ext-apps-bundle*/
+
+// The report view. It draws one ReportResult (structuredContent of run_report or query_report).
+// Every value from the result goes in through textContent, never innerHTML.
+const { App, applyDocumentTheme, applyHostStyleVariables, applyHostFonts } = ExtApps;
+
+const root = document.getElementById("root");
+const app = new App({ name: "salesforce-reports-view", version: "1.0.0" }, {}, { autoResize: true });
+
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (key === "text") node.textContent = value;
+    else if (key === "class") node.className = value;
+    else node.setAttribute(key, value);
+  }
+  for (const child of children || []) if (child) node.appendChild(child);
+  return node;
+}
+
+const NUMERIC = new Set(["currency", "double", "int", "percent", "number"]);
+const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+
+function cellText(value, dataType) {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "number") return numberFormat.format(value) + (dataType === "percent" ? "%" : "");
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  return String(value);
+}
+
+function cell(tag, value, dataType) {
+  const numeric = typeof value === "number" || NUMERIC.has(dataType);
+  return el(tag, { text: cellText(value, dataType), class: numeric ? "num" : "" });
+}
+
+function table(headers, rows, totalRow) {
+  const head = el("thead", {}, [el("tr", {}, headers.map((h) => el("th", { text: h.label, class: h.numeric ? "num" : "" })))]);
+  const body = el("tbody", {}, rows.map((row) => el("tr", {}, row.map((value, i) => cell("td", value, headers[i] && headers[i].dataType)))));
+  if (totalRow) body.appendChild(totalRow);
+  return el("div", { class: "scroll" }, [el("table", {}, [head, body])]);
+}
+
+function section(title, content) {
+  return el("section", {}, [el("h2", { class: "section-title", text: title }), content]);
+}
+
+// Only an https link is drawn or opened.
+function safeUrl(value) {
+  return typeof value === "string" && /^https:\/\//i.test(value) ? value : null;
+}
+
+function labelFor(name, measures) {
+  const found = (measures || []).find((m) => m.name === name);
+  if (found) return found.label;
+  return name === "RowCount" ? "Record Count" : name;
+}
+
+function render(result) {
+  root.replaceChildren();
+  if (!result || !result.report) {
+    root.appendChild(el("p", { class: "empty", text: "This result has no report to show." }));
+    return;
+  }
+  const report = result.report;
+
+  const url = safeUrl(report.url);
+  const title = el("h1", {});
+  if (url) title.appendChild(el("a", { href: url, text: report.name, target: "_blank", rel: "noopener" }));
+  else title.textContent = report.name;
+  title.addEventListener("click", (event) => {
+    if (!url) return;
+    event.preventDefault();
+    openInSalesforce(url);
+  });
+  const meta = [report.format, report.reportType, report.id ? null : "not saved"].filter(Boolean).join(" · ");
+  root.appendChild(el("div", { class: "head" }, [title, el("span", { class: "meta", text: meta })]));
+
+  if (result.filters && result.filters.length) {
+    root.appendChild(el("ul", { class: "chips", "aria-label": "Filters" }, result.filters.map((f) => el("li", { text: f }))));
+  }
+
+  const groups = result.groups;
+  const totals = result.totals;
+  if (groups && groups.rows && groups.rows.length) {
+    const headers = [
+      ...groups.dimensions.map((d) => ({ label: d.label, dataType: "string" })),
+      ...groups.measures.map((m) => ({ label: m.label, dataType: m.dataType, numeric: true })),
+    ];
+    let totalRow = null;
+    if (totals && totals.values && totals.values.length) {
+      totalRow = el("tr", { class: "total" });
+      const label = el("td", { text: "Total" });
+      if (groups.dimensions.length > 1) label.setAttribute("colspan", String(groups.dimensions.length));
+      if (groups.dimensions.length) totalRow.appendChild(label);
+      for (const m of groups.measures) {
+        const index = totals.measures.indexOf(m.name);
+        totalRow.appendChild(cell("td", index >= 0 ? totals.values[index] : null, m.dataType));
+      }
+    }
+    root.appendChild(section("Groups", table(headers, groups.rows, totalRow)));
+  } else if (totals && totals.values && totals.values.length) {
+    const headers = totals.measures.map((name) => {
+      const m = ((groups && groups.measures) || []).find((x) => x.name === name);
+      return { label: labelFor(name, groups && groups.measures), dataType: m ? m.dataType : "number", numeric: true };
+    });
+    root.appendChild(section("Totals", table(headers, [totals.values])));
+  }
+
+  const detail = result.detail;
+  if (detail && detail.rows && detail.rows.length) {
+    const headers = detail.columns.map((c) => ({ label: c.label, dataType: c.dataType, numeric: NUMERIC.has(c.dataType) }));
+    const block = section("Detail rows", table(headers, detail.rows));
+    if (detail.truncated) block.appendChild(el("p", { class: "cut", text: detail.rows.length + " rows shown, cut at the cap" }));
+    root.appendChild(block);
+  }
+
+  if (result.notes && result.notes.length) {
+    root.appendChild(el("ul", { class: "notes", "aria-label": "Notes" }, result.notes.map((n) => el("li", { text: n }))));
+  }
+
+  const actions = [];
+  if (url) {
+    const open = el("button", { type: "button", text: "Open in Salesforce" });
+    open.addEventListener("click", () => openInSalesforce(url));
+    actions.push(open);
+  }
+  if (report.id === null) {
+    const save = el("button", { type: "button", class: "primary", text: "Save this report" });
+    save.addEventListener("click", async () => {
+      save.disabled = true;
+      try {
+        await app.sendMessage({
+          role: "user",
+          content: [{ type: "text", text: "Save this report in Salesforce with create_report, using the same definition as the query_report call that produced it. Ask me for a name and folder if you need them." }],
+        });
+        save.textContent = "Asked Claude to save it";
+      } catch (error) {
+        save.disabled = false;
+      }
+    });
+    actions.push(save);
+  }
+  if (actions.length) root.appendChild(el("div", { class: "actions" }, actions));
+}
+
+async function openInSalesforce(url) {
+  try {
+    await app.openLink({ url });
+  } catch (error) {
+    // The host refused or does not support links; nothing else to do.
+  }
+}
+
+function applyContext(context) {
+  if (!context) return;
+  if (context.theme) applyDocumentTheme(context.theme);
+  if (context.styles && context.styles.variables) applyHostStyleVariables(context.styles.variables);
+  if (context.styles && context.styles.css && context.styles.css.fonts) applyHostFonts(context.styles.css.fonts);
+}
+
+// Handlers first, then connect, so the first tool result is not missed.
+app.ontoolresult = (result) => {
+  if (result.isError) {
+    root.replaceChildren(el("p", { class: "empty", text: "The report did not run. Claude has the error." }));
+    return;
+  }
+  render(result.structuredContent);
+};
+app.onhostcontextchanged = (context) => applyContext(context);
+
+await app.connect();
+applyContext(app.getHostContext());
+</script>
+</body>
+</html>

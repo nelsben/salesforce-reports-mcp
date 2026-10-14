@@ -35,6 +35,7 @@ CI runs build and test on Node 20 and 22. The live check needs a real org and ru
 | `src/reports/shape.ts` | factMap to `ReportResult` |
 | `src/reports/summarize.ts`, `combine.ts` | describe summaries, stack and join |
 | `src/server.ts` | tool registration; tool descriptions are prompts Claude reads |
+| `src/widget/` | the report view: one self-contained HTML MCP App that `run_report` and `query_report` carry on the local door |
 | `skills/` | the Claude skills |
 | `test/fixtures/` | captured, anonymised API responses and expected results |
 
@@ -46,5 +47,5 @@ CI runs build and test on Node 20 and 22. The live check needs a real org and ru
 - **No secrets anywhere.** A token never reaches stdout, stderr, logs, error messages, fixtures or commits. Newer `sf` CLI versions redact the token in `sf org display`, so the server reads it from `sf org auth show-access-token`.
 - **Fixtures are anonymised.** Account, opportunity, contact and user names become neutral ones (`Account 1`). The instance URL becomes `https://example.my.salesforce.com`. Structure, types and numbers are kept.
 - **Salesforce quirks are handled in code and noted**, for example aggregated columns must also be detail columns, and Opportunity reports carry silent default filters. Add new ones to design.md's live findings.
-- Runtime dependencies are the MCP SDK and zod only. Requests use the global `fetch`.
+- Runtime dependencies are the MCP SDK, zod and `@modelcontextprotocol/ext-apps` (the report view only). Requests use the global `fetch`.
 - Work on a branch and open a PR. `main` takes merge commits, so stacked branches stay clean.

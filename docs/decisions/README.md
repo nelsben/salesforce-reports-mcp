@@ -18,3 +18,4 @@ One page per architectural decision: the context, the decision, what it costs, a
 | [0010](0010-verification-by-parity.md) | Verification by parity between doors, against a real org | Accepted |
 | [0011](0011-name-permissions-for-the-capability.md) | Name the permissions for the capability, not the door | Accepted |
 | [0012](0012-per-user-jwt-named-credential.md) | The hosted door calls out through a per-user JWT named credential, in an optional package | Accepted |
+| [0013](0013-report-view-as-an-mcp-app.md) | The report view is an MCP App on the local door only, beside an unchanged text result | Accepted |
