@@ -23,12 +23,12 @@
     "url": "git+https://github.com/nelsben/salesforce-reports-mcp.git"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsx scripts/build-widget.ts",
     "test": "vitest run",
     "live": "tsx scripts/live-check.ts",
     "parity": "tsx scripts/parity-check.ts",
     "capture": "tsx scripts/capture-fixtures.ts",
-    "prepare": "tsc",
+    "prepare": "npm run build",
     "mcp-check": "tsx scripts/mcp-check.ts",
     "mcp:generate": "tsx salesforce/scripts/generate-metadata.ts",
     "mcp:setup": "tsx salesforce/scripts/mcp-setup.ts",
@@ -37,6 +37,7 @@
     "callout:renew": "tsx salesforce/scripts/callout-setup.ts --renew-certificate"
   },
   "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.7.5",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "zod": "^3.25.76"
   },

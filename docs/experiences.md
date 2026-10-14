@@ -39,6 +39,8 @@ The runner and designer name tools, not a transport, so the same skill text work
 5. **Never save.** If the user wants a slice kept, hand over to the designer: "Want me to save this as a report?"
 6. **Always** give the report link, and say when numbers are partial.
 
+In a host that draws MCP Apps, such as Claude Desktop, the `run_report` or `query_report` result appears as a report card above Claude's summary.
+
 ## Designer
 
 1. **Start point.**
