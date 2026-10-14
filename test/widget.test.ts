@@ -52,6 +52,16 @@ describe("report view", () => {
     }
   });
 
+  it("tells Claude not to repeat the table on run_report and query_report only", async () => {
+    const client = await connect();
+    const { tools } = await client.listTools();
+    const withHint = tools.filter((t) => (t.description ?? "").includes("do not repeat the table")).map((t) => t.name).sort();
+    expect(withHint).toEqual(["query_report", "run_report"]);
+    for (const name of withHint) {
+      expect(tools.find((t) => t.name === name)!.description).toMatch(/report card above your reply; there, answer in words and do not repeat the table\.$/);
+    }
+  });
+
   it("run_report returns structuredContent equal to its text result", async () => {
     const client = await connect();
     const result = (await client.callTool({ name: "run_report", arguments: { reportId: ID } })) as CallResult;

@@ -25,6 +25,7 @@
   "scripts": {
     "build": "tsc && tsx scripts/build-widget.ts",
     "test": "vitest run",
+    "test:render": "playwright test",
     "live": "tsx scripts/live-check.ts",
     "parity": "tsx scripts/parity-check.ts",
     "capture": "tsx scripts/capture-fixtures.ts",
@@ -34,7 +35,8 @@
     "mcp:setup": "tsx salesforce/scripts/mcp-setup.ts",
     "mcp:teardown": "tsx salesforce/scripts/mcp-teardown.ts",
     "callout:setup": "tsx salesforce/scripts/callout-setup.ts",
-    "callout:renew": "tsx salesforce/scripts/callout-setup.ts --renew-certificate"
+    "callout:renew": "tsx salesforce/scripts/callout-setup.ts --renew-certificate",
+    "demo:gif": "tsx scripts/demo-gif.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.7.5",
@@ -42,7 +44,9 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/node": "^20.19.43",
+    "esbuild": "0.28.2",
     "tsx": "^4.23.15",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
