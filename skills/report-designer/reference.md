@@ -25,7 +25,7 @@ The server fixes two Salesforce quirks and says so in `notes`: it adds an aggreg
 
 ## Reading a preview
 
-- Check `filters` in the preview result against what the user asked. Salesforce adds a default date filter and standard filters (for Opportunity, `probability: >0`, which hides Closed Lost) that the user did not set.
+- Check `filters` in the preview result against what the user asked. Salesforce adds a default date filter and standard filters (for Opportunity, `open: all` and `probability: >0`, which is Salesforce's "All" and hides nothing) that the user did not set.
 - Read `notes`. Rows cut at the cap mean the preview is partial.
 
 ## What the REST API can and cannot set

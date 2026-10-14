@@ -31,7 +31,7 @@ The runner and designer name tools, not a transport, so the same skill text work
 ## Runner
 
 1. **Find.** `search_reports` with the user's words. With several matches, show up to three, each with its folder and last run date, and ask which one. With none, say so and offer the designer.
-2. **Say what it counts before running it.** `describe_report`, then one or two plain sentences on the report: what it counts, grouped by what, over which dates, and for whom. The scope matters, for example "only your opportunities". Silent defaults are named, for example "it hides Closed Lost because of its probability filter".
+2. **Say what it counts before running it.** `describe_report`, then one or two plain sentences on the report: what it counts, grouped by what, over which dates, and for whom. The scope matters, for example "only your opportunities". Silent defaults are named, for example "it only counts deals closing this fiscal quarter, because that is the default date range".
 3. **Run and lead with the answer.**
    - `run_report`.
    - First the headline: the total and the biggest movers. Then the group table, at most about 10 rows inline, ranked. Then anything odd: an empty group, one deal carrying a stage, rows that were cut.
