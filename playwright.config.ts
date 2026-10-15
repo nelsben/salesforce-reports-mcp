@@ -1,13 +1,17 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 
 // Render tests for the report view: the real view in a test host page, drawn by Chromium.
 // Baselines are kept per platform, since fonts differ between macOS and Linux.
+// Paths are absolute, so test/render/playwright.config.ts can re-export this file (playwright test -c test/render).
+const root = (path: string) => fileURLToPath(new URL(path, import.meta.url));
+
 export default defineConfig({
-  testDir: "test/render",
+  testDir: root("test/render"),
   testMatch: "**/*.render.ts",
-  outputDir: "test-results",
+  outputDir: root("test-results"),
   snapshotPathTemplate: "{testDir}/__screenshots__/{platform}/{arg}{ext}",
-  globalSetup: "./test/render/global-setup.ts",
+  globalSetup: root("test/render/global-setup.ts"),
   forbidOnly: !!process.env.CI,
   reporter: "list",
   expect: {
