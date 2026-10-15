@@ -53,17 +53,17 @@ describe("report view", () => {
     }
   });
 
-  it("tells Claude not to repeat the table on run_report and query_report only", async () => {
+  it("tells Claude not to repeat the card's rows on run_report and query_report only", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
-    const withHint = tools.filter((t) => (t.description ?? "").includes("do not repeat the table")).map((t) => t.name).sort();
+    const withHint = tools.filter((t) => (t.description ?? "").includes("never repeat the card's rows")).map((t) => t.name).sort();
     expect(withHint).toEqual(["query_report", "run_report"]);
     for (const name of withHint) {
-      expect(tools.find((t) => t.name === name)!.description).toMatch(/report card above your reply; there, answer in words and do not repeat the table\.$/);
+      expect(tools.find((t) => t.name === name)!.description).toMatch(/report card above your reply\. There, lead with the one finding the card cannot show .*never repeat the card's rows, totals or a table\.$/);
     }
     // The hosted door draws no card, so its description drops the hint.
     const local = tools.find((t) => t.name === "run_report")!.description!;
-    expect(doorDescription("run_report", local)).not.toContain("do not repeat the table");
+    expect(doorDescription("run_report", local)).not.toContain("never repeat the card's rows");
   });
 
   it("run_report returns structuredContent equal to its text result", async () => {
