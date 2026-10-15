@@ -12,6 +12,8 @@
     --fallback-text-2: #5c5c5c;
     --fallback-border: #dddbda;
     --fallback-accent: #0b5cab;
+    --bar-mix: 22%;
+    --heat-mix: 0.45;
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
@@ -22,6 +24,8 @@
       --fallback-text-2: #a8a8a3;
       --fallback-border: #3d3d3a;
       --fallback-accent: #78b0fd;
+      --bar-mix: 34%;
+      --heat-mix: 0.55;
     }
   }
   :root[data-theme="dark"] {
@@ -31,6 +35,8 @@
     --fallback-text-2: #a8a8a3;
     --fallback-border: #3d3d3a;
     --fallback-accent: #78b0fd;
+    --bar-mix: 34%;
+    --heat-mix: 0.55;
   }
   :root {
     --bg: var(--color-background-primary, var(--fallback-bg));
@@ -97,6 +103,55 @@
   button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
   button:disabled { opacity: 0.6; cursor: default; }
   .empty { color: var(--text-2); }
+  td.blank { color: var(--text-2); }
+  tbody th { background: none; color: var(--text); font-weight: var(--font-weight-medium, 500); font-size: inherit; }
+
+  /* The KPI strip: the answer before the rows. */
+  .kpis { display: flex; flex-wrap: wrap; gap: 8px; }
+  .kpi {
+    flex: 1 1 150px;
+    min-width: 0;
+    max-width: 240px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-2);
+  }
+  .kpi-label { color: var(--text-2); font-size: var(--font-text-xs-size, 12px); overflow-wrap: anywhere; }
+  .kpi-value {
+    font-size: var(--font-heading-md-size, 22px);
+    line-height: 1.2;
+    font-weight: var(--font-weight-semibold, 600);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .kpi-sub { color: var(--text-2); font-size: var(--font-text-xs-size, 12px); overflow-wrap: anywhere; }
+
+  /* Data bars: drawn behind the first measure, from the left edge of the cell, scaled to the largest row. */
+  td.barred { position: relative; min-width: 120px; }
+  td.barred .v { position: relative; }
+  .bar { position: absolute; left: 6px; right: 6px; top: 5px; bottom: 5px; pointer-events: none; }
+  .bar i {
+    display: block;
+    height: 100%;
+    width: var(--bar, 0%);
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--accent) var(--bar-mix), transparent);
+    transform-origin: left center;
+    animation: grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  @keyframes grow { from { transform: scaleX(0); } }
+  @media (prefers-reduced-motion: reduce) {
+    .bar i { animation: none; }
+  }
+
+  /* The matrix grid: each cell shaded by its value against the largest cell. */
+  td.heat { background: color-mix(in srgb, var(--accent) calc(var(--heat, 0%) * var(--heat-mix)), transparent); }
+  .grid tr.total td, .grid td.rowtotal { background: var(--bg-2); font-weight: var(--font-weight-semibold, 600); }
+  .grid td.rowtotal { border-left: 1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -123,23 +178,75 @@ function el(tag, attrs, children) {
 }
 
 const NUMERIC = new Set(["currency", "double", "int", "percent", "number"]);
+const BLANK = "-";
+
+// Formats use the reader's locale. ReportResult carries no currency code, so currency draws as US dollars
+// (decision 0015). Whole amounts drop the cents; an amount with cents keeps two places.
 const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const moneyWhole = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const moneyCents = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const shareFormat = new Intl.NumberFormat(undefined, { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 });
+// A date has no time zone, so it is drawn in UTC to keep its day. A datetime is drawn in the reader's zone.
+const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
+const dateTimeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+function isBlank(value) {
+  return value === null || value === undefined || value === "";
+}
+
+function formatDate(value, dataType) {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (day) return dateFormat.format(new Date(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3]))));
+  if (dataType === "datetime" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const time = new Date(value);
+    if (!Number.isNaN(time.getTime())) return dateTimeFormat.format(time);
+  }
+  return value;
+}
 
 function cellText(value, dataType) {
-  if (value === null || value === undefined) return "";
-  if (typeof value === "number") return numberFormat.format(value) + (dataType === "percent" ? "%" : "");
+  if (isBlank(value)) return BLANK;
+  if (typeof value === "number") {
+    if (dataType === "currency") return (Number.isInteger(value) ? moneyWhole : moneyCents).format(value);
+    if (dataType === "percent") return numberFormat.format(value) + "%";
+    return numberFormat.format(value);
+  }
   if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (dataType === "date" || dataType === "datetime") return formatDate(String(value), dataType);
   return String(value);
 }
 
 function cell(tag, value, dataType) {
-  const numeric = typeof value === "number" || NUMERIC.has(dataType);
-  return el(tag, { text: cellText(value, dataType), class: numeric ? "num" : "" });
+  const classes = [];
+  if (typeof value === "number" || NUMERIC.has(dataType)) classes.push("num");
+  if (isBlank(value)) classes.push("blank");
+  return el(tag, { text: cellText(value, dataType), class: classes.join(" ") });
 }
 
-function table(headers, rows, totalRow) {
+// A ratio as a CSS percent, to three places, for a bar width or a heat level.
+function percent(ratio) {
+  const clamped = Math.max(0, Math.min(1, ratio));
+  return String(Math.round(clamped * 100000) / 1000) + "%";
+}
+
+// Put a data bar behind a number cell. The bar is decoration; the number stays the cell's text.
+function addBar(td, ratio) {
+  const text = td.textContent;
+  const fill = el("i");
+  fill.style.setProperty("--bar", percent(ratio));
+  td.classList.add("barred");
+  td.replaceChildren(el("span", { class: "bar", "aria-hidden": "true" }, [fill]), el("span", { class: "v", text }));
+}
+
+// options.bar = { column, max } draws a bar in that column of each body row.
+function table(headers, rows, totalRow, options) {
+  const bar = options && options.bar;
   const head = el("thead", {}, [el("tr", {}, headers.map((h) => el("th", { text: h.label, class: h.numeric ? "num" : "" })))]);
-  const body = el("tbody", {}, rows.map((row) => el("tr", {}, row.map((value, i) => cell("td", value, headers[i] && headers[i].dataType)))));
+  const body = el("tbody", {}, rows.map((row) => el("tr", {}, row.map((value, i) => {
+    const td = cell("td", value, headers[i] && headers[i].dataType);
+    if (bar && i === bar.column && typeof value === "number") addBar(td, value / bar.max);
+    return td;
+  }))));
   if (totalRow) body.appendChild(totalRow);
   return el("div", { class: "scroll" }, [el("table", {}, [head, body])]);
 }
@@ -157,6 +264,152 @@ function labelFor(name, measures) {
   const found = (measures || []).find((m) => m.name === name);
   if (found) return found.label;
   return name === "RowCount" ? "Record Count" : name;
+}
+
+// The measures with a data type. Without groups, a summary measure such as s!AMOUNT takes the type of
+// its detail column (AMOUNT); RowCount is a whole number.
+function measureList(result) {
+  const groups = result.groups;
+  if (groups && groups.measures && groups.measures.length) return groups.measures;
+  const columns = (result.detail && result.detail.columns) || [];
+  return ((result.totals && result.totals.measures) || []).map((name) => {
+    const column = columns.find((c) => c.name === name.slice(name.indexOf("!") + 1));
+    const dataType = name === "RowCount" ? "int" : column && NUMERIC.has(column.dataType) ? column.dataType : "number";
+    return { name, label: labelFor(name), dataType };
+  });
+}
+
+// The measure the strip, the bars and the grid follow: the first one that is not the record count.
+function primaryMeasure(measures) {
+  return measures.find((m) => m.name !== "RowCount") || measures[0] || null;
+}
+
+// A sum or a count adds up across groups; an average, a minimum or a maximum does not.
+function additive(measure) {
+  return measure.name === "RowCount" || measure.name.startsWith("s!");
+}
+
+function totalOf(result, name) {
+  const totals = result.totals;
+  if (!totals || !totals.measures) return null;
+  const index = totals.measures.indexOf(name);
+  const value = index >= 0 ? totals.values[index] : null;
+  return typeof value === "number" ? value : null;
+}
+
+function kpi(label, value, sub, title) {
+  const node = el("div", { class: "kpi" }, [
+    el("span", { class: "kpi-label", text: label }),
+    el("span", { class: "kpi-value", text: value }),
+    sub ? el("span", { class: "kpi-sub", text: sub }) : null,
+  ]);
+  if (title) node.setAttribute("title", title);
+  return node;
+}
+
+// The grand total of the primary measure, the record count, and the largest top-level group's share.
+function kpiStrip(result, measures) {
+  const items = [];
+  const primary = primaryMeasure(measures);
+  if (primary && primary.name !== "RowCount") {
+    const total = totalOf(result, primary.name);
+    if (total !== null) items.push(kpi(primary.label, cellText(total, primary.dataType)));
+  }
+  const count = totalOf(result, "RowCount");
+  const countMeasure = measures.find((m) => m.name === "RowCount");
+  if (count !== null) items.push(kpi(countMeasure ? countMeasure.label : labelFor("RowCount"), cellText(count, "int")));
+
+  const groups = result.groups;
+  const shareMeasure = primary && additive(primary) ? primary : countMeasure;
+  if (groups && groups.rows && groups.rows.length && groups.dimensions.length && shareMeasure) {
+    const column = groups.dimensions.length + groups.measures.indexOf(shareMeasure);
+    const sums = new Map();
+    for (const row of groups.rows) {
+      const value = row[column];
+      if (typeof value !== "number") continue;
+      const key = cellText(row[0], "string");
+      sums.set(key, (sums.get(key) || 0) + value);
+    }
+    let grand = totalOf(result, shareMeasure.name);
+    if (grand === null) grand = [...sums.values()].reduce((a, b) => a + b, 0);
+    let top = null;
+    for (const [key, value] of sums) if (!top || value > top.value) top = { key, value };
+    if (sums.size > 1 && top && top.value > 0 && grand > 0) {
+      const share = shareFormat.format(top.value / grand);
+      items.push(kpi("Largest " + groups.dimensions[0].label, share, top.key, top.key + " holds " + share + " of " + shareMeasure.label));
+    }
+  }
+  return items.length ? el("section", { class: "kpis", "aria-label": "Key figures" }, items) : null;
+}
+
+// Keep the across labels in report order, even when a row lacks some of them.
+function mergeOrder(order, sequence) {
+  sequence.forEach((key, i) => {
+    if (order.includes(key)) return;
+    const next = sequence.slice(i + 1).find((k) => order.includes(k));
+    if (next !== undefined) order.splice(order.indexOf(next), 0, key);
+    else if (i > 0) order.splice(order.indexOf(sequence[i - 1]) + 1, 0, key);
+    else order.push(key);
+  });
+}
+
+// A matrix as a real grid: down labels as rows, across labels as columns, the primary measure in the cells,
+// each cell shaded against the largest one, with row and column totals.
+function matrixGrid(result, measure) {
+  const groups = result.groups;
+  const dims = groups.dimensions;
+  const down = dims.map((d, i) => (d.axis === "down" ? i : -1)).filter((i) => i >= 0);
+  const across = dims.map((d, i) => (d.axis === "across" ? i : -1)).filter((i) => i >= 0);
+  if (!down.length || !across.length || !measure) return null;
+  const column = dims.length + groups.measures.indexOf(measure);
+  const label = (row, indexes) => indexes.map((i) => cellText(row[i], "string")).join(" / ");
+
+  const rowKeys = [];
+  const colKeys = [];
+  const seqs = new Map();
+  const values = new Map();
+  for (const row of groups.rows) {
+    const r = label(row, down);
+    const c = label(row, across);
+    if (!rowKeys.includes(r)) rowKeys.push(r);
+    if (!seqs.has(r)) seqs.set(r, []);
+    seqs.get(r).push(c);
+    values.set(r + "\u0000" + c, row[column]);
+  }
+  for (const r of rowKeys) mergeOrder(colKeys, seqs.get(r));
+
+  let max = 0;
+  for (const value of values.values()) if (typeof value === "number" && value > max) max = value;
+  const sums = additive(measure);
+  const sum = (list) => (sums && list.some((v) => typeof v === "number") ? list.reduce((a, v) => a + (typeof v === "number" ? v : 0), 0) : null);
+
+  const valueCell = (value) => {
+    const td = cell("td", value, measure.dataType);
+    if (typeof value === "number" && max > 0) {
+      td.classList.add("heat");
+      td.style.setProperty("--heat", percent(value / max));
+    }
+    return td;
+  };
+  const head = el("thead", {}, [el("tr", {}, [
+    el("th", { text: down.map((i) => dims[i].label).join(" / ") }),
+    ...colKeys.map((c) => el("th", { text: c, class: "num" })),
+    el("th", { text: "Total", class: "num" }),
+  ])]);
+  const body = el("tbody", {}, rowKeys.map((r) => {
+    const cells = colKeys.map((c) => values.get(r + "\u0000" + c));
+    const total = cell("td", sum(cells), measure.dataType);
+    total.classList.add("rowtotal");
+    return el("tr", {}, [el("th", { text: r, scope: "row" }), ...cells.map(valueCell), total]);
+  }));
+  const grand = totalOf(result, measure.name);
+  const columnTotals = colKeys.map((c) => sum(rowKeys.map((r) => values.get(r + "\u0000" + c))));
+  const corner = cell("td", grand !== null ? grand : sum(columnTotals), measure.dataType);
+  corner.classList.add("rowtotal");
+  body.appendChild(el("tr", { class: "total" }, [el("td", { text: "Total" }), ...columnTotals.map((v) => cell("td", v, measure.dataType)), corner]));
+
+  const title = measure.label + " by " + down.map((i) => dims[i].label).join(" / ") + " and " + across.map((i) => dims[i].label).join(" / ");
+  return section(title, el("div", { class: "scroll grid" }, [el("table", {}, [head, body])]));
 }
 
 function render(result) {
@@ -178,6 +431,11 @@ function render(result) {
   });
   const meta = [report.format, report.reportType, report.id ? null : "not saved"].filter(Boolean).join(" · ");
   root.appendChild(el("div", { class: "head" }, [title, el("span", { class: "meta", text: meta })]));
+
+  const measures = measureList(result);
+  const primary = primaryMeasure(measures);
+  const strip = kpiStrip(result, measures);
+  if (strip) root.appendChild(strip);
 
   if (result.filters && result.filters.length) {
     root.appendChild(el("ul", { class: "chips", "aria-label": "Filters" }, result.filters.map((f) => el("li", { text: f }))));
@@ -201,11 +459,20 @@ function render(result) {
         totalRow.appendChild(cell("td", index >= 0 ? totals.values[index] : null, m.dataType));
       }
     }
-    root.appendChild(section("Groups", table(headers, groups.rows, totalRow)));
+    // A matrix leads with its grid; the group table below keeps every measure. Otherwise the rows carry bars.
+    const grid = matrixGrid(result, primary);
+    if (grid) root.appendChild(grid);
+    let options;
+    if (!grid && primary) {
+      const column = groups.dimensions.length + groups.measures.indexOf(primary);
+      const max = Math.max(0, ...groups.rows.map((row) => (typeof row[column] === "number" ? row[column] : 0)));
+      if (max > 0) options = { bar: { column, max } };
+    }
+    root.appendChild(section("Groups", table(headers, groups.rows, totalRow, options)));
   } else if (totals && totals.values && totals.values.length) {
     const headers = totals.measures.map((name) => {
-      const m = ((groups && groups.measures) || []).find((x) => x.name === name);
-      return { label: labelFor(name, groups && groups.measures), dataType: m ? m.dataType : "number", numeric: true };
+      const m = measures.find((x) => x.name === name);
+      return { label: m ? m.label : labelFor(name), dataType: m ? m.dataType : "number", numeric: true };
     });
     root.appendChild(section("Totals", table(headers, [totals.values])));
   }
