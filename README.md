@@ -156,7 +156,6 @@ npm run capture -- --org <alias>               # refresh the test fixtures (anon
 
 ## Roadmap
 
-- Publishing to npm.
 - Dashboards: list, describe, refresh, and read component data.
 - Joined reports, report charts, and subscriptions.
 

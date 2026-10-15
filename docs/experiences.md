@@ -89,7 +89,7 @@ This one is for Claude Code with the Salesforce CLI. It runs only on an admin's 
    2. Can `sf project retrieve start` read a report that sits in Private Reports?
    3. Does a REST create accept a new bucket field and a cross filter?
 4. **Plugin.** Package the repo as a Claude Code plugin:
-   - `.claude-plugin/plugin.json`, the three skills, and the MCP server through `npx -y github:nelsben/salesforce-reports-mcp`. It uses `SF_ORG` or the CLI's default org.
+   - `.claude-plugin/plugin.json`, the three skills, and the MCP server through `npx -y salesforce-reports-mcp`. It uses `SF_ORG` or the CLI's default org.
    - A `.claude-plugin/marketplace.json`, so that `claude plugin marketplace add nelsben/salesforce-reports-mcp` and `claude plugin install` work.
    - `claude plugin validate .` must pass.
 5. **Rehearsals.** Run each skill once, headless, through the plugin, against dev-frontend-2. Save each transcript summary in `docs/rehearsals/`.
