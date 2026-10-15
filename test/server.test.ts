@@ -3,7 +3,8 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import { ReportsApi } from "../src/reports/api.js";
 import { SalesforceError, type SalesforceApi } from "../src/salesforce/client.js";
-import { buildServer, type ServerOptions } from "../src/server.js";
+import { doorTools } from "../salesforce/scripts/door-tools.js";
+import { buildServer, VIEW_HINT, type ServerOptions } from "../src/server.js";
 import { fixture } from "./helpers.js";
 
 type Handler = (method: string, path: string, body: unknown) => unknown;
@@ -486,5 +487,29 @@ describe("combine_reports errors", () => {
     });
     expect(isError).toBe(true);
     expect(body.error.message).toMatch(/every input must return grouped rows/);
+  });
+});
+
+describe("view hint", () => {
+  it("tells Claude on run_report and query_report to lead with the insight the card cannot show and never repeat its rows", async () => {
+    const { client } = await connect(routes);
+    const { tools } = await client.listTools();
+    const withHint = tools.filter((t) => (t.description ?? "").endsWith(VIEW_HINT)).map((t) => t.name).sort();
+    expect(withHint).toEqual(["query_report", "run_report"]);
+    expect(VIEW_HINT).toMatch(/Claude Desktop/);
+    expect(VIEW_HINT).toMatch(/report card above your reply/);
+    expect(VIEW_HINT).toMatch(/lead with the one finding the card cannot show/);
+    expect(VIEW_HINT).toMatch(/concentration, change, risk, the next question/);
+    expect(VIEW_HINT).toMatch(/keep the reply short/);
+    expect(VIEW_HINT).toMatch(/never repeat the card's rows, totals or a table/);
+  });
+
+  it("the hosted door's descriptions carry none of the view hint", async () => {
+    const tools = await doorTools();
+    expect(tools.map((t) => t.name)).toContain("run_report");
+    for (const tool of tools) {
+      expect(tool.description, tool.name).not.toContain(VIEW_HINT.trim());
+      expect(tool.description, tool.name).not.toMatch(/report card|Claude Desktop|MCP Apps|cannot show|repeat the/);
+    }
   });
 });

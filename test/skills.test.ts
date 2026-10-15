@@ -90,3 +90,17 @@ describe("skills transport", () => {
     });
   }
 });
+
+describe("report-runner presenting results", () => {
+  const skill = read("skills/report-runner/SKILL.md");
+
+  it("leads with the insight the card cannot show and never repeats its rows where a card is drawn", () => {
+    expect(skill).toMatch(/report card above your reply/);
+    expect(skill).toMatch(/lead with the one finding the card cannot show/);
+    expect(skill).toMatch(/never repeat the card's rows, totals or a table/);
+  });
+
+  it("keeps the headline and group table for a host without a card", () => {
+    expect(skill).toMatch(/Without a card, give the headline and the group table/);
+  });
+});

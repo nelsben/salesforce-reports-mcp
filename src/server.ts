@@ -14,7 +14,7 @@ import { REPORT_VIEW_URI, reportViewHtml } from "./widget/view.js";
  * the report view. The hosted door draws no card, so doorDescription (salesforce/scripts/door-tools.ts) strips it.
  */
 export const VIEW_HINT =
-  " Hosts that draw MCP Apps, such as Claude Desktop, show this result as a report card above your reply; there, answer in words and do not repeat the table.";
+  " Hosts that draw MCP Apps, such as Claude Desktop, show this result as a report card above your reply. There, lead with the one finding the card cannot show (concentration, change, risk, the next question), keep the reply short, and never repeat the card's rows, totals or a table.";
 
 export interface ServerOptions {
   readOnly: boolean;
