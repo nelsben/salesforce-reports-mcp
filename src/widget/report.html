@@ -12,8 +12,10 @@
     --fallback-text-2: #5c5c5c;
     --fallback-border: #dddbda;
     --fallback-accent: #0b5cab;
-    --bar-mix: 22%;
-    --heat-mix: 0.45;
+    --bar-mix: 62%;
+    --track-mix: 10%;
+    --heat-cool: 72%;
+    --heat-hot: 85%;
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
@@ -24,8 +26,10 @@
       --fallback-text-2: #a8a8a3;
       --fallback-border: #3d3d3a;
       --fallback-accent: #78b0fd;
-      --bar-mix: 34%;
-      --heat-mix: 0.55;
+      --bar-mix: 72%;
+      --track-mix: 14%;
+      --heat-cool: 50%;
+      --heat-hot: 75%;
     }
   }
   :root[data-theme="dark"] {
@@ -35,8 +39,10 @@
     --fallback-text-2: #a8a8a3;
     --fallback-border: #3d3d3a;
     --fallback-accent: #78b0fd;
-    --bar-mix: 34%;
-    --heat-mix: 0.55;
+    --bar-mix: 72%;
+    --track-mix: 14%;
+    --heat-cool: 50%;
+    --heat-hot: 75%;
   }
   :root {
     --bg: var(--color-background-primary, var(--fallback-bg));
@@ -130,10 +136,17 @@
   }
   .kpi-sub { color: var(--text-2); font-size: var(--font-text-xs-size, 12px); overflow-wrap: anywhere; }
 
-  /* Data bars: drawn behind the first measure, from the left edge of the cell, scaled to the largest row. */
-  td.barred { position: relative; min-width: 120px; }
-  td.barred .v { position: relative; }
-  .bar { position: absolute; left: 6px; right: 6px; top: 5px; bottom: 5px; pointer-events: none; }
+  /* Data bars: a track and the number side by side, so a bar never sits under text.
+     The number keeps one width per column, so every track has the same length and bars compare across rows. */
+  .barcell { display: flex; align-items: center; gap: 10px; }
+  .bar {
+    flex: 1 1 auto;
+    min-width: 64px;
+    height: 10px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--accent) var(--track-mix), transparent);
+    overflow: hidden;
+  }
   .bar i {
     display: block;
     height: 100%;
@@ -143,15 +156,26 @@
     transform-origin: left center;
     animation: grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
+  .barcell .v { flex: none; text-align: right; }
   @keyframes grow { from { transform: scaleX(0); } }
   @media (prefers-reduced-motion: reduce) {
     .bar i { animation: none; }
   }
 
-  /* The matrix grid: each cell shaded by its value against the largest cell. */
-  td.heat { background: color-mix(in srgb, var(--accent) calc(var(--heat, 0%) * var(--heat-mix)), transparent); }
+  /* The matrix grid: each cell shaded by its value against the largest cell (--heat, 0% to 100%).
+     Cool cells (below 60%) shade up to --heat-cool under the normal text. Hot cells jump to --heat-hot and
+     above, with the text in the background colour, so the top cells read at a glance and both stay AA.
+     --t is the cell's place within its band, from 0 to 1. */
+  td.heat { background: color-mix(in srgb, var(--accent) calc(var(--t, 0) * var(--heat-cool)), transparent); }
+  td.heat.hot {
+    background: color-mix(in srgb, var(--accent) calc(var(--heat-hot) + var(--t, 0) * (100% - var(--heat-hot))), transparent);
+    color: var(--bg);
+    font-weight: var(--font-weight-semibold, 600);
+  }
   .grid tr.total td, .grid td.rowtotal { background: var(--bg-2); font-weight: var(--font-weight-semibold, 600); }
   .grid td.rowtotal { border-left: 1px solid var(--border); }
+  .all-groups summary { cursor: pointer; margin: 0; }
+  .all-groups details[open] summary { margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -229,22 +253,26 @@ function percent(ratio) {
   return String(Math.round(clamped * 100000) / 1000) + "%";
 }
 
-// Put a data bar behind a number cell. The bar is decoration; the number stays the cell's text.
-function addBar(td, ratio) {
+// Put a data bar beside a number cell: a track on the left, the number on the right in a width that is the
+// same for the whole column (chars, the longest value in it). The bar is decoration; the number stays the text.
+function addBar(td, ratio, chars) {
   const text = td.textContent;
   const fill = el("i");
   fill.style.setProperty("--bar", percent(ratio));
+  const value = el("span", { class: "v", text });
+  value.style.setProperty("min-width", chars + "ch");
   td.classList.add("barred");
-  td.replaceChildren(el("span", { class: "bar", "aria-hidden": "true" }, [fill]), el("span", { class: "v", text }));
+  td.replaceChildren(el("div", { class: "barcell" }, [el("span", { class: "bar", "aria-hidden": "true" }, [fill]), value]));
 }
 
 // options.bar = { column, max } draws a bar in that column of each body row.
 function table(headers, rows, totalRow, options) {
   const bar = options && options.bar;
+  const chars = bar ? Math.max(...rows.map((row) => cellText(row[bar.column], headers[bar.column] && headers[bar.column].dataType).length)) : 0;
   const head = el("thead", {}, [el("tr", {}, headers.map((h) => el("th", { text: h.label, class: h.numeric ? "num" : "" })))]);
   const body = el("tbody", {}, rows.map((row) => el("tr", {}, row.map((value, i) => {
     const td = cell("td", value, headers[i] && headers[i].dataType);
-    if (bar && i === bar.column && typeof value === "number") addBar(td, value / bar.max);
+    if (bar && i === bar.column && typeof value === "number") addBar(td, value / bar.max, chars);
     return td;
   }))));
   if (totalRow) body.appendChild(totalRow);
@@ -353,6 +381,9 @@ function mergeOrder(order, sequence) {
   });
 }
 
+// A grid cell at or above this share of the largest cell is hot: deeper shade, text in the background colour.
+const HOT = 0.6;
+
 // A matrix as a real grid: down labels as rows, across labels as columns, the primary measure in the cells,
 // each cell shaded against the largest one, with row and column totals.
 function matrixGrid(result, measure) {
@@ -386,8 +417,12 @@ function matrixGrid(result, measure) {
   const valueCell = (value) => {
     const td = cell("td", value, measure.dataType);
     if (typeof value === "number" && max > 0) {
+      const ratio = Math.max(0, value / max);
+      const hot = ratio >= HOT;
       td.classList.add("heat");
-      td.style.setProperty("--heat", percent(value / max));
+      if (hot) td.classList.add("hot");
+      td.style.setProperty("--heat", percent(ratio));
+      td.style.setProperty("--t", String(Math.round((hot ? (ratio - HOT) / (1 - HOT) : ratio / HOT) * 1000) / 1000));
     }
     return td;
   };
@@ -468,7 +503,14 @@ function render(result) {
       const max = Math.max(0, ...groups.rows.map((row) => (typeof row[column] === "number" ? row[column] : 0)));
       if (max > 0) options = { bar: { column, max } };
     }
-    root.appendChild(section("Groups", table(headers, groups.rows, totalRow, options)));
+    const groupTable = table(headers, groups.rows, totalRow, options);
+    if (grid) {
+      // The grid is the card; the full group table, every measure, is one click away.
+      const summary = el("summary", { class: "section-title", text: "All groups (" + groups.rows.length + ")" });
+      root.appendChild(el("section", { class: "all-groups" }, [el("details", {}, [summary, groupTable])]));
+    } else {
+      root.appendChild(section("Groups", groupTable));
+    }
   } else if (totals && totals.values && totals.values.length) {
     const headers = totals.measures.map((name) => {
       const m = measures.find((x) => x.name === name);

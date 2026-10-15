@@ -45,10 +45,62 @@ async function expectSummaryDom(frame: Frame) {
   expect(await headers(frame, "Detail rows")).toEqual(["Stage", "Close Date", "Opportunity Name", "Amount"]);
   await expect(detail.locator("tbody tr")).toHaveCount(8);
   await expect(detail.locator(".cut")).toHaveCount(0);
+  await expectBarsBesideNumbers(frame);
   // A null amount draws as a muted dash, the same as every other blank.
   await expect(detail.locator("tbody tr").first().locator("td")).toHaveText(["Prospecting", "December 2026", "Opportunity 8", "-"]);
   await expect(detail.locator("tbody tr").first().locator("td.blank")).toHaveCount(1);
   await expect(frame.locator(".notes")).toHaveCount(0);
+}
+
+// Each bar sits beside its number, never under it, and every track in the column has the same length.
+async function expectBarsBesideNumbers(frame: Frame) {
+  const boxes = await section(frame, "Groups").locator("td.barred").evaluateAll((cells) =>
+    cells.map((cell) => {
+      const bar = cell.querySelector(".bar")!.getBoundingClientRect();
+      const value = cell.querySelector(".v")!.getBoundingClientRect();
+      return { barRight: bar.right, valueLeft: value.left, track: Math.round(bar.width) };
+    }),
+  );
+  expect(boxes.length).toBeGreaterThan(0);
+  for (const box of boxes) expect(box.barRight).toBeLessThanOrEqual(box.valueLeft);
+  expect(new Set(boxes.map((b) => b.track)).size).toBe(1);
+}
+
+// The WCAG contrast of each heat cell's text against its shade, laid over the page background.
+async function heatContrast(frame: Frame) {
+  return frame.locator("td.heat").evaluateAll((cells) => {
+    const parse = (color: string) => {
+      const n = (color.match(/-?\d*\.?\d+(e-?\d+)?/g) ?? []).map(Number);
+      const scale = color.startsWith("color(") ? 255 : 1;
+      return [n[0]! * scale, n[1]! * scale, n[2]! * scale, n[3] ?? 1];
+    };
+    const luminance = (rgb: number[]) => {
+      const f = (v: number) => {
+        const c = v / 255;
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+      };
+      return 0.2126 * f(rgb[0]!) + 0.7152 * f(rgb[1]!) + 0.0722 * f(rgb[2]!);
+    };
+    const page = parse(getComputedStyle(document.body).backgroundColor);
+    return cells.map((cell) => {
+      const bg = parse(getComputedStyle(cell).backgroundColor);
+      const alpha = bg[3]!;
+      const shade = [0, 1, 2].map((i) => bg[i]! * alpha + page[i]! * (1 - alpha));
+      const [hi, lo] = [luminance(shade), luminance(parse(getComputedStyle(cell).color))].sort((a, b) => b - a);
+      return { text: cell.textContent, hot: cell.classList.contains("hot"), alpha, ratio: (hi! + 0.05) / (lo! + 0.05) };
+    });
+  });
+}
+
+async function expectHeatReadable(frame: Frame) {
+  const cells = await heatContrast(frame);
+  expect(cells).toHaveLength(11);
+  for (const cell of cells) expect(cell.ratio, `contrast of ${cell.text}`).toBeGreaterThanOrEqual(4.5);
+  // The largest cell is hot and clearly saturated.
+  const top = cells.find((c) => c.text === "$900,000")!;
+  expect(top.hot).toBe(true);
+  expect(top.alpha).toBeGreaterThanOrEqual(0.99);
+  expect(cells.filter((c) => c.hot).map((c) => c.text)).toEqual(["$640,000", "$900,000"]);
 }
 
 async function screenshot(page: Page, name: string) {
@@ -84,10 +136,14 @@ test("matrix", async ({ page }) => {
   await expect(frame.locator("h1")).toHaveText("Unsaved report");
   await expect(frame.locator(".meta")).toHaveText("MATRIX · Opportunity · not saved");
   await expect(frame.locator(".chips li")).toHaveText(FILTERS);
-  expect(await headers(frame, "Groups")).toEqual(["Stage", "Close Date", "Sum of Amount", "Record Count"]);
-  const groups = section(frame, "Groups");
-  await expect(groups.locator("tbody tr:not(.total)")).toHaveCount(6);
-  await expect(groups.locator("tr.total td")).toHaveText(["Total", "$3,091,000", "8"]);
+  // Under the grid, the full group table waits in a closed details.
+  await expect(section(frame, "Groups")).toHaveCount(0);
+  const all = frame.locator("section.all-groups details");
+  await expect(all.locator("summary")).toHaveText("All groups (6)");
+  expect(await all.evaluate((d) => (d as HTMLDetailsElement).open)).toBe(false);
+  expect(await all.locator("thead th").allTextContents()).toEqual(["Stage", "Close Date", "Sum of Amount", "Record Count"]);
+  await expect(all.locator("tbody tr:not(.total)")).toHaveCount(6);
+  await expect(all.locator("tr.total td")).toHaveText(["Total", "$3,091,000", "8"]);
   // One column across, so the grid is one column wide, with its totals.
   const grid = section(frame, "Sum of Amount by Stage and Close Date");
   expect(await grid.locator("thead th").allTextContents()).toEqual(["Stage", "Q4 CY2026", "Total"]);
@@ -223,15 +279,22 @@ test("matrix heat grid", async ({ page }) => {
   await expect(rows.nth(0).locator("td.blank")).toHaveCount(1);
   await expect(rows.nth(0).locator("td.blank.heat")).toHaveCount(0);
 
-  // The full group table stays below the grid, with every measure.
-  await expect(section(frame, "Groups").locator("tbody tr:not(.total)")).toHaveCount(11);
+  await expectHeatReadable(frame);
+
+  // The full group table, every measure, is closed below the grid and opens on a click.
+  const all = frame.locator("section.all-groups details");
+  await expect(all.locator("summary")).toHaveText("All groups (11)");
+  await expect(all.locator("table")).toBeHidden();
+  await expect(all.locator("tbody tr:not(.total)")).toHaveCount(11);
   expect(await frame.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await screenshot(page, "matrix-heat.png");
+  await all.locator("summary").click();
+  await expect(all.locator("table")).toBeVisible();
 });
 
 test("matrix heat grid, dark", async ({ page }) => {
   const frame = await drawReport(page, html, { result: MATRIX_GRID, theme: "dark" });
   await expect(frame.locator("html")).toHaveAttribute("data-theme", "dark");
-  await expect(section(frame, "Sum of Amount by Stage and Close Date").locator("td.heat")).toHaveCount(11);
+  await expectHeatReadable(frame);
   await screenshot(page, "matrix-heat-dark.png");
 });
