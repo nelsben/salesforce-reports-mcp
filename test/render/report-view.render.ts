@@ -1,5 +1,5 @@
 import { expect, test, type Frame, type Page } from "@playwright/test";
-import { drawReport, fixture, openHost, viewHtml, type ReportResult } from "./host-page.js";
+import { drawReport, fixture, openHost, viewFrame, viewHtml, type ReportResult } from "./host-page.js";
 
 // The report view drawn by Chromium through a test host that speaks the real AppBridge protocol.
 // Each case checks the DOM first, then the pixels.
@@ -126,8 +126,8 @@ test("summary, 360 px wide", async ({ page }) => {
   const frame = await drawReport(page, html, { result: fixture("expected-summary"), input: SUMMARY_INPUT, width: 360 });
   await expectSummaryDom(frame);
   expect(await page.locator("#frame-box iframe").evaluate((el) => el.getBoundingClientRect().width)).toBe(360);
-  // Wide tables scroll inside their own box; the card itself never scrolls sideways.
-  expect(await frame.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  // The tables fold at phone width, so neither they nor the card scroll sideways.
+  await expectNoSidewaysScroll(frame);
   await screenshot(page, "summary-narrow.png");
 });
 
@@ -297,4 +297,159 @@ test("matrix heat grid, dark", async ({ page }) => {
   await expect(frame.locator("html")).toHaveAttribute("data-theme", "dark");
   await expectHeatReadable(frame);
   await screenshot(page, "matrix-heat-dark.png");
+});
+
+// Every table and its scroll box fits its own width: nothing scrolls sideways inside the card.
+async function expectNoSidewaysScroll(frame: Frame) {
+  const boxes = await frame.locator("table, .scroll").evaluateAll((nodes) =>
+    nodes.map((n) => ({ what: n.tagName + "." + n.className, scroll: n.scrollWidth, client: n.clientWidth })),
+  );
+  expect(boxes.length).toBeGreaterThan(0);
+  for (const box of boxes) expect(box.scroll, `${box.what} scrolls sideways`).toBeLessThanOrEqual(box.client);
+  expect(await frame.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+}
+
+// The top-level groups of the summary fixture, summed over their leaf rows, in report order.
+const STAGE_SUMS: [string, number][] = [
+  ["Prospecting", 0],
+  ["Needs Analysis", 360000],
+  ["Value Proposition", 420000],
+  ["Id. Decision Makers", 480000],
+  ["Proposal/Price Quote", 640000],
+  ["Negotiation/Review", 1191000],
+];
+
+function money(value: number) {
+  return "$" + value.toLocaleString("en-US");
+}
+
+function chartSection(frame: Frame) {
+  return section(frame, "Sum of Amount by Stage");
+}
+
+async function columnHeights(frame: Frame) {
+  return chartSection(frame).locator("svg.chart rect.col").evaluateAll((nodes) => nodes.map((n) => Number(n.getAttribute("height"))));
+}
+
+async function expectSummaryChart(frame: Frame) {
+  const chart = chartSection(frame);
+  const svg = chart.locator("svg.chart");
+  await expect(svg).toHaveCount(1);
+  await expect(svg).toHaveAttribute("role", "img");
+  await expect(svg.locator(":scope > title")).toHaveText("Sum of Amount by Stage");
+  await expect(svg.locator("desc")).toHaveText(
+    "Column chart of Sum of Amount for each Stage. " + STAGE_SUMS.map(([k, v]) => `${k}: ${money(v)}.`).join(" "),
+  );
+  // One column per top-level group, scaled to the largest, in report order.
+  const heights = await columnHeights(frame);
+  expect(heights).toHaveLength(STAGE_SUMS.length);
+  const tallest = Math.max(...heights);
+  expect(tallest).toBeGreaterThan(0);
+  heights.forEach((h, i) => expect(h / tallest).toBeCloseTo(STAGE_SUMS[i]![1] / 1191000, 2));
+  // Each column names its group in a title, and the label under it is in the card font.
+  expect(await svg.locator("rect.col title").allTextContents()).toEqual(STAGE_SUMS.map(([k, v]) => `${k}: ${money(v)}`));
+  await expect(svg.locator("text.label")).toHaveCount(STAGE_SUMS.length);
+  const fonts = await svg.locator("text.label").first().evaluate((n) => [getComputedStyle(n).fontFamily, getComputedStyle(document.body).fontFamily]);
+  expect(fonts[0]).toBe(fonts[1]);
+  // The chart sits above the groups.
+  const chartBox = (await chart.boundingBox())!;
+  const groupsBox = (await section(frame, "Groups").boundingBox())!;
+  expect(chartBox.y + chartBox.height).toBeLessThanOrEqual(groupsBox.y);
+}
+
+test("summary column chart, light", async ({ page }) => {
+  const frame = await drawReport(page, html, { result: fixture("expected-summary"), input: SUMMARY_INPUT });
+  await expectSummaryChart(frame);
+  // The columns grow in, unless the reader asked for less motion.
+  const col = chartSection(frame).locator("rect.col").last();
+  expect(await col.evaluate((n) => getComputedStyle(n).animationName)).toBe("rise");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(await col.evaluate((n) => getComputedStyle(n).animationName)).toBe("none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(chartSection(frame)).toHaveScreenshot("summary-chart.png");
+});
+
+test("summary column chart, dark", async ({ page }) => {
+  const frame = await drawReport(page, html, { result: fixture("expected-summary"), input: SUMMARY_INPUT, theme: "dark" });
+  await expect(frame.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expectSummaryChart(frame);
+  await expect(chartSection(frame)).toHaveScreenshot("summary-chart-dark.png");
+});
+
+// A summary with fifteen accounts, one grouping and a sum: the chart keeps twelve and folds the rest into Other.
+const MANY_GROUPS: ReportResult = {
+  report: { id: null, name: "Unsaved report", format: "SUMMARY", reportType: "Opportunity" },
+  filters: [],
+  notes: [],
+  totals: { measures: ["s!AMOUNT", "RowCount"], values: [120000, 15] },
+  groups: {
+    dimensions: [{ name: "ACCOUNT_NAME", label: "Account Name", axis: "down" }],
+    measures: [
+      { name: "s!AMOUNT", label: "Sum of Amount", dataType: "currency" },
+      { name: "RowCount", label: "Record Count", dataType: "int" },
+    ],
+    rows: Array.from({ length: 15 }, (_, i) => [`Account ${i + 1}`, (i + 1) * 1000, 1]),
+  },
+};
+
+test("summary column chart keeps twelve groups, then Other", async ({ page }) => {
+  const frame = await drawReport(page, html, { result: MANY_GROUPS });
+  const svg = section(frame, "Sum of Amount by Account Name").locator("svg.chart");
+  await expect(svg.locator("rect.col")).toHaveCount(13);
+  expect(await svg.locator("rect.col title").allTextContents()).toEqual([
+    ...Array.from({ length: 12 }, (_, i) => `Account ${i + 1}: ${money((i + 1) * 1000)}`),
+    "Other (3 groups): $42,000",
+  ]);
+  await expect(svg.locator("rect.col.other")).toHaveCount(1);
+  // The group table still lists every account.
+  await expect(section(frame, "Groups").locator("tbody tr:not(.total)")).toHaveCount(15);
+});
+
+test("tabular and matrix cards draw no column chart", async ({ page }) => {
+  for (const result of [fixture("expected-tabular"), fixture("expected-max-rows"), fixture("expected-matrix"), MATRIX_GRID]) {
+    const frame = await drawReport(page, html, { result });
+    await expect(frame.locator("h1")).toBeVisible();
+    await expect(frame.locator("svg.chart")).toHaveCount(0);
+  }
+  // The matrix keeps its heat grid.
+  const frame = await viewFrame(page);
+  await expect(frame.locator("td.heat")).toHaveCount(11);
+});
+
+test("summary column chart, 360 px card with no sideways scroll", async ({ page }) => {
+  const frame = await drawReport(page, html, { result: fixture("expected-summary"), input: SUMMARY_INPUT, width: 360 });
+  await expectSummaryChart(frame);
+  await expectNoSidewaysScroll(frame);
+  const fits = await chartSection(frame).locator("svg.chart").evaluate((svg) => svg.getBoundingClientRect().right <= document.documentElement.clientWidth);
+  expect(fits).toBe(true);
+
+  // Each group row shows its labels, the primary measure and its bar; the record count stacks under the row.
+  const groups = section(frame, "Groups");
+  const row = groups.locator("tbody tr:not(.total)").last();
+  for (const td of await row.locator("td").all()) await expect(td).toBeVisible();
+  const [stage, , amount, count] = await row.locator("td").all();
+  const stageBox = (await stage!.boundingBox())!;
+  const amountBox = (await amount!.boundingBox())!;
+  const countBox = (await count!.boundingBox())!;
+  expect(Math.abs(amountBox.y - stageBox.y)).toBeLessThan(2);
+  expect(countBox.y).toBeGreaterThanOrEqual(stageBox.y + stageBox.height - 1);
+  expect(await count!.evaluate((n) => getComputedStyle(n, "::before").content)).toBe('"Record Count"');
+  await expect(groups.locator("thead th").nth(3)).toBeHidden();
+  await expectBarsBesideNumbers(frame);
+
+  // Detail rows keep the first column on top and stack the rest, each with its label.
+  const detail = section(frame, "Detail rows").locator("tbody tr").first();
+  const cells = await detail.locator("td").all();
+  const first = (await cells[0]!.boundingBox())!;
+  for (const extra of cells.slice(1)) expect((await extra.boundingBox())!.y).toBeGreaterThanOrEqual(first.y + first.height - 1);
+  await expect(page.locator("#frame-box iframe")).toHaveScreenshot("summary-chart-narrow.png");
+});
+
+test("tabular detail rows at 360 px stack their extra columns", async ({ page }) => {
+  const frame = await drawReport(page, html, { result: fixture("expected-max-rows"), width: 360 });
+  await expectNoSidewaysScroll(frame);
+  const row = section(frame, "Detail rows").locator("tbody tr").first();
+  await expect(row.locator("td")).toHaveText(["Opportunity 1", "Account 1", "$900,000", "90%", "Negotiation/Review", "Dec 15, 2026", "No"]);
+  const labels = await row.locator("td").evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n, "::before").content));
+  expect(labels.slice(1)).toEqual(['"Account Name"', '"Amount"', '"Probability (%)"', '"Stage"', '"Close Date"', '"Closed"']);
 });
