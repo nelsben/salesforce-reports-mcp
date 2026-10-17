@@ -2,7 +2,7 @@
 
 How the pieces fit, who calls what, and where each control lives. This page is the map; [design.md](design.md) is the contract for the tools, and `docs/decisions/` will hold the one-page records behind each choice.
 
-Diagrams are Mermaid. GitHub renders them; VS Code needs a Mermaid preview extension.
+Diagrams are Mermaid. GitHub renders them; VS Code needs a Mermaid preview extension. Each sequence diagram is numbered, and the table under it says what happens at each step and which decision record settled it.
 
 ## Three doors, one contract
 
@@ -78,7 +78,62 @@ Reading the diagram:
 - The MCP adapter adds no Apex. It is metadata (the registration, the server definition, the client app) plus a setup script that writes the tool rows. Removing it leaves the REST door untouched.
 - Two platform routes exist for a reason. `Reports.ReportManager` runs saved reports with no callout and no extra scope. Unsaved runs, report types and saves have no Apex API, so they go through `ReportsCallout` to the Reports REST API as the signed-in user.
 
-## Feature 1: the REST door with a skill
+## Door 1: the local MCP server with the report card
+
+Nothing is installed in the org. The server runs on the user's machine, signs in with the user's own `sf` CLI session, and talks to the Reports REST API directly. `--read-only` removes every write tool, and `delete_report` exists only with `--allow-delete`. On hosts that draw MCP Apps, a run also appears as a report card.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant H as Claude Desktop<br/>or Claude Code
+  participant S as Local MCP server<br/>Node, stdio
+  participant CLI as sf CLI
+  participant RR as Reports REST API
+  participant V as Report card<br/>MCP App
+
+  U->>H: "Which stage holds most of the pipeline? Don't save anything."
+  H->>H: Picks query_report from the tool descriptions
+  H->>S: tools/call query_report {"definition":{...}}
+  S->>S: ReportDefinition to reportMetadata, a detail column added if a grouped report has none
+  S->>CLI: sf org display, then sf org auth show-access-token (first call of the process)
+  CLI-->>S: instance URL and token, held in memory only
+  S->>RR: POST /services/data/v62.0/analytics/reports/query
+  opt the session has expired
+    RR-->>S: 401
+    S->>CLI: sf org auth show-access-token, which refreshes the session
+    S->>RR: the same request, once
+  end
+  RR-->>S: factMap
+  S->>S: ReportsShape: filters in words, groups and totals, rows capped, notes
+  S-->>H: text ReportResult, structuredContent with the same object, _meta.ui.resourceUri
+  H->>S: resources/read ui://salesforce-reports/report (hosts that draw MCP Apps)
+  S-->>H: one self-contained HTML document, mcp-app profile
+  H->>V: the tool result, into a sandboxed frame
+  V-->>U: the card: KPI strip, filters, groups with bars or a heat grid, totals
+  H-->>U: the reply leads with what the card cannot show
+  U->>V: Save this report
+  V->>H: sendMessage: ask Claude to save it with create_report
+  H->>S: tools/call create_report {"definition":{...},"folderId":"..."}
+  S->>RR: POST /services/data/v62.0/analytics/reports
+  RR-->>S: the new report's id and metadata
+  S-->>H: the saved report's summary and link
+  H-->>U: Saved, with the link
+```
+
+| Steps | What happens |
+| --- | --- |
+| 1 to 3 | The user asks in plain words. The host picks `query_report` from the tool descriptions, since nothing is to be saved, and calls it over stdio. The description ends with the view hint, which tells Claude how to reply once a card is drawn. |
+| 4 | The friendly `ReportDefinition` becomes Salesforce's `reportMetadata`. Salesforce rejects a grouped report with no detail column, so one is added from the type's defaults and a note says so ([live findings](design.md)). |
+| 5 to 6 | Sign-in is the user's own `sf` CLI session. On the first call of the process the server reads the instance URL and token from the CLI (newer CLIs redact the token in `org display`, so it comes from `show-access-token`). The token stays in memory and never reaches a log, an error or stdout. `SF_INSTANCE_URL` and `SF_ACCESS_TOKEN` replace the CLI when set ([decision 0002](decisions/0002-local-server-needs-nothing-in-the-org.md)). |
+| 7 to 10 | One request to the Reports REST API, as the user. On a 401 the server asks the CLI for a fresh token, which refreshes the session, and retries once. A second 401 is an error that says to log in again. |
+| 11 to 12 | The raw factMap becomes a `ReportResult`: the filters in words, including the ones Salesforce adds on its own, groups with totals, detail rows capped at the row limit, and notes for anything cut or adjusted ([decision 0008](decisions/0008-result-limits.md)). |
+| 13 | The result goes back twice: as text, byte for byte what the tool returned before the view existed, and as `structuredContent`. The tool's `_meta` names the view resource ([decision 0013](decisions/0013-report-view-as-an-mcp-app.md)). |
+| 14 to 17 | A host that draws MCP Apps reads the view once per process and shows the result in a sandboxed frame. The document is self-contained and loads nothing from the network. Claude Code and other text-only hosts skip these steps and read the text ([decision 0015](decisions/0015-report-card-visuals.md) for what the card draws). |
+| 18 | The reply leads with the one finding the card cannot show and never repeats the card's rows, totals or a table. |
+| 19 to 25 | The card never calls a tool itself. Its Save button sends a chat message asking Claude to save with `create_report`, so the save is an explicit, visible tool call like any other, and the host asks for permission as it always does. |
+
+## Door 2: the REST door with a skill
 
 The skill tells Claude the tool names and when to use them. In Claude Code the transport is one `sf` command per call, so the signed-in user is the `sf` CLI user and the token carries the `api` scope. Callouts inside the org work without any extra setup.
 
@@ -123,6 +178,17 @@ sequenceDiagram
   API-->>SF: 200 JSON
 ```
 
+| Steps | What happens |
+| --- | --- |
+| 1 to 2 | The user asks in Claude Code. The report-runner skill says: search before running, and on this door the transport is `sf api request rest`. |
+| 3 to 4 | Each tool call is one `sf` command against the Apex REST route `/services/apexrest/reports/v1/<tool>`. The CLI sends the user's own session token, which carries the `api` scope. |
+| 5 to 9 | `ReportsApi` reads the URL and body and hands the tool name and input to `ReportsService`, which runs `with sharing` as the signed-in user. The matches come back as 200 JSON. On the way out an error's category becomes 400, 403, 404 or 500 ([decision 0003](decisions/0003-one-apex-class-behind-both-in-org-doors.md)). |
+| 10 to 12 | The second call runs the chosen report by id, through the same adapter. |
+| 13 to 14 | A saved report runs through `Reports.ReportManager` inside the org: no callout, no extra scope, no session asked for ([decision 0004](decisions/0004-reportmanager-first-callout-for-the-rest.md)). |
+| 15 | `ReportsShape` caps rows at `min(2000, 50000 / columns)` and adds notes ([decision 0008](decisions/0008-result-limits.md)). |
+| 16 to 19 | The `ReportResult` travels back through the same layers, and Claude answers with the numbers plus any note about cut rows. |
+| 20 to 26 | An unsaved report, the report type list and the saves have no Apex API. `ReportsCallout` posts to the org's own Reports REST API at `URL.getOrgDomainUrl()` with the caller's session. The org's own domain needs no Remote Site Setting. |
+
 What the user sees when something is refused:
 
 | Case | Status | Body `code` | What the skill tells Claude to do |
@@ -134,7 +200,7 @@ What the user sees when something is refused:
 | A callout tool on the hosted route, with `callout-app`, for a user without `Salesforce_Reports_Callout` | 500 | `CALLOUT_CREDENTIAL` | Ask an admin for `Salesforce_Reports_Callout`; the hint names it. Saved reports still work meanwhile |
 | Callout failed for another reason | 500 | `CALLOUT_FAILED` | Retry once, then report the message |
 
-## Feature 2: the hosted MCP door
+## Door 3: the hosted MCP door
 
 Two sequences: the admin sets it up once, then each user connects.
 
@@ -165,6 +231,15 @@ sequenceDiagram
   A->>SETUP: Assign Salesforce_Reports to users, Salesforce_Reports_Write to the few who save,<br/>and Salesforce_Reports_Callout to hosted users, when callout-app is installed
   A-->>A: Share the endpoint URL and the consumer key (a public id, not a secret)
 ```
+
+| Steps | What happens |
+| --- | --- |
+| 1 to 2 | `force-app`: the Apex, its tests, the two permission sets and the custom permission. Complete on its own ([decision 0009](decisions/0009-two-shipping-units.md)). |
+| 3 to 4 | `mcp-app`: the API Catalog registration, with OpenAPI generated from `ReportsApi` by `npm run mcp:generate`, the MCP server definition, and the External Client App Claude signs in through. No code. |
+| 5 to 6 | Optional `callout-app`: the org makes its own key pair, and the script fills My Domain, the consumer key and the public certificate into a temp copy before deploying. The tracked files hold placeholders only, and a test keeps it that way ([decision 0012](decisions/0012-per-user-jwt-named-credential.md)). |
+| 7 to 9 | `mcp:setup` writes one tool row per operation through the Tooling API. It refuses any org not named in `SF_REPORTS_SETUP_ORGS` unless `--yes` is passed. |
+| 10 | The one step with no API: activating the operations in Setup. |
+| 11 to 12 | Permission sets per role ([decision 0011](decisions/0011-name-permissions-for-the-capability.md)), then the endpoint URL and consumer key go to users. The consumer key is a public identifier, not a secret. |
 
 ### Runtime, per user
 
@@ -223,6 +298,17 @@ sequenceDiagram
   AI-->>U: The answer, or which tools work here and the local server or REST door for the rest
 ```
 
+| Steps | What happens |
+| --- | --- |
+| 1 to 4 | The user adds the connector in claude.ai and signs in to the org. The token carries only `mcp_api` and `refresh_token`, so it cannot call the org's REST API on its own. |
+| 5 to 7 | The gateway builds the tool list from the server's tool rows and the registration's OpenAPI schema: 11 tools, no delete ([decision 0006](decisions/0006-no-delete-in-the-org.md)). |
+| 8 to 12 | A saved report run. The gateway calls the API Catalog operation as the user, which posts to the hosted route `/reports/v1/mcp/run_report`. |
+| 13 to 19 | `Reports.ReportManager` runs it in the org. The result comes back through the same chain, and Claude summarises. |
+| 20 to 25 | An unsaved report needs the Reports REST API. The route tells the code it was called by the hosted door, so it never asks for a session: under this sign-in, asking throws an exception Apex cannot catch ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md)). |
+| 26 to 29 | With `callout-app` installed and the user holding `Salesforce_Reports_Callout`, the per-user JWT named credential mints a token for the signed-in user and the callout runs. No secret is stored and no user clicks anything ([decision 0012](decisions/0012-per-user-jwt-named-credential.md)). |
+| 30 to 32 | Without the package, the tool answers `CALLOUT_SESSION` before any request is made, and names the tools that still work. |
+| 33 to 35 | Claude gives the answer, or explains which tools work here and offers the local server or the REST door for the rest, as the skill's fallback says. |
+
 This was the one open question in v0.2, settled on 2026-10-12 ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md)). Under the hosted sign-in, `UserInfo.getSessionId()` throws an exception Apex cannot catch, so the hosted route never asks for a session. Without `callout-app`, `list_report_types`, `query_report`, `combine_reports` with definitions and the three saves answer `CALLOUT_SESSION` there. `describe_report_type` reads the type through a saved report, and the other tools work as on the REST door. The fixes:
 
 | Fix | Keeps the token narrow | Setup | Verdict |
@@ -254,6 +340,12 @@ sequenceDiagram
     SVC-->>D: FORBIDDEN WRITE_NOT_ALLOWED, "ask an admin to assign Salesforce_Reports_Write", which the door answers with 403
   end
 ```
+
+| Steps | What happens |
+| --- | --- |
+| 1 to 2 | A save arrives from either door. Before any callout, the service asks `FeatureManagement` whether the user holds the custom permission `Reports_Write`, which comes with the permission set `Salesforce_Reports_Write` ([decision 0005](decisions/0005-saves-behind-a-custom-permission.md)). |
+| 3 to 6 | With it, the definition becomes `reportMetadata` and is posted to the Reports REST API. The door answers 200 with the saved report's summary. |
+| 7 to 8 | Without it, the service answers `FORBIDDEN` with `WRITE_NOT_ALLOWED` and the name of the permission set to ask for, which the door turns into 403. The check lives in the service, so calling the REST route directly changes nothing. |
 
 Why the tools stay listed for everyone on the hosted server: a tool list is not a security boundary. The REST door can be called directly, so the check has to live in the service regardless of what any client shows. One hosted server cannot hide tools per user, and a second write-only server would double the setup without adding a control. The tool descriptions say the permission is needed, and the 403 body tells Claude what to ask for.
 

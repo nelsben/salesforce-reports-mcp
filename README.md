@@ -79,7 +79,7 @@ flowchart LR
 | **Tools** | All 12, delete only with a flag | 11, no delete | 11, no delete |
 | **Choose it when** | One person, no org change allowed | An admin wants the feature in the org, used from scripts and agents | A team wants Claude in the browser, governed by the org |
 
-Each door gets the same tool names, the same input and the same result ([decision 0001](docs/decisions/0001-one-contract-three-doors.md)). The skills bind to tool names, not to a door, so one skill works over all three. [docs/architecture.md](docs/architecture.md) has the sequence diagrams.
+Each door gets the same tool names, the same input and the same result ([decision 0001](docs/decisions/0001-one-contract-three-doors.md)). The skills bind to tool names, not to a door, so one skill works over all three. [docs/architecture.md](docs/architecture.md) has a numbered sequence diagram for each door, with every step explained.
 
 ## A feature inside Salesforce
 
