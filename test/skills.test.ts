@@ -12,7 +12,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 
 const SKILLS = ["report-runner", "report-designer"];
-const LOCAL_ONLY = ["delete_report"];
+/** Tools only the local server has: delete_report, and the v0.3 dashboard tools (no in-org door yet). */
+const LOCAL_ONLY = ["delete_report", "list_dashboards", "describe_dashboard", "run_dashboard", "refresh_dashboard"];
 
 async function serverToolSchemas(): Promise<Map<string, string[]>> {
   const api: SalesforceApi = {
@@ -102,5 +103,24 @@ describe("report-runner presenting results", () => {
 
   it("keeps the headline and group table for a host without a card", () => {
     expect(skill).toMatch(/Without a card, give the headline and the group table/);
+  });
+});
+
+describe("report-runner dashboards", () => {
+  const skill = read("skills/report-runner/SKILL.md");
+  const section = skill.split(/^## Dashboards\s*$/m)[1]?.split(/^## /m)[0] ?? "";
+
+  it("has a Dashboards section naming the four dashboard tools, each a real server tool", async () => {
+    const tools = await serverTools();
+    for (const name of ["list_dashboards", "describe_dashboard", "run_dashboard", "refresh_dashboard"]) {
+      expect(section, name).toContain(`\`${name}\``);
+      expect(tools).toContain(name);
+    }
+  });
+
+  it("says when to reach for a dashboard instead of a report run, and refreshes only with a yes", () => {
+    expect(section).toMatch(/instead of a report run/);
+    expect(section).toMatch(/run_report/);
+    expect(section).toMatch(/Do not refresh without the user's yes/);
   });
 });

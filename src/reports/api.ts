@@ -79,6 +79,31 @@ export class ReportsApi {
     return out.records;
   }
 
+  // ---- dashboards. `filters` is a query string from resolveFilters, such as "?filter1=0IC…", or "". ----
+
+  describeDashboard(id: string): Promise<Json> {
+    return this.api.request("GET", `/analytics/dashboards/${enc(id)}/describe`);
+  }
+
+  /** The cached results. Never refreshes. */
+  dashboardResults(id: string, filters = ""): Promise<Json> {
+    return this.api.request("GET", `/analytics/dashboards/${enc(id)}${filters}`);
+  }
+
+  dashboardStatus(id: string, filters = ""): Promise<Json> {
+    return this.api.request("GET", `/analytics/dashboards/${enc(id)}/status${filters}`);
+  }
+
+  /** Starts a refresh. The filter goes on the query string: a body is accepted and ignored. */
+  async refreshDashboard(id: string, filters = ""): Promise<void> {
+    await this.api.request("PUT", `/analytics/dashboards/${enc(id)}${filters}`);
+  }
+
+  /** Waits between polls. Tests pass a sleep that returns at once. */
+  pause(ms: number): Promise<void> {
+    return this.sleep(ms);
+  }
+
   private async runAsync(id: string, overrides?: Json): Promise<Json> {
     const started = await this.api.request<Json>(
       "POST",

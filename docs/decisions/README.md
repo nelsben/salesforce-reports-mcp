@@ -21,3 +21,4 @@ One page per architectural decision: the context, the decision, what it costs, a
 | [0013](0013-report-view-as-an-mcp-app.md) | The report view is an MCP App on the local door only, beside an unchanged text result | Accepted |
 | [0014](0014-render-tests-through-a-test-host.md) | The report view is render-tested through a test host page with the real AppBridge | Accepted |
 | [0015](0015-report-card-visuals.md) | The report card draws its own visuals in inline CSS, with no chart library | Accepted |
+| [0016](0016-dashboards-read-and-refresh-only.md) | Dashboards are read and refreshed, never saved, and listed through SOQL | Accepted |

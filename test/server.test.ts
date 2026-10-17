@@ -54,25 +54,28 @@ describe("tool registration", () => {
   };
   const readTools = [
     "combine_reports",
+    "describe_dashboard",
     "describe_report",
     "describe_report_type",
+    "list_dashboards",
     "list_report_folders",
     "list_report_types",
     "query_report",
+    "run_dashboard",
     "run_report",
     "search_reports",
   ];
 
   it("registers the write tools but not delete by default", async () => {
-    expect(await names({})).toEqual([...readTools, "clone_report", "create_report", "update_report"].sort());
+    expect(await names({})).toEqual([...readTools, "clone_report", "create_report", "refresh_dashboard", "update_report"].sort());
   });
 
-  it("registers no write tool in read-only mode, even with allowDelete", async () => {
+  it("registers no write tool in read-only mode, even with allowDelete (refresh_dashboard counts as a write)", async () => {
     expect(await names({ readOnly: true, allowDelete: true })).toEqual(readTools);
   });
 
   it("registers delete_report only with allowDelete", async () => {
-    expect(await names({ allowDelete: true })).toEqual([...readTools, "clone_report", "create_report", "delete_report", "update_report"].sort());
+    expect(await names({ allowDelete: true })).toEqual([...readTools, "clone_report", "create_report", "delete_report", "refresh_dashboard", "update_report"].sort());
   });
 
   it("marks tools with the right hints and describes every input", async () => {

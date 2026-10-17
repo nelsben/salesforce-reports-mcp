@@ -2,6 +2,9 @@
  * End-to-end check against a real org, through the MCP server in memory.
  * Usage: npm run live -- --org <alias> --allow-delete [--door apex]
  * Creates private reports named zz-live-check-*, deletes them, and fails if any remain.
+ * The dashboard steps list, describe, run and refresh the probe dashboard Pipeline_Overview (probes/v0.3-dashboards),
+ * and are skipped with a message when the org has none. A refresh saves nothing; inside a minute of the last one it
+ * returns the cached results with a note, which also passes.
  * With --door apex, the read and save steps go through the in-org REST door (salesforce/, class ReportsApi). Saving
  * there needs the Salesforce_Reports_Write permission set. Reports are still deleted through the local server,
  * and steps for tools the door lacks print "skipped on the apex door".
@@ -118,6 +121,8 @@ function expect(condition: unknown, message: string): void {
 }
 
 const prefix = "zz-live-check";
+/** The dashboard the dashboard steps use: probes/v0.3-dashboards deploys it. Absent, those steps are skipped. */
+const PROBE_DASHBOARD = "Pipeline_Overview";
 const stamp = Date.now().toString(36);
 const created: string[] = [];
 const summaryDefinition = {
@@ -131,7 +136,7 @@ try {
   await step("tools/list in write mode shows all tools", async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    for (const n of ["search_reports", "run_report", "query_report", "create_report", "update_report", "clone_report", "delete_report", "combine_reports"]) {
+    for (const n of ["search_reports", "run_report", "query_report", "create_report", "update_report", "clone_report", "delete_report", "combine_reports", "list_dashboards", "describe_dashboard", "run_dashboard", "refresh_dashboard"]) {
       expect(names.includes(n), `missing ${n}`);
     }
   }, { apex: "skip" });
@@ -325,6 +330,61 @@ try {
     });
     const sources = new Set(out.groups.rows.map((r: Json) => r[0]));
     expect(sources.has("saved") && sources.has("defined"), `sources ${JSON.stringify([...sources])}`);
+  });
+
+  // Dashboards (v0.3): the probe dashboard from probes/v0.3-dashboards. Read and refresh only; nothing is saved.
+  let dashboardId = "";
+  await step("D1. list_dashboards finds the probe dashboard", async () => {
+    const out = await call("list_dashboards", { query: PROBE_DASHBOARD });
+    const found = out.dashboards.find((d: Json) => d.developerName === PROBE_DASHBOARD);
+    if (!found) {
+      console.log(`      no dashboard ${PROBE_DASHBOARD} here; the dashboard steps below are skipped`);
+      return;
+    }
+    dashboardId = found.id;
+    expect(/^01Z/.test(found.id) && typeof found.folder === "string", `row ${JSON.stringify(found)}`);
+    expect(String(found.url).includes(`/lightning/r/Dashboard/${found.id}/view`), `url ${found.url}`);
+  });
+  const dashboardStep = (label: string, fn: () => Promise<void>) =>
+    dashboardId ? step(label, fn) : Promise.resolve(console.log(`SKIP  ${label}: no dashboard ${PROBE_DASHBOARD} in this org (deploy probes/v0.3-dashboards to check dashboards)`));
+
+  let firstFilter: { name: string; option: string } | undefined;
+  await dashboardStep("D2. describe_dashboard lists components in layout order, with filters and report names", async () => {
+    const out = await call("describe_dashboard", { dashboardId });
+    expect(out.components.length > 0, "no components");
+    const rows = out.components.filter((c: Json) => c.position).map((c: Json) => c.position.row * 100 + c.position.column);
+    expect(rows.every((v: number, i: number) => i === 0 || v >= rows[i - 1]), `not in layout order: ${rows.join(",")}`);
+    expect(out.components.every((c: Json) => /^00O/.test(c.report.id ?? "") && c.report.name), `report names ${JSON.stringify(out.components.map((c: Json) => c.report))}`);
+    const filter = out.filters[0];
+    if (filter?.options?.length) firstFilter = { name: filter.name, option: filter.options[0] };
+  });
+
+  await dashboardStep("D3. run_dashboard reads the cache, and refuses an unknown filter label", async () => {
+    const out = await call("run_dashboard", { dashboardId });
+    expect(out.components.length > 0, "no components");
+    expect(out.components.every((c: Json) => ["data", "no data", "error"].includes(c.status)), "bad status");
+    const shaped = out.components.filter((c: Json) => c.status === "data");
+    expect(shaped.every((c: Json) => c.result?.report?.name), "a data component has no ReportResult");
+    if (!shaped.length) expect(out.notes.some((n: string) => n.includes("refresh_dashboard")), `no refresh hint: ${JSON.stringify(out.notes)}`);
+    if (firstFilter) {
+      const filtered = await call("run_dashboard", { dashboardId, filters: [firstFilter] });
+      expect(filtered.filters.includes(`${firstFilter.name}: ${firstFilter.option}`), `filters ${JSON.stringify(filtered.filters)}`);
+      let refused = "";
+      try {
+        await call("run_dashboard", { dashboardId, filters: [{ name: firstFilter.name, option: "zz-no-such-option" }] });
+      } catch (error) {
+        refused = error instanceof Error ? error.message : String(error);
+      }
+      expect(refused.includes("INVALID_INPUT") && refused.includes(firstFilter.option), `unknown label: ${refused || "accepted"}`);
+    }
+  });
+
+  await dashboardStep("D4. refresh_dashboard refreshes (or notes the once-a-minute limit) and returns data", async () => {
+    const out = await call("refresh_dashboard", { dashboardId });
+    const limited = out.notes.some((n: string) => n.includes("once a minute"));
+    expect(limited || out.components.every((c: Json) => c.status !== "no data"), `components without data after a refresh: ${JSON.stringify(out.notes)}`);
+    expect(limited || out.refreshedAt, "no refreshedAt after a refresh");
+    console.log(`      ${limited ? "refresh refused inside a minute; cached results returned" : `refreshed at ${out.refreshedAt}`}`);
   });
 
   await step("7. delete everything the check created", async () => {
