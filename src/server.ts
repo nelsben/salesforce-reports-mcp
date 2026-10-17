@@ -4,6 +4,18 @@ import { z } from "zod";
 import { fail, InputError, ok, okView, type ToolResult } from "./format.js";
 import { ReportsApi, soqlLike, soqlString } from "./reports/api.js";
 import { combineResults, type CombineInput } from "./reports/combine.js";
+import {
+  COMPONENT_ROWS,
+  dashboardListSoql,
+  dashboardUrl,
+  latestRefresh,
+  refreshAndWait,
+  resolveFilters,
+  shapeDashboard,
+  summarizeDashboard,
+  type DashboardFilterChoice,
+  type DashboardResult,
+} from "./reports/dashboards.js";
 import { aggregateColumns, definitionShape, ReportDefinitionSchema, toReportMetadata, type ReportDefinition } from "./reports/definition.js";
 import { HARD_ROW_CEILING, shapeResult, type ReportResult } from "./reports/shape.js";
 import { reportUrl, standardFilterNotes, summarizeReport, type FolderInfo, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
@@ -30,6 +42,32 @@ const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, idempotentHint
 
 const reportId = z.string().regex(/^00O[A-Za-z0-9]{12,15}$/, "A report id starts with 00O.").describe("Report id, 15 or 18 characters starting with 00O. Find one with search_reports.");
 
+const dashboardId = z
+  .string()
+  .regex(/^01Z[A-Za-z0-9]{12,15}$/, "A dashboard id starts with 01Z.")
+  .describe("Dashboard id, 15 or 18 characters starting with 01Z. Find one with list_dashboards.");
+
+const dashboardInputs = {
+  dashboardId,
+  filters: z
+    .array(
+      z.object({
+        name: z.string().min(1).describe('The dashboard filter\'s name, as describe_dashboard lists it, for example "Stage".'),
+        option: z.string().min(1).describe('One of that filter\'s option labels, for example "Prospecting". An option id (0IC...) works too.'),
+      }),
+    )
+    .max(3)
+    .optional()
+    .describe("Dashboard filter choices, one option per filter. Omit for the unfiltered dashboard. Salesforce keeps a separate cache for each filter option."),
+  maxRows: z
+    .number()
+    .int()
+    .min(1)
+    .max(HARD_ROW_CEILING)
+    .optional()
+    .describe(`Cap on detail rows per component. Default ${COMPONENT_ROWS}. Most components are charts over summary reports and return groups, not detail rows.`),
+};
+
 const resultControls = {
   detail: z
     .boolean()
@@ -49,7 +87,7 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     { name: "salesforce-reports", version: options.version ?? "0.1.0" },
     {
       instructions:
-        "Find, define, run, save and combine Salesforce reports. To answer a data question without saving anything, use query_report. To re-run an existing report, use search_reports then run_report. Save a report (create_report, optionally with fromReportId to start from a saved one) only when the user asks for one.",
+        "Find, define, run, save and combine Salesforce reports, and read dashboards. To answer a data question without saving anything, use query_report. To re-run an existing report, use search_reports then run_report. For a dashboard, use list_dashboards then run_dashboard, and refresh_dashboard only when its data is missing or old. Save a report (create_report, optionally with fromReportId to start from a saved one) only when the user asks for one.",
     },
   );
 
@@ -367,6 +405,104 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     },
   );
 
+  // ---- dashboards: read tools ----
+
+  server.registerTool(
+    "list_dashboards",
+    {
+      title: "List dashboards",
+      description:
+        "Find Salesforce dashboards by title or developer name, optionally within a folder. Returns up to `limit` matches (default 25), most recently modified first, each with its id, title, developer name, folder, when its data was last refreshed (null if never) and a Lightning URL; a note says when more match. Use it first when the user names a dashboard. Next, describe_dashboard to see what it shows, or run_dashboard for its numbers. For saved reports, use search_reports.",
+      inputSchema: {
+        query: z.string().optional().describe("Text to find in the dashboard title or developer name. Omit to list the most recently modified dashboards."),
+        folder: z.string().optional().describe('Part of a folder name, for example "Sales".'),
+        limit: z.number().int().min(1).max(50).optional().describe("Maximum matches. Default 25."),
+      },
+      annotations: READ,
+    },
+    async ({ query, folder, limit }) => {
+      try {
+        const cap = limit ?? 25;
+        const rows = await reports.soql(dashboardListSoql({ query, folder, limit: cap }));
+        const kept = rows.slice(0, cap);
+        const base = await baseUrl();
+        // The SOQL field DashboardResultRefreshedDate stays null after a REST refresh, so the date comes from /status.
+        const refreshed: (string | null)[] = [];
+        for (let i = 0; i < kept.length; i += 5) {
+          refreshed.push(
+            ...(await Promise.all(
+              kept.slice(i, i + 5).map(async (r) => {
+                try {
+                  return latestRefresh(await reports.dashboardStatus(r.Id));
+                } catch {
+                  return null;
+                }
+              }),
+            )),
+          );
+        }
+        const notes: string[] = [];
+        if (rows.length > cap) notes.push(`Showing the first ${cap} matches; more dashboards match. Narrow query or folder, or raise limit (up to 50).`);
+        if (refreshed.some((d) => d === null)) notes.push("lastRefreshed is null for a dashboard with no data yet: run_dashboard will say so, and refresh_dashboard fills it.");
+        return ok({
+          count: kept.length,
+          dashboards: kept.map((r, i) => ({
+            id: r.Id,
+            title: r.Title,
+            developerName: r.DeveloperName,
+            folder: r.FolderName,
+            folderId: r.FolderId,
+            description: r.Description,
+            runsAs: r.Type,
+            lastRefreshed: refreshed[i] ?? null,
+            lastModifiedDate: r.LastModifiedDate,
+            url: dashboardUrl(base, r.Id),
+          })),
+          notes,
+        });
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "describe_dashboard",
+    {
+      title: "Describe a dashboard",
+      description:
+        "Show what a dashboard contains without reading its data: its components in layout order (top to bottom, then left to right), each with its visualization type, header, title, source report id and name, grouping and measure, plus the dashboard's filters with their option labels and whose data it shows (the running user). Use it before run_dashboard to learn the filter names and options, or to find the saved report behind a chart and run it with run_report. Different from describe_report, which describes one saved report.",
+      inputSchema: { dashboardId },
+      annotations: READ,
+    },
+    async ({ dashboardId: id }) => {
+      try {
+        const describe = await reports.describeDashboard(id);
+        return ok(summarizeDashboard(describe, { baseUrl: await baseUrl(), reportNames: await reportNames(describe) }));
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "run_dashboard",
+    {
+      title: "Read a dashboard",
+      description:
+        "Read a dashboard's numbers as Salesforce last refreshed them: per component its header, visualization type, status (data, no data, error) and a compact report result (groups and totals, the same shape run_report returns), plus the filters in words, whose data it shows and when it was refreshed. It never refreshes: a component with no data says so in notes, and notes give the data's age when it is older than a day; then offer refresh_dashboard. `filters` pick a dashboard filter option by name and label (see describe_dashboard). Use it when the user asks about a dashboard, or wants the set of figures a dashboard already gathers. Different from run_report, which runs one saved report live and can change its filters, groupings and dates for the run.",
+      inputSchema: dashboardInputs,
+      annotations: READ,
+    },
+    async (args) => {
+      try {
+        return ok(await readDashboard(args));
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
   registerAppResource(
     server,
     "Report view",
@@ -501,6 +637,24 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     },
   );
 
+  server.registerTool(
+    "refresh_dashboard",
+    {
+      title: "Refresh a dashboard",
+      description:
+        "Refresh a dashboard in Salesforce, so every component reruns its source report now, then return the same result as run_dashboard. It waits up to 60 seconds for the refresh to finish. Salesforce refreshes a dashboard at most once a minute: a second refresh inside a minute returns the cached results with a note saying when to try again. Each filter option has its own cache, so pass the filters you want to read. Use it when run_dashboard says a component has no data or the data is old, or when the user asks for current numbers. It saves nothing, but it runs every source report and changes what other viewers see, so it counts as a write. For one figure, run_report on the source report is lighter.",
+      inputSchema: dashboardInputs,
+      annotations: WRITE,
+    },
+    async (args) => {
+      try {
+        return ok(await readDashboard(args, { refresh: true }));
+      } catch (error) {
+        return fail(error);
+      }
+    },
+  );
+
   if (options.allowDelete) {
     server.registerTool(
       "delete_report",
@@ -520,6 +674,47 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
         }
       },
     );
+  }
+
+  /**
+   * run_dashboard, and refresh_dashboard with `refresh`. Filters given by name and label are checked against
+   * describe before any data call, so a bad label costs no refresh.
+   */
+  async function readDashboard(
+    input: { dashboardId: string; filters?: DashboardFilterChoice[]; maxRows?: number },
+    mode: { refresh?: boolean } = {},
+  ): Promise<DashboardResult> {
+    const id = input.dashboardId;
+    const resolved = input.filters?.length ? resolveFilters(await reports.describeDashboard(id), input.filters) : undefined;
+    const notes = mode.refresh ? await refreshAndWait(reports, id, resolved?.query ?? "", () => new Date()) : [];
+    const results = await reports.dashboardResults(id, resolved?.query ?? "");
+    const filters = resolved ?? resolveFilters(results.dashboardMetadata ?? {}, undefined);
+    const shaped = shapeDashboard(results, {
+      baseUrl: await baseUrl(),
+      maxRows: Math.min(input.maxRows ?? COMPONENT_ROWS, HARD_ROW_CEILING),
+      filterWords: filters.words,
+      appliedFilters: filters.applied,
+      now: new Date(),
+    });
+    shaped.notes.unshift(...notes);
+    return shaped;
+  }
+
+  /** The names of a dashboard's source reports, by id. Empty when the lookup fails. */
+  async function reportNames(describe: Record<string, any>): Promise<Map<string, string>> { // eslint-disable-line @typescript-eslint/no-explicit-any
+    const ids = [...new Set(((describe.components ?? []) as { reportId?: string }[]).map((c) => c.reportId).filter((x): x is string => Boolean(x)))];
+    const names = new Map<string, string>();
+    if (!ids.length) return names;
+    try {
+      const rows = await reports.soql(`SELECT Id, Name FROM Report WHERE Id IN (${ids.map((x) => `'${soqlString(x)}'`).join(", ")})`);
+      for (const r of rows) {
+        names.set(r.Id, r.Name);
+        names.set(String(r.Id).slice(0, 15), r.Name);
+      }
+    } catch {
+      /* names stay null: the ids still work with run_report */
+    }
+    return names;
   }
 
   async function orgPublicFolder(): Promise<FolderInfo | null> {

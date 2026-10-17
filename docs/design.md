@@ -35,6 +35,7 @@ src/
     shape.ts            reportMetadata + factMap  ->  ReportResult
     summarize.ts        describe responses  ->  compact summaries
     combine.ts          stack and join of ReportResults
+    dashboards.ts       dashboard describe and results  ->  DashboardSummary and DashboardResult; filters; refresh polling
 skills/salesforce-reports/SKILL.md   teaches Claude the workflow
 scripts/live-check.ts                end-to-end run against a real org
 test/                                unit and server tests, with fixtures
@@ -73,6 +74,10 @@ Every tool returns one compact JSON object as text content. A failure returns `i
 | `clone_report` | yes | `POST /analytics/reports?cloneId={id}` | The clone's id, name, folder and URL. |
 | `delete_report` | yes, destructive | `DELETE /analytics/reports/{id}` | Confirmation that the report is in the Recycle Bin. Registered only with `--allow-delete`. |
 | `combine_reports` | no | runs each input as `run_report` or `query_report` would | One `ReportResult` built from 2 to 5 inputs (below). |
+| `list_dashboards` | no | SOQL on `Dashboard`, then `GET /analytics/dashboards/{id}/status` per match | Matches by title or developer name, optionally by folder, with id, title, developer name, folder, running-user type, last refresh (null if never) and URL. Default limit 25, at most 50; a note says when more match. |
+| `describe_dashboard` | no | `GET /analytics/dashboards/{id}/describe`, SOQL on `Report` for the source report names | Components in layout order with visualization type, header, title, footer, source report id, name and URL, groupings, measures and grid position; filters with their option labels; the running user in words. |
+| `run_dashboard` | no | `GET /analytics/dashboards/{id}?filter1=<optionId>` (describe first when filters are given) | A `DashboardResult` (below) from the cached data. Never refreshes. |
+| `refresh_dashboard` | yes | `PUT /analytics/dashboards/{id}?filter1=<optionId>`, then `/status` polls, then `run_dashboard`'s GET | A `DashboardResult` after the refresh. Registered with the write tools, so `--read-only` removes it. |
 
 ### ReportDefinition (input)
 
@@ -121,6 +126,8 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 - **Each `componentData[].reportResult` is an ordinary report run** (`factMap`, `groupingsDown`, `reportMetadata`), so `shape.ts` can read it. Join it to `describe.components` by `componentId`, and note that `reportMetadata` does not show the dashboard filter.
 - **Filtered data needs the filter on the PUT's query string**: `PUT /analytics/dashboards/{id}?filter1=<optionId>`, then `GET …?filter1=<optionId>`. A body such as `{"filters":["<optionId>"]}` answers 201 and does nothing. The option text, and `filter2` or `filter3` on a one-filter dashboard, answer 400 `BAD_REQUEST`.
 - **The cache is per filter value.** A value never refreshed answers `NO_DATA`. After a refresh for another value, the older caches keep their data and show `refreshStatus: STALE`.
+- **The SOQL field `Dashboard.DashboardResultRefreshedDate` stays null after a REST refresh** (checked 2026-10-16 on `dev-frontend-2`, with the probe dashboard refreshed five times, as was `DashboardResultRunningUser`). `list_dashboards` reads the last refresh from `/status` instead: the newest `refreshDate` of the unfiltered cache.
+- **A second refresh inside a minute answers 403 `FORBIDDEN`** with "You can't refresh this dashboard more than once in a minute." `refresh_dashboard` reads the cached results and says when to try again (a minute after the last refresh it can see, or a minute from now). Reproduced through the tool on 2026-10-16.
 
 ### ReportResult (output)
 
@@ -153,6 +160,39 @@ Rules:
 - **Cell values.** Numbers, currency and percent cells give a number (`value`, or `value.amount` for currency). Booleans give a boolean. Dates and datetimes give the ISO string. Everything else gives the display label. An empty cell (`-`) gives `null`.
 - **`notes`** say in plain words when anything was cut. Salesforce stopped at 2,000 rows (`allData: false`): narrow the filters. This tool cut rows at `maxRows`: raise `maxRows` or add filters. The run went async because the synchronous call timed out.
 
+### DashboardResult (output)
+
+What `run_dashboard` and `refresh_dashboard` return. Each component's data is an ordinary report run, shaped by `shapeResult` like any `ReportResult`.
+
+```json
+{
+  "dashboard": { "id": "01Z…", "name": "Pipeline Overview", "developerName": "Pipeline_Overview", "folder": { "id": "00l…", "name": "Sales Dashboards" }, "url": "https://…/lightning/r/Dashboard/01Z…/view" },
+  "runningUser": "User 1: the dashboard always runs as this user, so every viewer sees the same data.",
+  "filters": ["Stage: Prospecting"],
+  "refreshedAt": "2026-10-17T02:12:25.000+0000",
+  "components": [
+    { "id": "01a…", "header": "Pipeline by Stage", "title": null, "footer": null, "visualizationType": "Bar", "status": "data", "refreshedAt": "2026-10-17T02:12:25.000+0000",
+      "result": { "report": { "id": "00O…", "name": "Pipeline by Stage", "format": "SUMMARY", "reportType": "Opportunity", "url": "…" }, "filters": ["…", "Dashboard filter Stage: Prospecting"], "groups": { "…": "…" }, "totals": { "…": "…" }, "notes": [] } },
+    { "id": "01a…", "header": "Won to Date", "visualizationType": "Metric", "status": "no data", "refreshedAt": null }
+  ],
+  "notes": []
+}
+```
+
+Rules:
+
+- **`components`** are in layout order: top to bottom, then left to right. Each joins `describe.components` to `componentData` by `componentId`, never by index.
+- **`status`** is `data` (a `result` is there), `no data` (the cache was never filled for these filters; no `result`) or `error` (an `error` with Salesforce's code and message; no `result`).
+- **`result`** is `shapeResult` of the component's `reportResult`, with detail rows only for a tabular source report, cut at `maxRows` per component (default 20). The source report's metadata never shows the dashboard filter, so each filtered component (one with `filterColumns`) gets `Dashboard filter <name>: <option>` added to its `filters`.
+- **`filters`** lists every dashboard filter with its value in words, `Stage: all (no option chosen)` when none was given.
+- **`runningUser`** says whose data it is: a set user (`SpecifiedUser`), or the viewer (`LoggedInUser`, and `MyTeamUser`, where a manager may view it as someone on their team).
+- **`refreshedAt`** is the oldest `refreshDate` among the components with data, or null when none has data.
+- **`notes`** say: which components have no data, pointing to `refresh_dashboard` with the same filters (when every component has none, one line says the dashboard was not refreshed for these filters); each failed component; that the cache is `STALE` (refreshed since for other filters), with its date; the data's age in days when `refreshedAt` is more than a day old; and each component's own result notes, with the component's header in front. `refresh_dashboard` puts its own notes first: the once-a-minute limit with the time to try again, or that the refresh had not finished in 60 seconds.
+
+**Filters.** A caller gives `filters: [{name, option}]`, at most one option per filter. The name matches a dashboard filter's `name` and the option an option's label (`alias`, else `value`, else its range), case-insensitively, or its option id. They are checked against `describe` before any data call. An unknown name answers `INVALID_INPUT` listing every filter with its options; an unknown option lists that filter's options. The match becomes `?filter<n>=<optionId>` on the GET, the status polls and the PUT, where `n` is the filter's place in `describe.filters`. Only `filter1` is proven (the probe dashboard has one filter); the numbering for a second and third filter is inferred. No body is ever sent with the PUT.
+
+**Refresh.** `refresh_dashboard` reads `/status` for the chosen filters, sends the PUT, then polls `/status` every 3 seconds, at most 20 times (60 seconds), until every component is not `RUNNING` and has an error or a `refreshDate` different from before the PUT. It then reads the results as `run_dashboard` does. A 403 `FORBIDDEN` (or any 403 that mentions the minute) is the once-a-minute limit: the cached results come back with a note. Any other failure is an error. `run_dashboard` never refreshes on its own.
+
 ### combine_reports
 
 Takes 2 to 5 inputs. Each input is `{alias, reportId?, overrides?, definition?}`, with exactly one of `reportId` and `definition`. The inputs run one after another, never in parallel, to stay inside the concurrency limit.
@@ -174,6 +214,7 @@ Claude Desktop, claude.ai and Cowork draw the card. Claude Code and other hosts 
 
 - Write tools are registered unless `--read-only` is set. MCP clients ask the user before a tool call, and the skill tells Claude to save only when asked.
 - `delete_report` exists only with `--allow-delete`.
+- `refresh_dashboard` counts as a write: it saves nothing, but it reruns every source report and changes the cache other viewers see. It is registered with the write tools, so `--read-only` removes it. No tool saves, creates or deletes a dashboard ([decision 0016](decisions/0016-dashboards-read-and-refresh-only.md)).
 - Nothing this server does runs as anyone but the authenticated user. Sharing, folder access and field-level security are Salesforce's own.
 
 ## Tests
@@ -184,6 +225,7 @@ Claude Desktop, claude.ai and Cowork draw the card. Claude Code and other hosts 
   - `combine.ts`: a stack and a join, including keys that appear on only one side.
   - `connection.ts`: a redacted token falls back to `show-access-token`; a 401 refetches once and then fails with a clear message; the env token wins over `--org`. `execFile` is mocked.
 - **Server.** An in-memory MCP client lists the tools in default, read-only and allow-delete modes, and calls `run_report` and `query_report` against a fake API, getting a `ReportResult` back.
+- **Dashboards.** `test/dashboards.test.ts` drives the four dashboard tools from the `dashboard-*.json` fixtures: the list with its cap, describe in layout order, a cached run, a filter by name and label, no data, an unknown filter label, a refresh with its polls, a refresh that does not finish in 60 seconds, the once-a-minute 403, another 403, and `--read-only`.
 - **Fixtures** are captured from a real scratch org with `scripts/capture-fixtures.ts`. Account, opportunity, contact and user names are replaced with neutral ones such as `Account 1`, and the instance URL with `https://example.my.salesforce.com`. Structure, types and numbers are kept.
 - **Live check.** `npm run live -- --org <alias> --allow-delete` runs every tool in order against a real org:
   1. list report types;
@@ -194,12 +236,14 @@ Claude Desktop, claude.ai and Cowork draw the card. Claude Code and other hosts 
   6. combine the two with `stack` and with `join`;
   7. delete both.
 
+  Before the delete, the dashboard steps list, describe, run and refresh the probe dashboard `Pipeline_Overview` ([probe](probes/v0.3-dashboards.md)), including an unknown filter label. They are skipped with a message when the org has no such dashboard. A refresh inside a minute of the last one passes with its note.
+
   It prints a pass or fail line per step and exits non-zero on any failure. It must leave no report behind, and it checks that with `search_reports` at the end.
 
 ## Planned after v0.1
 
 - **v0.2, the in-org doors.** A REST endpoint and a hosted MCP server inside the org, so people choose how they connect. See the next section.
-- Dashboards (`/analytics/dashboards`): list, describe, refresh, read component data.
+- Dashboards (`/analytics/dashboards`): list, describe, refresh, read component data. Done in v0.3 on the local server: `list_dashboards`, `describe_dashboard`, `run_dashboard` and `refresh_dashboard`. No dashboard saves.
 - Joined reports, report charts, and subscriptions.
 - Publishing to npm.
 

@@ -1,6 +1,6 @@
 ---
 name: report-runner
-description: Explore data and answer questions from Salesforce reports that already exist. Use when the user asks what is in a report, asks for a number a report could give (pipeline, bookings, forecast, win rate, activity), asks why a number moved, or wants a saved report cut another way (by owner, last quarter instead, without closed deals) to look at. This skill reads and never saves. For changing a report or making a new one, use report-designer. For moving a report between orgs or into git, use report-deploy.
+description: Explore data and answer questions from Salesforce reports and dashboards that already exist. Use when the user asks what is in a report or a dashboard, asks for a number a report could give (pipeline, bookings, forecast, win rate, activity), asks why a number moved, or wants a saved report cut another way (by owner, last quarter instead, without closed deals) to look at. This skill reads and never saves; it refreshes a dashboard only when the user says yes. For changing a report or making a new one, use report-designer. For moving a report between orgs or into git, use report-deploy.
 ---
 
 # Answering from Salesforce reports
@@ -24,6 +24,15 @@ The tools named below may come from any door: the local MCP server, the hosted M
 ## No saved report
 
 When no report fits, or the user wants a number cut a way no saved report does, use `query_report`. It defines the report in the call and saves nothing. Find the `reportType` with `list_report_types`, then the column names with `describe_report_type` (give it a `search` word). Never guess column names. The definition grammar is in `reference.md`. If the user likes the result and wants it kept, say you can save it as a report. Do not save it yourself; that is a different job and needs their yes. If `query_report` is not offered or answers `CALLOUT_SESSION`, follow "When the org refuses" below.
+
+## Dashboards
+
+Reach for a dashboard tool instead of a report run when the user names a dashboard ("the pipeline dashboard"), or asks for the set of figures a dashboard already gathers ("how does the board look this week"). For one number, or a cut no dashboard has, stay with reports: a report run is live and takes `overrides`; a dashboard shows what Salesforce cached at its last refresh. The dashboard tools are on the local server only.
+
+1. **Find it** with `list_dashboards` and the user's words. Pick or ask as for reports.
+2. **Learn its filters** with `describe_dashboard` when the user wants a slice ("only Prospecting"). Filters are chosen by name and option label, and only from the options the dashboard offers. For any other cut, run the source report a component names with `run_report` and `overrides`.
+3. **Read it** with `run_dashboard`. Lead with the two or three components that answer the question, each by its header, and say when the data was refreshed and whose data it shows (`runningUser`). Read `notes`.
+4. **No data or old data.** When a note says a component has no data, or the numbers are more than a day old, say so and offer `refresh_dashboard` with the same filters. Do not refresh without the user's yes: a refresh reruns every source report and changes what other viewers see. If it answers that the dashboard was refreshed less than a minute ago, give the cached numbers and the time to try again; do not retry at once.
 
 ## Never save
 
