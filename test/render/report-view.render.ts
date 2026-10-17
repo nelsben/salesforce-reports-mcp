@@ -128,6 +128,10 @@ test("summary, 360 px wide", async ({ page }) => {
   expect(await page.locator("#frame-box iframe").evaluate((el) => el.getBoundingClientRect().width)).toBe(360);
   // The tables fold at phone width, so neither they nor the card scroll sideways.
   await expectNoSidewaysScroll(frame);
+  // Each headline number stays on one line.
+  for (const box of await frame.locator(".kpi-value").evaluateAll((els) => els.map((el) => ({ height: el.getBoundingClientRect().height, line: parseFloat(getComputedStyle(el).lineHeight) })))) {
+    expect(box.height).toBeLessThan(box.line * 1.5);
+  }
   await screenshot(page, "summary-narrow.png");
 });
 

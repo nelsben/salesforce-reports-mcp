@@ -220,6 +220,8 @@
      the grouping labels stack on the left, the lead measure and its bar sit on the right, and every other
      column stacks under the row as "label value". Nothing scrolls sideways. */
   @media (max-width: 480px) {
+    /* One tile a row, so a headline number never breaks across lines. */
+    .kpi { flex-basis: 100%; max-width: none; }
     table.fold, table.fold thead, table.fold tbody { display: block; }
     table.fold tr { display: grid; grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid var(--rule); }
     table.fold.led tr { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
