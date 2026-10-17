@@ -17,7 +17,7 @@ import { bundleHost, drawReport, fixture, openHost, settle, viewFrame, viewHtml 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const VIDEO_DIR = join(ROOT, "test", "render", ".video");
 const OUT = join(ROOT, "docs", "assets", "report-view.gif");
-const SIZE = { width: 800, height: 1080 };
+const SIZE = { width: 800, height: 1240 };
 const FPS = 12;
 const GIF_WIDTH = 720;
 const HOLD_MS = 2500;
