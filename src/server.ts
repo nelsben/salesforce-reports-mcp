@@ -13,13 +13,14 @@ import {
   resolveFilters,
   shapeDashboard,
   summarizeDashboard,
+  type DashboardComponentResult,
   type DashboardFilterChoice,
   type DashboardResult,
 } from "./reports/dashboards.js";
 import { aggregateColumns, definitionShape, ReportDefinitionSchema, toReportMetadata, type ReportDefinition } from "./reports/definition.js";
 import { HARD_ROW_CEILING, shapeResult, type ReportResult } from "./reports/shape.js";
 import { reportUrl, standardFilterNotes, summarizeReport, type FolderInfo, summarizeReportType, summarizeReportTypes } from "./reports/summarize.js";
-import { REPORT_VIEW_URI, reportViewHtml } from "./widget/view.js";
+import { DASHBOARD_VIEW_URI, dashboardViewHtml, REPORT_VIEW_URI, reportViewHtml } from "./widget/view.js";
 
 /**
  * The last sentence of the run_report and query_report descriptions on the local door, where a host may draw
@@ -27,6 +28,65 @@ import { REPORT_VIEW_URI, reportViewHtml } from "./widget/view.js";
  */
 export const VIEW_HINT =
   " Hosts that draw MCP Apps, such as Claude Desktop, show this result as a report card above your reply. There, lead with the one finding the card cannot show (concentration, change, risk, the next question), keep the reply short, and never repeat the card's rows, totals or a table.";
+
+/**
+ * The last sentence of the run_dashboard and refresh_dashboard descriptions, where a host may draw the dashboard
+ * card. The dashboard tools are on the local door only, so no door strips it.
+ */
+export const DASHBOARD_VIEW_HINT =
+  " Hosts that draw MCP Apps, such as Claude Desktop, show this result as a dashboard card above your reply, with every component drawn as its chart. There, lead with the one finding the card cannot show (what moved, what is missing or stale, a risk, the next question), keep the reply short, and never repeat the card's numbers, components or a table.";
+
+/** A dashboard component as the tools return it: the DashboardResult component plus what the dashboard card draws with. */
+export interface DashboardComponentView extends DashboardComponentResult {
+  /** The component's source report, which run_report can run and the card opens in Salesforce. */
+  sourceReport: { id: string | null; url?: string };
+  /** The component's first measure with its label and type, or null when it has none. */
+  measure: { name: string; label: string; dataType: string } | null;
+  /** A metric's own label, as set in the dashboard. */
+  metricLabel?: string;
+  /** A gauge's range, the breakpoints between its bands and each band's colour (empty when not all are set), when the dashboard sets them. */
+  gauge?: { min: number; max: number; breakpoints: number[]; colors: string[] };
+}
+
+export type DashboardView = Omit<DashboardResult, "components"> & { components: DashboardComponentView[] };
+
+/**
+ * Add to each shaped component what the raw dashboard carries and the card needs: the source report, the first
+ * measure's label and type (a metric or gauge result has no groups to carry them), a metric's label and a gauge's
+ * range. Components are joined by id, never by index.
+ */
+export function dashboardView(raw: Record<string, any>, shaped: DashboardResult, baseUrl: string | undefined): DashboardView { // eslint-disable-line @typescript-eslint/no-explicit-any
+  type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const meta = new Map<string, Json>(((raw.dashboardMetadata?.components ?? []) as Json[]).map((c) => [c.id, c]));
+  const data = new Map<string, Json>(((raw.componentData ?? []) as Json[]).map((d) => [d.componentId, d]));
+  const components = shaped.components.map((c): DashboardComponentView => {
+    const m = meta.get(c.id) ?? {};
+    const props: Json = m.properties ?? {};
+    const visual: Json = props.visualizationProperties ?? {};
+    const reportId: string | null = m.reportId ?? c.result?.report.id ?? null;
+    const name: string | undefined = (props.aggregates ?? [])[0]?.name;
+    const info: Json | undefined = name ? data.get(c.id)?.reportResult?.reportExtendedMetadata?.aggregateColumnInfo?.[name] : undefined;
+    const view: DashboardComponentView = {
+      ...c,
+      sourceReport: { id: reportId, url: reportUrl(baseUrl, reportId) },
+      measure: name ? { name, label: info?.label ?? (name === "RowCount" ? "Record Count" : name), dataType: info?.dataType ?? (name === "RowCount" ? "int" : "number") } : null,
+    };
+    if (typeof visual.metricLabel === "string" && visual.metricLabel) view.metricLabel = visual.metricLabel;
+    if (c.visualizationType === "Gauge") {
+      const breaks = ((visual.breakPoints ?? [])[0]?.breaks ?? []) as Json[];
+      const bounds = breaks.flatMap((b) => [b.lowerBound, b.upperBound]).filter((n): n is number => typeof n === "number");
+      if (bounds.length >= 2) {
+        const min = Math.min(...bounds);
+        const max = Math.max(...bounds);
+        const inner = breaks.slice(1).map((b) => b.lowerBound).filter((n): n is number => typeof n === "number" && n > min && n < max);
+        const colors = breaks.map((b) => (typeof b.color === "string" && /^[0-9a-f]{6}$/i.test(b.color) ? `#${b.color.toLowerCase()}` : "")).filter(Boolean);
+        if (max > min) view.gauge = { min, max, breakpoints: inner, colors: colors.length === inner.length + 1 ? colors : [] };
+      }
+    }
+    return view;
+  });
+  return { ...shaped, components };
+}
 
 export interface ServerOptions {
   readOnly: boolean;
@@ -485,18 +545,23 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     },
   );
 
-  server.registerTool(
+  // run_dashboard and refresh_dashboard carry the dashboard card: every component drawn as its chart.
+  const DASHBOARD_VIEW = { ui: { resourceUri: DASHBOARD_VIEW_URI } };
+
+  registerAppTool(
+    server,
     "run_dashboard",
     {
       title: "Read a dashboard",
       description:
-        "Read a dashboard's numbers as Salesforce last refreshed them: per component its header, visualization type, status (data, no data, error) and a compact report result (groups and totals, the same shape run_report returns), plus the filters in words, whose data it shows and when it was refreshed. It never refreshes: a component with no data says so in notes, and notes give the data's age when it is older than a day; then offer refresh_dashboard. `filters` pick a dashboard filter option by name and label (see describe_dashboard). Use it when the user asks about a dashboard, or wants the set of figures a dashboard already gathers. Different from run_report, which runs one saved report live and can change its filters, groupings and dates for the run.",
+        "Read a dashboard's numbers as Salesforce last refreshed them: per component its header, visualization type, status (data, no data, error) and a compact report result (groups and totals, the same shape run_report returns), plus the filters in words, whose data it shows and when it was refreshed. It never refreshes: a component with no data says so in notes, and notes give the data's age when it is older than a day; then offer refresh_dashboard. `filters` pick a dashboard filter option by name and label (see describe_dashboard). Use it when the user asks about a dashboard, or wants the set of figures a dashboard already gathers. Different from run_report, which runs one saved report live and can change its filters, groupings and dates for the run." + DASHBOARD_VIEW_HINT,
       inputSchema: dashboardInputs,
       annotations: READ,
+      _meta: DASHBOARD_VIEW,
     },
     async (args) => {
       try {
-        return ok(await readDashboard(args));
+        return okView(await readDashboard(args));
       } catch (error) {
         return fail(error);
       }
@@ -509,6 +574,14 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     REPORT_VIEW_URI,
     { description: "Draws a run_report or query_report result as a report card: title, filters, group table, totals, detail rows and notes." },
     async () => ({ contents: [{ uri: REPORT_VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: reportViewHtml() }] }),
+  );
+
+  registerAppResource(
+    server,
+    "Dashboard view",
+    DASHBOARD_VIEW_URI,
+    { description: "Draws a run_dashboard or refresh_dashboard result as a dashboard card: header, filters, refresh time, and every component as its chart in layout order." },
+    async () => ({ contents: [{ uri: DASHBOARD_VIEW_URI, mimeType: RESOURCE_MIME_TYPE, text: dashboardViewHtml() }] }),
   );
 
   if (options.readOnly) return server;
@@ -637,18 +710,20 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
     },
   );
 
-  server.registerTool(
+  registerAppTool(
+    server,
     "refresh_dashboard",
     {
       title: "Refresh a dashboard",
       description:
-        "Refresh a dashboard in Salesforce, so every component reruns its source report now, then return the same result as run_dashboard. It waits up to 60 seconds for the refresh to finish. Salesforce refreshes a dashboard at most once a minute: a second refresh inside a minute returns the cached results with a note saying when to try again. Each filter option has its own cache, so pass the filters you want to read. Use it when run_dashboard says a component has no data or the data is old, or when the user asks for current numbers. It saves nothing, but it runs every source report and changes what other viewers see, so it counts as a write. For one figure, run_report on the source report is lighter.",
+        "Refresh a dashboard in Salesforce, so every component reruns its source report now, then return the same result as run_dashboard. It waits up to 60 seconds for the refresh to finish. Salesforce refreshes a dashboard at most once a minute: a second refresh inside a minute returns the cached results with a note saying when to try again. Each filter option has its own cache, so pass the filters you want to read. Use it when run_dashboard says a component has no data or the data is old, or when the user asks for current numbers. It saves nothing, but it runs every source report and changes what other viewers see, so it counts as a write. For one figure, run_report on the source report is lighter." + DASHBOARD_VIEW_HINT,
       inputSchema: dashboardInputs,
       annotations: WRITE,
+      _meta: DASHBOARD_VIEW,
     },
     async (args) => {
       try {
-        return ok(await readDashboard(args, { refresh: true }));
+        return okView(await readDashboard(args, { refresh: true }));
       } catch (error) {
         return fail(error);
       }
@@ -683,21 +758,22 @@ export function buildServer(reports: ReportsApi, options: ServerOptions): McpSer
   async function readDashboard(
     input: { dashboardId: string; filters?: DashboardFilterChoice[]; maxRows?: number },
     mode: { refresh?: boolean } = {},
-  ): Promise<DashboardResult> {
+  ): Promise<DashboardView> {
     const id = input.dashboardId;
     const resolved = input.filters?.length ? resolveFilters(await reports.describeDashboard(id), input.filters) : undefined;
     const notes = mode.refresh ? await refreshAndWait(reports, id, resolved?.query ?? "", () => new Date()) : [];
     const results = await reports.dashboardResults(id, resolved?.query ?? "");
     const filters = resolved ?? resolveFilters(results.dashboardMetadata ?? {}, undefined);
+    const base = await baseUrl();
     const shaped = shapeDashboard(results, {
-      baseUrl: await baseUrl(),
+      baseUrl: base,
       maxRows: Math.min(input.maxRows ?? COMPONENT_ROWS, HARD_ROW_CEILING),
       filterWords: filters.words,
       appliedFilters: filters.applied,
       now: new Date(),
     });
     shaped.notes.unshift(...notes);
-    return shaped;
+    return dashboardView(results, shaped, base);
   }
 
   /** The names of a dashboard's source reports, by id. Empty when the lookup fails. */

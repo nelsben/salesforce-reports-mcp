@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ReportsApi } from "../src/reports/api.js";
 import { SalesforceError, type SalesforceApi } from "../src/salesforce/client.js";
 import { doorTools } from "../salesforce/scripts/door-tools.js";
-import { buildServer, VIEW_HINT, type ServerOptions } from "../src/server.js";
+import { buildServer, DASHBOARD_VIEW_HINT, VIEW_HINT, type ServerOptions } from "../src/server.js";
 import { fixture } from "./helpers.js";
 
 type Handler = (method: string, path: string, body: unknown) => unknown;
@@ -505,6 +505,12 @@ describe("view hint", () => {
     expect(VIEW_HINT).toMatch(/concentration, change, risk, the next question/);
     expect(VIEW_HINT).toMatch(/keep the reply short/);
     expect(VIEW_HINT).toMatch(/never repeat the card's rows, totals or a table/);
+  });
+
+  it("the hosted door carries no dashboard tool, so the dashboard card's hint never reaches it", async () => {
+    const tools = await doorTools();
+    expect(tools.map((t) => t.name).filter((n) => n.includes("dashboard"))).toEqual([]);
+    for (const tool of tools) expect(tool.description, tool.name).not.toContain(DASHBOARD_VIEW_HINT.trim());
   });
 
   it("the hosted door's descriptions carry none of the view hint", async () => {

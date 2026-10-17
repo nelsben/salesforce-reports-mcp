@@ -30,18 +30,34 @@ export async function bundleHost(): Promise<void> {
   });
 }
 
-/** The view exactly as the server serves it: dist/widget/view.js after npm run build. */
-export async function viewHtml(): Promise<string> {
+/** A view exactly as the server serves it: dist/widget/view.js after npm run build. */
+export async function viewHtml(which: "report" | "dashboard" = "report"): Promise<string> {
   const path = join(ROOT, "dist", "widget", "view.js");
-  let mod: { reportViewHtml: () => string };
+  let mod: { reportViewHtml: () => string; dashboardViewHtml: () => string };
   try {
     mod = await import(pathToFileURL(path).href);
   } catch {
     throw new Error("The built view is missing. Run npm run build first.");
   }
-  const html = mod.reportViewHtml();
-  if (!html.includes("ontoolresult")) throw new Error("The built view did not load: " + html.slice(0, 300));
+  const html = which === "dashboard" ? mod.dashboardViewHtml() : mod.reportViewHtml();
+  if (!html.includes("ontoolresult")) throw new Error(`The built ${which} view did not load: ` + html.slice(0, 300));
   return html;
+}
+
+export type DashboardResult = { dashboard: Record<string, unknown>; components: Record<string, unknown>[] } & Record<string, unknown>;
+
+/**
+ * A DashboardResult as run_dashboard returns it, built by the built server's own code from a captured fixture
+ * (test/fixtures/dashboard-results*.json), with a fixed clock so the notes do not change with the date.
+ */
+export async function dashboardFixture(name: string, filterWords = ["Stage: all (no option chosen)"]): Promise<DashboardResult> {
+  const dist = (file: string) => pathToFileURL(join(ROOT, "dist", file)).href;
+  const { shapeDashboard } = await import(dist("reports/dashboards.js"));
+  const { dashboardView } = await import(dist("server.js"));
+  const raw = JSON.parse(readFileSync(join(ROOT, "test", "fixtures", `${name}.json`), "utf8"));
+  const base = "https://example.my.salesforce.com";
+  const shaped = shapeDashboard(raw, { baseUrl: base, maxRows: 20, filterWords, now: new Date("2026-10-17T03:00:00Z") });
+  return dashboardView(raw, shaped, base) as DashboardResult;
 }
 
 /** An anonymised fixture from test/fixtures, for example expected-summary. */
@@ -50,7 +66,7 @@ export function fixture(name: string): ReportResult {
 }
 
 /** The tool result as run_report and query_report return it: the same object as text and as structuredContent. */
-export function toolResult(result: ReportResult) {
+export function toolResult(result: Record<string, unknown>) {
   return { content: [{ type: "text" as const, text: JSON.stringify(result) }], structuredContent: result };
 }
 
@@ -69,7 +85,7 @@ export async function openHost(page: Page): Promise<void> {
 }
 
 export interface DrawOptions {
-  result: ReportResult;
+  result: Record<string, unknown>;
   theme?: Theme;
   width?: number;
   input?: Record<string, unknown>;
