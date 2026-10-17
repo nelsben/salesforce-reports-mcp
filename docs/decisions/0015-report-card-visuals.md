@@ -26,6 +26,19 @@ The report view ([0013](0013-report-view-as-an-mcp-app.md)) drew a `ReportResult
 - A matrix with several down or across groupings joins their labels with ` / ` in one row or column header.
 - The view looks different, so the render baselines change on both platforms. The darwin ones are updated with the change; the linux ones come from the CI render job's artifact.
 
+## Update, 2026-10-16: a column chart and a narrow layout
+
+At 360 px the group and detail tables scrolled sideways inside the card, so the amounts and bars were cut off. A summary also showed its answer only as rows. Both changes keep the rules above: inline CSS and SVG in the one view, no chart library, values through `textContent`, and `ReportResult` unchanged.
+
+- **A column chart above a summary's groups.** One column per top-level group for the primary measure, in report order, scaled to the largest. Leaf rows are summed by the first grouping, as for the share in the KPI strip, so the chart needs a measure that adds up, or a single grouping where the rows are the groups. After 12 groups the rest are summed into one Other column; a measure that does not add up has no Other, so it draws no chart past 12. The chart needs at least two groups and a positive largest value, and a negative group draws as an empty column.
+- **How it is drawn.** Inline SVG built with `createElementNS`, with every label and value set through `textContent`. Columns sit in percent slots (at least six, centred), so the chart fills any width without scaling its text. Labels are in the card font and are shortened with an ellipsis to fit their slot, refitted when the card changes width. A compact value sits on each column and is hidden when it does not fit. The SVG has `role="img"`, a `title` that names the chart and a `desc` that lists every group with its full value; each column also carries a `title`. Columns grow in on first paint and stand still under `prefers-reduced-motion`.
+- **Where it is drawn.** Summaries only. A tabular card has no groups and draws no chart. A matrix keeps its heat grid and draws no chart, since the grid already is the picture.
+- **The narrow layout.** At 480 px or less every table folds. Each row becomes a small grid of its own: the grouping labels stack on the left, the primary measure and its bar sit on the right, and every other column stacks under the row as its header and its value. A detail row keeps its first column on top and stacks the rest the same way. The header label comes from a `data-label` attribute read by CSS, so the DOM keeps one cell per column and the text stays the same at every width. The render tests check that no table or scroll box is wider than its own box at 360 px.
+
+This supersedes "SVG charts beside the tables" below for summaries: the table still holds every number, and the chart shows the shape of the top-level groups at a glance.
+
+Consequences: the folded rows lose the table's column alignment for the stacked cells, and Chromium may drop table semantics for a table whose display changes, so a screen reader can hear the narrow table as plain text. The chart repeats the top-level figures that the KPI strip and the table already hold.
+
 ## Alternatives turned down
 
 - **A chart library (Chart.js, ECharts, Vega).** It adds tens to hundreds of kilobytes to every card for a few bars, and draws on a canvas whose text Claude's host and the render tests cannot read.

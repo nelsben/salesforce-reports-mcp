@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
@@ -122,6 +123,14 @@ describe("report view", () => {
     // The ext-apps client is inlined in place of the marker.
     expect(html).toContain("ui/notifications/initialized");
     expect(html).not.toContain("/*@ext-apps-bundle*/");
+  });
+
+  it("sets no markup from data: the view script never writes innerHTML or outerHTML", () => {
+    const template = readFileSync(new URL("../src/widget/report.html", import.meta.url), "utf8");
+    expect(template).not.toMatch(/\.(innerHTML|outerHTML)\s*[+]?=/);
+    expect(template).not.toMatch(/insertAdjacentHTML|document\.write/);
+    // The chart is inline SVG built with createElementNS, with no chart library.
+    expect(template).toContain("createElementNS");
   });
 
   it("serves the view in read-only mode too", async () => {
