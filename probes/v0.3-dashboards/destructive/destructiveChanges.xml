@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package xmlns="http://soap.sforce.com/2006/04/metadata">
+    <types>
+        <members>Dashboard_Probe_Dashboards/Pipeline_Overview</members>
+        <members>Dashboard_Probe_Dashboards</members>
+        <name>Dashboard</name>
+    </types>
+    <types>
+        <members>Dashboard_Probe/Pipeline_by_Stage</members>
+        <members>Dashboard_Probe/Amount_by_Close_Month</members>
+        <members>Dashboard_Probe/Won_by_Stage</members>
+        <members>Dashboard_Probe</members>
+        <name>Report</name>
+    </types>
+    <version>68.0</version>
+</Package>
