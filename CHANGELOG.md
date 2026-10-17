@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- The report card shows the answer at a glance: up to three headline tiles (the primary measure's total, the record count, and the largest group's share), a bar beside each group's amount, and for a matrix a heat grid with row and column totals, its full group table folded under "All groups (N)". Currency, dates and percents are formatted, and blanks show a muted dash. Heat cells are shaded in two bands so every cell passes WCAG AA contrast in light and dark. Still inline CSS, no new dependency, and `ReportResult` is unchanged ([decision 0015](docs/decisions/0015-report-card-visuals.md)). Amounts always draw in US dollars, since the result carries no currency code.
+- When a card is drawn, the `run_report` and `query_report` descriptions tell Claude to lead with the one finding the card cannot show and never repeat its rows, totals or a table. The report-runner skill says the same for both kinds of host. The hosted door's descriptions are unchanged.
+- `npm run test:render` has 11 cases, adding the headline tiles and bars, the matrix heat grid, and the heat grid in dark, and checks formats, bar placement and the contrast of every heat cell. The README GIF is redrawn from the new card.
+- [docs/architecture.md](docs/architecture.md) has a numbered sequence diagram for each door, including the local server and its card, with a table explaining every step.
+
 ## 0.2.0
 
 - Published to npm as `salesforce-reports-mcp`. The Claude Code plugin now starts the server with `npx -y salesforce-reports-mcp` instead of building it from GitHub.
