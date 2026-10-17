@@ -2,6 +2,8 @@
 
 Status: Accepted, 2026-10-16
 
+The card's type, chrome and chart colours now come from the Lightning Design System; the SLDS data-visualization palette replaces the dataviz skill's palette ([0018](0018-cards-follow-the-lightning-design-system.md)).
+
 ## Context
 
 `run_dashboard` and `refresh_dashboard` ([0016](0016-dashboards-read-and-refresh-only.md)) return a `DashboardResult`: one `ReportResult` per component, in layout order. A dashboard is a picture, and in Claude Desktop a list of tables does not read as one. The report card ([0013](0013-report-view-as-an-mcp-app.md), [0015](0015-report-card-visuals.md)) already proves an MCP App works on the local door, with inline SVG, no chart library and no network. The probe dashboard has one component of each type the card must draw: Metric, Gauge, Donut, Bar, Line, Table, Funnel and Column.
