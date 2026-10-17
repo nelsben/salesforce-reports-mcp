@@ -2,12 +2,19 @@
  * Captures real API responses into test/fixtures, anonymised.
  * Usage: npm run capture -- --org <alias>
  * Read-only: it runs ad hoc queries and describes; it saves nothing in the org.
+ *
+ * Dashboards: npm run capture -- --org <alias> --dashboard <id | developer name | title> [--refresh]
+ * Captures only the dashboard fixtures (dashboard-describe, -results, -results-no-data, -status,
+ * -results-filtered). Without --refresh it only reads what the org has cached, and skips any
+ * fixture the cache cannot give. With --refresh it also refreshes the dashboard, which changes the
+ * cached data in the org (twice: once with the first filter option, once without). Salesforce
+ * allows one refresh a minute, so the script waits 65 seconds between them.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { ReportsApi } from "../src/reports/api.js";
+import { ReportsApi, soqlString } from "../src/reports/api.js";
 import { toReportMetadata } from "../src/reports/definition.js";
 import { createClient } from "../src/salesforce/client.js";
 import { resolveConnection } from "../src/salesforce/connection.js";
@@ -15,12 +22,16 @@ import { resolveConnection } from "../src/salesforce/connection.js";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Json = any;
 
-const { values } = parseArgs({ options: { org: { type: "string" } }, strict: true });
+const { values } = parseArgs({
+  options: { org: { type: "string" }, dashboard: { type: "string" }, refresh: { type: "boolean", default: false } },
+  strict: true,
+});
 if (!values.org) {
   console.error("Pass --org <alias>.");
   process.exit(2);
 }
-const api = new ReportsApi(createClient(resolveConnection({ org: values.org })));
+const client = createClient(resolveConnection({ org: values.org }));
+const api = new ReportsApi(client);
 const out = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "fixtures");
 mkdirSync(out, { recursive: true });
 
@@ -37,7 +48,8 @@ function neutral(kind: string, original: string): string {
 }
 
 const ids = new Map<string, string>();
-const ID = /^(?:00[0-9A-Za-z]|0[0-9][0-9A-Za-z])[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/;
+// Key prefixes start with 0 and a digit or capital (00O report, 01Z dashboard, 01a component, 0IB filter, 0IC option).
+const ID = /^0[0-9A-Z][0-9A-Za-z][A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/;
 function fakeId(id: string): string {
   let fake = ids.get(id);
   if (!fake) {
@@ -54,6 +66,11 @@ function nameKind(info: Json | undefined): string | undefined {
 }
 
 function anonymiseReport(raw: Json): Json {
+  return scrub(maskNames(raw));
+}
+
+/** Replaces names in a report result with neutral ones. Returns a copy; ids and URLs are left for `scrub`. */
+function maskNames(raw: Json): Json {
   const copy: Json = JSON.parse(JSON.stringify(raw));
   const ext = copy.reportExtendedMetadata ?? {};
   const detailNames: string[] = copy.reportMetadata?.detailColumns ?? [];
@@ -83,7 +100,7 @@ function anonymiseReport(raw: Json): Json {
   };
   walkGroups(copy.groupingsDown?.groupings, (copy.reportMetadata?.groupingsDown ?? []).map((g: Json) => g.name), 0);
   walkGroups(copy.groupingsAcross?.groupings, (copy.reportMetadata?.groupingsAcross ?? []).map((g: Json) => g.name), 0);
-  return scrub(copy);
+  return copy;
 }
 
 /** Final pass over every string: ids and instance URLs. */
@@ -92,7 +109,7 @@ function scrub(value: Json): Json {
     if (ID.test(value)) return fakeId(value);
     return value
       .replace(/https:\/\/[a-z0-9.-]+\.salesforce\.com/gi, "https://example.my.salesforce.com")
-      .replace(/\/services\/data\/v[\d.]+\/analytics\/reports\/(00O[A-Za-z0-9]{12,15})/g, (_m, id) => `/services/data/v62.0/analytics/reports/${fakeId(id)}`);
+      .replace(/(\/analytics\/(?:reports|dashboards)\/)(0[0-9A-Z][0-9A-Za-z][A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?)/g, (_m, path, id) => `${path}${fakeId(id)}`);
   }
   if (Array.isArray(value)) return value.map(scrub);
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrub(v)]));
@@ -102,6 +119,92 @@ function scrub(value: Json): Json {
 function save(name: string, data: Json): void {
   writeFileSync(join(out, `${name}.json`), `${JSON.stringify(data, null, 2)}\n`);
   console.log(`wrote test/fixtures/${name}.json`);
+}
+
+// ---- dashboards ----
+
+/** Anonymises a dashboard response: user display names, the names inside each component's report result, then ids and URLs. */
+function anonymiseDashboard(raw: Json): Json {
+  const copy: Json = JSON.parse(JSON.stringify(raw));
+  const walk = (value: Json): void => {
+    if (Array.isArray(value)) return value.forEach(walk);
+    if (!value || typeof value !== "object") return;
+    if (typeof value.displayName === "string") value.displayName = neutral("User", value.displayName);
+    if (typeof value.reportResult?.factMap === "object") value.reportResult = maskNames(value.reportResult);
+    Object.values(value).forEach(walk);
+  };
+  walk(copy);
+  return scrub(copy);
+}
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const complete = (status: Json) =>
+  (status.componentStatus ?? []).length > 0 &&
+  (status.componentStatus ?? []).every((c: Json) => c.refreshStatus === "IDLE" && c.componentDataStatus === "DATA");
+
+/** Salesforce allows one refresh a minute: PUT, then poll /status until every component is idle with data. */
+async function refreshDashboard(id: string, query: string): Promise<void> {
+  await client.request("PUT", `/analytics/dashboards/${id}${query}`);
+  for (let attempt = 0; attempt < 40; attempt++) {
+    await wait(3000);
+    if (complete(await client.request<Json>("GET", `/analytics/dashboards/${id}/status${query}`))) return;
+  }
+  throw new Error("The dashboard refresh did not finish in two minutes.");
+}
+
+async function captureDashboard(target: string, refresh: boolean): Promise<void> {
+  let id = target;
+  if (!/^01Z[A-Za-z0-9]{12}(?:[A-Za-z0-9]{3})?$/.test(target)) {
+    const rows = await api.soql(`SELECT Id FROM Dashboard WHERE DeveloperName = '${soqlString(target)}' OR Title = '${soqlString(target)}' LIMIT 2`);
+    if (rows.length !== 1) throw new Error(`Expected one dashboard named "${target}", found ${rows.length}.`);
+    id = rows[0]!.Id;
+  }
+  const path = `/analytics/dashboards/${id}`;
+  const describe = await client.request<Json>("GET", `${path}/describe`);
+  save("dashboard-describe", anonymiseDashboard(describe));
+
+  // No data: ask for a filter option nobody has refreshed. The cache keeps one result per filter value.
+  const options: Json[] = (describe.filters ?? []).flatMap((f: Json) => f.options ?? []);
+  let noData = false;
+  for (const option of options) {
+    const result = await client.request<Json>("GET", `${path}?filter1=${encodeURIComponent(option.id)}`);
+    if (result.componentData.every((c: Json) => c.status.componentDataStatus === "NO_DATA")) {
+      save("dashboard-results-no-data", anonymiseDashboard(result));
+      noData = true;
+      break;
+    }
+  }
+  if (!noData) console.log("Skipped dashboard-results-no-data: every filter option already has cached data (or the dashboard has no filter).");
+
+  if (!refresh) {
+    const result = await client.request<Json>("GET", path);
+    if (result.componentData.some((c: Json) => c.status.componentDataStatus !== "DATA")) {
+      console.log("Skipped dashboard-results and dashboard-status: the dashboard has no cached data. Run again with --refresh.");
+      return;
+    }
+    save("dashboard-results", anonymiseDashboard(result));
+    save("dashboard-status", anonymiseDashboard(await client.request<Json>("GET", `${path}/status`)));
+    console.log("Skipped dashboard-results-filtered: it needs --refresh.");
+    return;
+  }
+
+  // Filtered first, so the unfiltered refresh is the last one and leaves the cache fresh.
+  const first = options[0];
+  if (first) {
+    const query = `?filter1=${encodeURIComponent(first.id)}`;
+    await refreshDashboard(id, query);
+    save("dashboard-results-filtered", anonymiseDashboard(await client.request<Json>("GET", `${path}${query}`)));
+    await wait(65_000);
+  }
+  await refreshDashboard(id, "");
+  save("dashboard-results", anonymiseDashboard(await client.request<Json>("GET", path)));
+  save("dashboard-status", anonymiseDashboard(await client.request<Json>("GET", `${path}/status`)));
+}
+
+if (values.dashboard) {
+  await captureDashboard(values.dashboard, values.refresh);
+  console.log("Done. Review the fixtures before committing.");
+  process.exit(0);
 }
 
 // ---- captures ----

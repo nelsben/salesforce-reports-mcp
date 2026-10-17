@@ -113,6 +113,15 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 - **That exception escapes `catch (Exception e)`.** `ReportsApi.handle` catches every `Exception`, yet the client got Salesforce's own `APEX_ERROR`, not the door's `UNEXPECTED`, with class names and line numbers in the message. Code that may hit it must avoid the call, not catch it (found 2026-10-12).
 - **A call without arguments through the hosted server answered `INVALID_INPUT`.** The hosted server most likely posts the JSON `null` for it (inferred from the reproduction, not observed on the wire), and `ReportsInput.parse` refused it as not a JSON object. The door now reads `null`, like a blank body, as no input, as the local server reads missing arguments. `[]` and `"x"` are still refused (found 2026-10-12).
 
+### Dashboard findings (checked 2026-10-16, API v62.0, [v0.3 dashboards probe](probes/v0.3-dashboards.md))
+
+- **`GET /analytics/dashboards` lists only recently viewed dashboards** and returned `[]` for a dashboard never opened in the UI. Find dashboards with SOQL on `Dashboard` (`Id, Title, DeveloperName, FolderName, Type, RunningUserId`), which returns the ones the signed-in user can see.
+- **A dashboard that was never refreshed answers 200 with `componentDataStatus: NO_DATA`** on every component, `refreshDate: null` and `reportResult: null`. There is no error.
+- **`PUT /analytics/dashboards/{id}` refreshes** (201 with a `statusUrl`). Data was ready at the first poll of `/status`, 3 to 9 seconds later. A second refresh inside a minute answers 403 `FORBIDDEN`.
+- **Each `componentData[].reportResult` is an ordinary report run** (`factMap`, `groupingsDown`, `reportMetadata`), so `shape.ts` can read it. Join it to `describe.components` by `componentId`, and note that `reportMetadata` does not show the dashboard filter.
+- **Filtered data needs the filter on the PUT's query string**: `PUT /analytics/dashboards/{id}?filter1=<optionId>`, then `GET …?filter1=<optionId>`. A body such as `{"filters":["<optionId>"]}` answers 201 and does nothing. The option text, and `filter2` or `filter3` on a one-filter dashboard, answer 400 `BAD_REQUEST`.
+- **The cache is per filter value.** A value never refreshed answers `NO_DATA`. After a refresh for another value, the older caches keep their data and show `refreshStatus: STALE`.
+
 ### ReportResult (output)
 
 One shape for every report Claude runs.

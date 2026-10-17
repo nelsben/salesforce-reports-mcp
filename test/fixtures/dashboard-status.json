@@ -1,0 +1,52 @@
+{
+  "componentStatus": [
+    {
+      "componentDataStatus": "DATA",
+      "componentId": "01a000000000001AAA",
+      "refreshDate": "2026-10-17T02:13:35.000+0000",
+      "refreshStatus": "IDLE"
+    },
+    {
+      "componentDataStatus": "DATA",
+      "componentId": "01a000000000003AAA",
+      "refreshDate": "2026-10-17T02:13:35.000+0000",
+      "refreshStatus": "IDLE"
+    },
+    {
+      "componentDataStatus": "DATA",
+      "componentId": "01a000000000005AAA",
+      "refreshDate": "2026-10-17T02:13:35.000+0000",
+      "refreshStatus": "IDLE"
+    },
+    {
+      "componentDataStatus": "DATA",
+      "componentId": "01a000000000006AAA",
+      "refreshDate": "2026-10-17T02:13:35.000+0000",
+      "refreshStatus": "IDLE"
+    },
+    {
+      "componentDataStatus": "DATA",
+      "componentId": "01a000000000007AAA",
+      "refreshDate": "2026-10-17T02:13:35.000+0000",
+      "refreshStatus": "IDLE"
+    },
+    {
+      "componentDataStatus": "DATA",
+      "componentId": "01a000000000009AAA",
+      "refreshDate": "2026-10-17T02:13:35.000+0000",
+      "refreshStatus": "IDLE"
+    },
+    {
+      "componentDataStatus": "DATA",
+      "componentId": "01a000000000010AAA",
+      "refreshDate": "2026-10-17T02:13:35.000+0000",
+      "refreshStatus": "IDLE"
+    },
+    {
+      "componentDataStatus": "DATA",
+      "componentId": "01a000000000011AAA",
+      "refreshDate": "2026-10-17T02:13:35.000+0000",
+      "refreshStatus": "IDLE"
+    }
+  ]
+}
