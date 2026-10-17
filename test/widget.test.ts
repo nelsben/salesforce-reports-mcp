@@ -4,7 +4,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import { ReportsApi } from "../src/reports/api.js";
 import { SalesforceError, type SalesforceApi } from "../src/salesforce/client.js";
-import { buildServer, DASHBOARD_VIEW_HINT, VIEW_HINT, type ServerOptions } from "../src/server.js";
+import { buildServer, DASHBOARD_VIEW_HINT, dashboardView, VIEW_HINT, type ServerOptions } from "../src/server.js";
 import { doorDescription } from "../salesforce/scripts/door-tools.js";
 import { inlineBundle } from "../src/widget/view.js";
 import { fixture } from "./helpers.js";
@@ -255,6 +255,22 @@ describe("dashboard view", () => {
     expect(metric.gauge).toBeUndefined();
     expect(gauge.gauge).toEqual({ min: 0, max: 5000000, breakpoints: [2000000, 4000000], colors: ["#c25454", "#c2c254", "#54c254"] });
     expect(donut.sourceReport.id).toBe("00O000000000004AAA");
+  });
+
+  it("passes the dashboard's colour palette name through for the card, and a component's own when it sets one", async () => {
+    const client = await connect();
+    const result = (await client.callTool({ name: "run_dashboard", arguments: { dashboardId: DASH } })) as CallResult;
+    const parsed = JSON.parse(result.content[0]!.text);
+    expect(parsed.colorPalette).toBe("unity");
+    for (const component of parsed.components) expect(component.colorPalette).toBeUndefined();
+    const raw = fixture("dashboard-results") as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const first = raw.dashboardMetadata.components[0];
+    first.properties.visualizationProperties = { ...first.properties.visualizationProperties, colorPalette: "watermelon" };
+    const shaped = { ...parsed, colorPalette: undefined, components: parsed.components.map((c: Record<string, unknown>) => ({ id: c.id, visualizationType: c.visualizationType, status: c.status, result: c.result })) };
+    const view = dashboardView(raw, shaped, "https://example.my.salesforce.com");
+    expect(view.colorPalette).toBe("unity");
+    expect(view.components[0]!.colorPalette).toBe("watermelon");
+    expect(view.components[1]!.colorPalette).toBeUndefined();
   });
 
   it("serves the dashboard view as one self-contained HTML document, in read-only mode too", async () => {

@@ -46,9 +46,15 @@ export interface DashboardComponentView extends DashboardComponentResult {
   metricLabel?: string;
   /** A gauge's range, the breakpoints between its bands and each band's colour (empty when not all are set), when the dashboard sets them. */
   gauge?: { min: number; max: number; breakpoints: number[]; colors: string[] };
+  /** The component's own Salesforce colour palette name, when it sets one (decision 0018). */
+  colorPalette?: string;
 }
 
-export type DashboardView = Omit<DashboardResult, "components"> & { components: DashboardComponentView[] };
+export type DashboardView = Omit<DashboardResult, "components"> & {
+  components: DashboardComponentView[];
+  /** The dashboard's Salesforce colour palette name, as describe gives it (for example "unity"); the card draws the ones it knows (decision 0018). */
+  colorPalette?: string;
+};
 
 /**
  * Add to each shaped component what the raw dashboard carries and the card needs: the source report, the first
@@ -72,6 +78,7 @@ export function dashboardView(raw: Record<string, any>, shaped: DashboardResult,
       measure: name ? { name, label: info?.label ?? (name === "RowCount" ? "Record Count" : name), dataType: info?.dataType ?? (name === "RowCount" ? "int" : "number") } : null,
     };
     if (typeof visual.metricLabel === "string" && visual.metricLabel) view.metricLabel = visual.metricLabel;
+    if (typeof visual.colorPalette === "string" && visual.colorPalette) view.colorPalette = visual.colorPalette;
     if (c.visualizationType === "Gauge") {
       const breaks = ((visual.breakPoints ?? [])[0]?.breaks ?? []) as Json[];
       const bounds = breaks.flatMap((b) => [b.lowerBound, b.upperBound]).filter((n): n is number => typeof n === "number");
@@ -85,7 +92,8 @@ export function dashboardView(raw: Record<string, any>, shaped: DashboardResult,
     }
     return view;
   });
-  return { ...shaped, components };
+  const palette = raw.dashboardMetadata?.colorPalette;
+  return { ...shaped, components, ...(typeof palette === "string" && palette ? { colorPalette: palette } : {}) };
 }
 
 export interface ServerOptions {
