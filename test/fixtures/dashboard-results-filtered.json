@@ -1,0 +1,1829 @@
+{
+  "attributes": {
+    "dashboardId": "01Z000000000017AAA",
+    "dashboardName": "Pipeline Overview",
+    "describeUrl": "/services/data/v62.0/analytics/dashboards/01Z000000000017AAA/describe",
+    "statusUrl": "/services/data/v62.0/analytics/dashboards/01Z000000000017AAA/status",
+    "type": "Dashboard"
+  },
+  "chatterPhotoUrls": {},
+  "componentData": [
+    {
+      "componentId": "01a000000000001AAA",
+      "reportResult": {
+        "attributes": null,
+        "allData": true,
+        "factMap": {
+          "T!T": {
+            "aggregates": [
+              {
+                "label": "$0.00",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "groupingsAcross": {
+          "groupings": []
+        },
+        "groupingsDown": {
+          "groupings": []
+        },
+        "hasDetailRows": false,
+        "hasExceededTabularRowLimit": false,
+        "reportExtendedMetadata": {
+          "aggregateColumnInfo": {
+            "s!AMOUNT": {
+              "dataType": "currency",
+              "label": "Sum of Amount"
+            }
+          },
+          "availableDashboardSettings": null,
+          "detailColumnInfo": {},
+          "groupingColumnInfo": {}
+        },
+        "reportMetadata": {
+          "aggregates": [
+            "s!AMOUNT"
+          ],
+          "chart": null,
+          "crossFilters": [],
+          "currency": null,
+          "dashboardSetting": null,
+          "description": null,
+          "detailColumns": [],
+          "developerName": "Won_by_Stage",
+          "division": null,
+          "folderId": "00l000000000019AAA",
+          "groupingsAcross": [],
+          "groupingsDown": [],
+          "hasDetailRows": false,
+          "hasRecordCount": true,
+          "historicalSnapshotDates": [],
+          "id": "00O000000000002AAA",
+          "name": "Won by Stage",
+          "presentationOptions": {
+            "hasStackedSummaries": false
+          },
+          "reportBooleanFilter": null,
+          "reportFilters": [
+            {
+              "column": "WON",
+              "filterType": "fieldValue",
+              "isRunPageEditable": true,
+              "operator": "equals",
+              "value": "True"
+            }
+          ],
+          "reportFormat": "SUMMARY",
+          "reportType": {
+            "label": "Opportunities",
+            "type": "Opportunity"
+          },
+          "saveRoleHierarchy": false,
+          "scope": "organization",
+          "showGrandTotal": true,
+          "showSubtotals": true,
+          "sortBy": [],
+          "standardDateFilter": {
+            "column": "CLOSE_DATE",
+            "durationValue": "CUSTOM",
+            "endDate": "2030-12-31",
+            "startDate": "2020-01-01"
+          },
+          "standardFilters": [
+            {
+              "name": "open",
+              "value": "all"
+            },
+            {
+              "name": "probability",
+              "value": ">0"
+            }
+          ],
+          "supportsRoleHierarchy": true,
+          "userOrHierarchyFilterId": null
+        }
+      },
+      "status": {
+        "componentDataStatus": "DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": "2026-10-17T02:12:25.000+0000",
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000003AAA",
+      "reportResult": {
+        "attributes": null,
+        "allData": true,
+        "factMap": {
+          "0!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          },
+          "T!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          }
+        },
+        "groupingsAcross": {
+          "groupings": []
+        },
+        "groupingsDown": {
+          "groupings": [
+            {
+              "groupings": [],
+              "key": "0",
+              "label": "Prospecting",
+              "value": "Prospecting"
+            }
+          ]
+        },
+        "hasDetailRows": false,
+        "hasExceededTabularRowLimit": false,
+        "reportExtendedMetadata": {
+          "aggregateColumnInfo": {
+            "s!AMOUNT": {
+              "dataType": "currency",
+              "label": "Sum of Amount"
+            }
+          },
+          "availableDashboardSettings": null,
+          "detailColumnInfo": {},
+          "groupingColumnInfo": {
+            "STAGE_NAME": {
+              "dataType": "picklist",
+              "entityColumnName": "Opportunity.StageName",
+              "filterValues": [
+                {
+                  "apiName": "Prospecting",
+                  "label": "Prospecting",
+                  "name": "Prospecting"
+                },
+                {
+                  "apiName": "Qualification",
+                  "label": "Qualification",
+                  "name": "Qualification"
+                },
+                {
+                  "apiName": "Needs Analysis",
+                  "label": "Needs Analysis",
+                  "name": "Needs Analysis"
+                },
+                {
+                  "apiName": "Value Proposition",
+                  "label": "Value Proposition",
+                  "name": "Value Proposition"
+                },
+                {
+                  "apiName": "Id. Decision Makers",
+                  "label": "Id. Decision Makers",
+                  "name": "Id. Decision Makers"
+                },
+                {
+                  "apiName": "Perception Analysis",
+                  "label": "Perception Analysis",
+                  "name": "Perception Analysis"
+                },
+                {
+                  "apiName": "Proposal/Price Quote",
+                  "label": "Proposal/Price Quote",
+                  "name": "Proposal/Price Quote"
+                },
+                {
+                  "apiName": "Negotiation/Review",
+                  "label": "Negotiation/Review",
+                  "name": "Negotiation/Review"
+                },
+                {
+                  "apiName": "Closed Won",
+                  "label": "Closed Won",
+                  "name": "Closed Won"
+                },
+                {
+                  "apiName": "Closed Lost",
+                  "label": "Closed Lost",
+                  "name": "Closed Lost"
+                }
+              ],
+              "filterable": true,
+              "fullyQualifiedName": "Opportunity.StageName",
+              "groupingLevel": 0,
+              "inactiveFilterValues": [],
+              "isLookup": false,
+              "label": "Stage",
+              "uniqueCountable": true
+            }
+          }
+        },
+        "reportMetadata": {
+          "aggregates": [
+            "s!AMOUNT"
+          ],
+          "chart": null,
+          "crossFilters": [],
+          "currency": null,
+          "dashboardSetting": null,
+          "description": null,
+          "detailColumns": [],
+          "developerName": "Pipeline_by_Stage",
+          "division": null,
+          "folderId": "00l000000000019AAA",
+          "groupingsAcross": [],
+          "groupingsDown": [
+            {
+              "dateGranularity": "None",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": "Asc"
+            }
+          ],
+          "hasDetailRows": false,
+          "hasRecordCount": true,
+          "historicalSnapshotDates": [],
+          "id": "00O000000000004AAA",
+          "name": "Pipeline by Stage",
+          "presentationOptions": {
+            "hasStackedSummaries": false
+          },
+          "reportBooleanFilter": null,
+          "reportFilters": [],
+          "reportFormat": "SUMMARY",
+          "reportType": {
+            "label": "Opportunities",
+            "type": "Opportunity"
+          },
+          "saveRoleHierarchy": false,
+          "scope": "organization",
+          "showGrandTotal": true,
+          "showSubtotals": true,
+          "sortBy": [],
+          "standardDateFilter": {
+            "column": "CLOSE_DATE",
+            "durationValue": "CUSTOM",
+            "endDate": "2030-12-31",
+            "startDate": "2020-01-01"
+          },
+          "standardFilters": [
+            {
+              "name": "open",
+              "value": "all"
+            },
+            {
+              "name": "probability",
+              "value": ">0"
+            }
+          ],
+          "supportsRoleHierarchy": true,
+          "userOrHierarchyFilterId": null
+        }
+      },
+      "status": {
+        "componentDataStatus": "DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": "2026-10-17T02:12:25.000+0000",
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000005AAA",
+      "reportResult": {
+        "attributes": null,
+        "allData": true,
+        "factMap": {
+          "0!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          },
+          "T!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          }
+        },
+        "groupingsAcross": {
+          "groupings": []
+        },
+        "groupingsDown": {
+          "groupings": [
+            {
+              "groupings": [],
+              "key": "0",
+              "label": "Prospecting",
+              "value": "Prospecting"
+            }
+          ]
+        },
+        "hasDetailRows": false,
+        "hasExceededTabularRowLimit": false,
+        "reportExtendedMetadata": {
+          "aggregateColumnInfo": {
+            "s!AMOUNT": {
+              "dataType": "currency",
+              "label": "Sum of Amount"
+            }
+          },
+          "availableDashboardSettings": null,
+          "detailColumnInfo": {},
+          "groupingColumnInfo": {
+            "STAGE_NAME": {
+              "dataType": "picklist",
+              "entityColumnName": "Opportunity.StageName",
+              "filterValues": [
+                {
+                  "apiName": "Prospecting",
+                  "label": "Prospecting",
+                  "name": "Prospecting"
+                },
+                {
+                  "apiName": "Qualification",
+                  "label": "Qualification",
+                  "name": "Qualification"
+                },
+                {
+                  "apiName": "Needs Analysis",
+                  "label": "Needs Analysis",
+                  "name": "Needs Analysis"
+                },
+                {
+                  "apiName": "Value Proposition",
+                  "label": "Value Proposition",
+                  "name": "Value Proposition"
+                },
+                {
+                  "apiName": "Id. Decision Makers",
+                  "label": "Id. Decision Makers",
+                  "name": "Id. Decision Makers"
+                },
+                {
+                  "apiName": "Perception Analysis",
+                  "label": "Perception Analysis",
+                  "name": "Perception Analysis"
+                },
+                {
+                  "apiName": "Proposal/Price Quote",
+                  "label": "Proposal/Price Quote",
+                  "name": "Proposal/Price Quote"
+                },
+                {
+                  "apiName": "Negotiation/Review",
+                  "label": "Negotiation/Review",
+                  "name": "Negotiation/Review"
+                },
+                {
+                  "apiName": "Closed Won",
+                  "label": "Closed Won",
+                  "name": "Closed Won"
+                },
+                {
+                  "apiName": "Closed Lost",
+                  "label": "Closed Lost",
+                  "name": "Closed Lost"
+                }
+              ],
+              "filterable": true,
+              "fullyQualifiedName": "Opportunity.StageName",
+              "groupingLevel": 0,
+              "inactiveFilterValues": [],
+              "isLookup": false,
+              "label": "Stage",
+              "uniqueCountable": true
+            }
+          }
+        },
+        "reportMetadata": {
+          "aggregates": [
+            "s!AMOUNT"
+          ],
+          "chart": null,
+          "crossFilters": [],
+          "currency": null,
+          "dashboardSetting": null,
+          "description": null,
+          "detailColumns": [],
+          "developerName": "Pipeline_by_Stage",
+          "division": null,
+          "folderId": "00l000000000019AAA",
+          "groupingsAcross": [],
+          "groupingsDown": [
+            {
+              "dateGranularity": "None",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": "Asc"
+            }
+          ],
+          "hasDetailRows": false,
+          "hasRecordCount": true,
+          "historicalSnapshotDates": [],
+          "id": "00O000000000004AAA",
+          "name": "Pipeline by Stage",
+          "presentationOptions": {
+            "hasStackedSummaries": false
+          },
+          "reportBooleanFilter": null,
+          "reportFilters": [],
+          "reportFormat": "SUMMARY",
+          "reportType": {
+            "label": "Opportunities",
+            "type": "Opportunity"
+          },
+          "saveRoleHierarchy": false,
+          "scope": "organization",
+          "showGrandTotal": true,
+          "showSubtotals": true,
+          "sortBy": [],
+          "standardDateFilter": {
+            "column": "CLOSE_DATE",
+            "durationValue": "CUSTOM",
+            "endDate": "2030-12-31",
+            "startDate": "2020-01-01"
+          },
+          "standardFilters": [
+            {
+              "name": "open",
+              "value": "all"
+            },
+            {
+              "name": "probability",
+              "value": ">0"
+            }
+          ],
+          "supportsRoleHierarchy": true,
+          "userOrHierarchyFilterId": null
+        }
+      },
+      "status": {
+        "componentDataStatus": "DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": "2026-10-17T02:12:25.000+0000",
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000006AAA",
+      "reportResult": {
+        "attributes": null,
+        "allData": true,
+        "factMap": {
+          "T!T": {
+            "aggregates": [
+              {
+                "label": "$0.00",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "groupingsAcross": {
+          "groupings": []
+        },
+        "groupingsDown": {
+          "groupings": []
+        },
+        "hasDetailRows": false,
+        "hasExceededTabularRowLimit": false,
+        "reportExtendedMetadata": {
+          "aggregateColumnInfo": {
+            "s!AMOUNT": {
+              "dataType": "currency",
+              "label": "Sum of Amount"
+            }
+          },
+          "availableDashboardSettings": null,
+          "detailColumnInfo": {},
+          "groupingColumnInfo": {}
+        },
+        "reportMetadata": {
+          "aggregates": [
+            "s!AMOUNT"
+          ],
+          "chart": null,
+          "crossFilters": [],
+          "currency": null,
+          "dashboardSetting": null,
+          "description": null,
+          "detailColumns": [],
+          "developerName": "Won_by_Stage",
+          "division": null,
+          "folderId": "00l000000000019AAA",
+          "groupingsAcross": [],
+          "groupingsDown": [],
+          "hasDetailRows": false,
+          "hasRecordCount": true,
+          "historicalSnapshotDates": [],
+          "id": "00O000000000002AAA",
+          "name": "Won by Stage",
+          "presentationOptions": {
+            "hasStackedSummaries": false
+          },
+          "reportBooleanFilter": null,
+          "reportFilters": [
+            {
+              "column": "WON",
+              "filterType": "fieldValue",
+              "isRunPageEditable": true,
+              "operator": "equals",
+              "value": "True"
+            }
+          ],
+          "reportFormat": "SUMMARY",
+          "reportType": {
+            "label": "Opportunities",
+            "type": "Opportunity"
+          },
+          "saveRoleHierarchy": false,
+          "scope": "organization",
+          "showGrandTotal": true,
+          "showSubtotals": true,
+          "sortBy": [],
+          "standardDateFilter": {
+            "column": "CLOSE_DATE",
+            "durationValue": "CUSTOM",
+            "endDate": "2030-12-31",
+            "startDate": "2020-01-01"
+          },
+          "standardFilters": [
+            {
+              "name": "open",
+              "value": "all"
+            },
+            {
+              "name": "probability",
+              "value": ">0"
+            }
+          ],
+          "supportsRoleHierarchy": true,
+          "userOrHierarchyFilterId": null
+        }
+      },
+      "status": {
+        "componentDataStatus": "DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": "2026-10-17T02:12:25.000+0000",
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000007AAA",
+      "reportResult": {
+        "attributes": null,
+        "allData": true,
+        "factMap": {
+          "0!T": {
+            "aggregates": [
+              {
+                "label": "$0.00",
+                "value": 0
+              }
+            ]
+          },
+          "1!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          },
+          "T!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          }
+        },
+        "groupingsAcross": {
+          "groupings": []
+        },
+        "groupingsDown": {
+          "groupings": [
+            {
+              "groupings": [],
+              "key": "0",
+              "label": "December 2026",
+              "value": "2026-12-01"
+            },
+            {
+              "groupings": [],
+              "key": "1",
+              "label": "June 2027",
+              "value": "2027-06-01"
+            }
+          ]
+        },
+        "hasDetailRows": false,
+        "hasExceededTabularRowLimit": false,
+        "reportExtendedMetadata": {
+          "aggregateColumnInfo": {
+            "s!AMOUNT": {
+              "dataType": "currency",
+              "label": "Sum of Amount"
+            }
+          },
+          "availableDashboardSettings": null,
+          "detailColumnInfo": {},
+          "groupingColumnInfo": {
+            "CLOSE_DATE": {
+              "dataType": "date",
+              "entityColumnName": "Opportunity.CloseDate",
+              "filterValues": [],
+              "filterable": true,
+              "fullyQualifiedName": "Opportunity.CloseDate",
+              "groupingLevel": 0,
+              "inactiveFilterValues": [],
+              "isLookup": false,
+              "label": "Close Date",
+              "uniqueCountable": true
+            }
+          }
+        },
+        "reportMetadata": {
+          "aggregates": [
+            "s!AMOUNT"
+          ],
+          "chart": null,
+          "crossFilters": [],
+          "currency": null,
+          "dashboardSetting": null,
+          "description": null,
+          "detailColumns": [],
+          "developerName": "Amount_by_Close_Month",
+          "division": null,
+          "folderId": "00l000000000019AAA",
+          "groupingsAcross": [],
+          "groupingsDown": [
+            {
+              "dateGranularity": "Month",
+              "name": "CLOSE_DATE",
+              "sortAggregate": null,
+              "sortOrder": "Asc"
+            }
+          ],
+          "hasDetailRows": false,
+          "hasRecordCount": true,
+          "historicalSnapshotDates": [],
+          "id": "00O000000000008AAA",
+          "name": "Amount by Close Month",
+          "presentationOptions": {
+            "hasStackedSummaries": false
+          },
+          "reportBooleanFilter": null,
+          "reportFilters": [],
+          "reportFormat": "SUMMARY",
+          "reportType": {
+            "label": "Opportunities",
+            "type": "Opportunity"
+          },
+          "saveRoleHierarchy": false,
+          "scope": "organization",
+          "showGrandTotal": true,
+          "showSubtotals": true,
+          "sortBy": [],
+          "standardDateFilter": {
+            "column": "CLOSE_DATE",
+            "durationValue": "CUSTOM",
+            "endDate": "2030-12-31",
+            "startDate": "2020-01-01"
+          },
+          "standardFilters": [
+            {
+              "name": "open",
+              "value": "all"
+            },
+            {
+              "name": "probability",
+              "value": ">0"
+            }
+          ],
+          "supportsRoleHierarchy": true,
+          "userOrHierarchyFilterId": null
+        }
+      },
+      "status": {
+        "componentDataStatus": "DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": "2026-10-17T02:12:25.000+0000",
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000009AAA",
+      "reportResult": {
+        "attributes": null,
+        "allData": true,
+        "factMap": {
+          "0!T": {
+            "aggregates": [
+              {
+                "label": "$0.00",
+                "value": 0
+              }
+            ]
+          },
+          "1!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          },
+          "T!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          }
+        },
+        "groupingsAcross": {
+          "groupings": []
+        },
+        "groupingsDown": {
+          "groupings": [
+            {
+              "groupings": [],
+              "key": "0",
+              "label": "December 2026",
+              "value": "2026-12-01"
+            },
+            {
+              "groupings": [],
+              "key": "1",
+              "label": "June 2027",
+              "value": "2027-06-01"
+            }
+          ]
+        },
+        "hasDetailRows": false,
+        "hasExceededTabularRowLimit": false,
+        "reportExtendedMetadata": {
+          "aggregateColumnInfo": {
+            "s!AMOUNT": {
+              "dataType": "currency",
+              "label": "Sum of Amount"
+            }
+          },
+          "availableDashboardSettings": null,
+          "detailColumnInfo": {},
+          "groupingColumnInfo": {
+            "CLOSE_DATE": {
+              "dataType": "date",
+              "entityColumnName": "Opportunity.CloseDate",
+              "filterValues": [],
+              "filterable": true,
+              "fullyQualifiedName": "Opportunity.CloseDate",
+              "groupingLevel": 0,
+              "inactiveFilterValues": [],
+              "isLookup": false,
+              "label": "Close Date",
+              "uniqueCountable": true
+            }
+          }
+        },
+        "reportMetadata": {
+          "aggregates": [
+            "s!AMOUNT"
+          ],
+          "chart": null,
+          "crossFilters": [],
+          "currency": null,
+          "dashboardSetting": null,
+          "description": null,
+          "detailColumns": [],
+          "developerName": "Amount_by_Close_Month",
+          "division": null,
+          "folderId": "00l000000000019AAA",
+          "groupingsAcross": [],
+          "groupingsDown": [
+            {
+              "dateGranularity": "Month",
+              "name": "CLOSE_DATE",
+              "sortAggregate": null,
+              "sortOrder": "Asc"
+            }
+          ],
+          "hasDetailRows": false,
+          "hasRecordCount": true,
+          "historicalSnapshotDates": [],
+          "id": "00O000000000008AAA",
+          "name": "Amount by Close Month",
+          "presentationOptions": {
+            "hasStackedSummaries": false
+          },
+          "reportBooleanFilter": null,
+          "reportFilters": [],
+          "reportFormat": "SUMMARY",
+          "reportType": {
+            "label": "Opportunities",
+            "type": "Opportunity"
+          },
+          "saveRoleHierarchy": false,
+          "scope": "organization",
+          "showGrandTotal": true,
+          "showSubtotals": true,
+          "sortBy": [],
+          "standardDateFilter": {
+            "column": "CLOSE_DATE",
+            "durationValue": "CUSTOM",
+            "endDate": "2030-12-31",
+            "startDate": "2020-01-01"
+          },
+          "standardFilters": [
+            {
+              "name": "open",
+              "value": "all"
+            },
+            {
+              "name": "probability",
+              "value": ">0"
+            }
+          ],
+          "supportsRoleHierarchy": true,
+          "userOrHierarchyFilterId": null
+        }
+      },
+      "status": {
+        "componentDataStatus": "DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": "2026-10-17T02:12:25.000+0000",
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000010AAA",
+      "reportResult": {
+        "attributes": null,
+        "allData": true,
+        "factMap": {
+          "0!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          },
+          "T!T": {
+            "aggregates": [
+              {
+                "label": "$96,000.00",
+                "value": 96000
+              }
+            ]
+          }
+        },
+        "groupingsAcross": {
+          "groupings": []
+        },
+        "groupingsDown": {
+          "groupings": [
+            {
+              "groupings": [],
+              "key": "0",
+              "label": "Prospecting",
+              "value": "Prospecting"
+            }
+          ]
+        },
+        "hasDetailRows": false,
+        "hasExceededTabularRowLimit": false,
+        "reportExtendedMetadata": {
+          "aggregateColumnInfo": {
+            "s!AMOUNT": {
+              "dataType": "currency",
+              "label": "Sum of Amount"
+            }
+          },
+          "availableDashboardSettings": null,
+          "detailColumnInfo": {},
+          "groupingColumnInfo": {
+            "STAGE_NAME": {
+              "dataType": "picklist",
+              "entityColumnName": "Opportunity.StageName",
+              "filterValues": [
+                {
+                  "apiName": "Prospecting",
+                  "label": "Prospecting",
+                  "name": "Prospecting"
+                },
+                {
+                  "apiName": "Qualification",
+                  "label": "Qualification",
+                  "name": "Qualification"
+                },
+                {
+                  "apiName": "Needs Analysis",
+                  "label": "Needs Analysis",
+                  "name": "Needs Analysis"
+                },
+                {
+                  "apiName": "Value Proposition",
+                  "label": "Value Proposition",
+                  "name": "Value Proposition"
+                },
+                {
+                  "apiName": "Id. Decision Makers",
+                  "label": "Id. Decision Makers",
+                  "name": "Id. Decision Makers"
+                },
+                {
+                  "apiName": "Perception Analysis",
+                  "label": "Perception Analysis",
+                  "name": "Perception Analysis"
+                },
+                {
+                  "apiName": "Proposal/Price Quote",
+                  "label": "Proposal/Price Quote",
+                  "name": "Proposal/Price Quote"
+                },
+                {
+                  "apiName": "Negotiation/Review",
+                  "label": "Negotiation/Review",
+                  "name": "Negotiation/Review"
+                },
+                {
+                  "apiName": "Closed Won",
+                  "label": "Closed Won",
+                  "name": "Closed Won"
+                },
+                {
+                  "apiName": "Closed Lost",
+                  "label": "Closed Lost",
+                  "name": "Closed Lost"
+                }
+              ],
+              "filterable": true,
+              "fullyQualifiedName": "Opportunity.StageName",
+              "groupingLevel": 0,
+              "inactiveFilterValues": [],
+              "isLookup": false,
+              "label": "Stage",
+              "uniqueCountable": true
+            }
+          }
+        },
+        "reportMetadata": {
+          "aggregates": [
+            "s!AMOUNT"
+          ],
+          "chart": null,
+          "crossFilters": [],
+          "currency": null,
+          "dashboardSetting": null,
+          "description": null,
+          "detailColumns": [],
+          "developerName": "Pipeline_by_Stage",
+          "division": null,
+          "folderId": "00l000000000019AAA",
+          "groupingsAcross": [],
+          "groupingsDown": [
+            {
+              "dateGranularity": "None",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": "Asc"
+            }
+          ],
+          "hasDetailRows": false,
+          "hasRecordCount": true,
+          "historicalSnapshotDates": [],
+          "id": "00O000000000004AAA",
+          "name": "Pipeline by Stage",
+          "presentationOptions": {
+            "hasStackedSummaries": false
+          },
+          "reportBooleanFilter": null,
+          "reportFilters": [],
+          "reportFormat": "SUMMARY",
+          "reportType": {
+            "label": "Opportunities",
+            "type": "Opportunity"
+          },
+          "saveRoleHierarchy": false,
+          "scope": "organization",
+          "showGrandTotal": true,
+          "showSubtotals": true,
+          "sortBy": [],
+          "standardDateFilter": {
+            "column": "CLOSE_DATE",
+            "durationValue": "CUSTOM",
+            "endDate": "2030-12-31",
+            "startDate": "2020-01-01"
+          },
+          "standardFilters": [
+            {
+              "name": "open",
+              "value": "all"
+            },
+            {
+              "name": "probability",
+              "value": ">0"
+            }
+          ],
+          "supportsRoleHierarchy": true,
+          "userOrHierarchyFilterId": null
+        }
+      },
+      "status": {
+        "componentDataStatus": "DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": "2026-10-17T02:12:25.000+0000",
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000011AAA",
+      "reportResult": {
+        "attributes": null,
+        "allData": true,
+        "factMap": {
+          "0!T": {
+            "aggregates": [
+              {
+                "label": "$96K",
+                "value": 96000
+              }
+            ]
+          },
+          "T!T": {
+            "aggregates": [
+              {
+                "label": "$96K",
+                "value": 96000
+              }
+            ]
+          }
+        },
+        "groupingsAcross": {
+          "groupings": []
+        },
+        "groupingsDown": {
+          "groupings": [
+            {
+              "groupings": [],
+              "key": "0",
+              "label": "Prospecting",
+              "value": "Prospecting"
+            }
+          ]
+        },
+        "hasDetailRows": false,
+        "hasExceededTabularRowLimit": false,
+        "reportExtendedMetadata": {
+          "aggregateColumnInfo": {
+            "s!AMOUNT": {
+              "dataType": "currency",
+              "label": "Sum of Amount"
+            }
+          },
+          "availableDashboardSettings": null,
+          "detailColumnInfo": {},
+          "groupingColumnInfo": {
+            "STAGE_NAME": {
+              "dataType": "picklist",
+              "entityColumnName": "Opportunity.StageName",
+              "filterValues": [
+                {
+                  "apiName": "Prospecting",
+                  "label": "Prospecting",
+                  "name": "Prospecting"
+                },
+                {
+                  "apiName": "Qualification",
+                  "label": "Qualification",
+                  "name": "Qualification"
+                },
+                {
+                  "apiName": "Needs Analysis",
+                  "label": "Needs Analysis",
+                  "name": "Needs Analysis"
+                },
+                {
+                  "apiName": "Value Proposition",
+                  "label": "Value Proposition",
+                  "name": "Value Proposition"
+                },
+                {
+                  "apiName": "Id. Decision Makers",
+                  "label": "Id. Decision Makers",
+                  "name": "Id. Decision Makers"
+                },
+                {
+                  "apiName": "Perception Analysis",
+                  "label": "Perception Analysis",
+                  "name": "Perception Analysis"
+                },
+                {
+                  "apiName": "Proposal/Price Quote",
+                  "label": "Proposal/Price Quote",
+                  "name": "Proposal/Price Quote"
+                },
+                {
+                  "apiName": "Negotiation/Review",
+                  "label": "Negotiation/Review",
+                  "name": "Negotiation/Review"
+                },
+                {
+                  "apiName": "Closed Won",
+                  "label": "Closed Won",
+                  "name": "Closed Won"
+                },
+                {
+                  "apiName": "Closed Lost",
+                  "label": "Closed Lost",
+                  "name": "Closed Lost"
+                }
+              ],
+              "filterable": true,
+              "fullyQualifiedName": "Opportunity.StageName",
+              "groupingLevel": 0,
+              "inactiveFilterValues": [],
+              "isLookup": false,
+              "label": "Stage",
+              "uniqueCountable": true
+            }
+          }
+        },
+        "reportMetadata": {
+          "aggregates": [
+            "s!AMOUNT"
+          ],
+          "chart": null,
+          "crossFilters": [],
+          "currency": null,
+          "dashboardSetting": null,
+          "description": null,
+          "detailColumns": [],
+          "developerName": "Pipeline_by_Stage",
+          "division": null,
+          "folderId": "00l000000000019AAA",
+          "groupingsAcross": [],
+          "groupingsDown": [
+            {
+              "dateGranularity": "None",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": "Asc"
+            }
+          ],
+          "hasDetailRows": false,
+          "hasRecordCount": false,
+          "historicalSnapshotDates": [],
+          "id": "00O000000000004AAA",
+          "name": "Pipeline by Stage",
+          "presentationOptions": {
+            "hasStackedSummaries": false
+          },
+          "reportBooleanFilter": null,
+          "reportFilters": [],
+          "reportFormat": "SUMMARY",
+          "reportType": {
+            "label": "Opportunities",
+            "type": "Opportunity"
+          },
+          "saveRoleHierarchy": false,
+          "scope": "organization",
+          "showGrandTotal": true,
+          "showSubtotals": true,
+          "sortBy": [],
+          "standardDateFilter": {
+            "column": "CLOSE_DATE",
+            "durationValue": "CUSTOM",
+            "endDate": "2030-12-31",
+            "startDate": "2020-01-01"
+          },
+          "standardFilters": [
+            {
+              "name": "open",
+              "value": "all"
+            },
+            {
+              "name": "probability",
+              "value": ">0"
+            }
+          ],
+          "supportsRoleHierarchy": true,
+          "userOrHierarchyFilterId": null
+        }
+      },
+      "status": {
+        "componentDataStatus": "DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": "2026-10-17T02:12:25.000+0000",
+        "refreshStatus": "IDLE"
+      }
+    }
+  ],
+  "dashboardMetadata": {
+    "canChangeRunningUser": false,
+    "canUseStickyFilter": true,
+    "chartTheme": "light",
+    "colorPalette": "unity",
+    "components": [
+      {
+        "chartTheme": null,
+        "componentData": 0,
+        "footer": null,
+        "header": "Won to Date",
+        "id": "01a000000000001AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": null,
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "breakPoints": [
+              {
+                "aggregateName": "s!AMOUNT",
+                "breaks": [
+                  {
+                    "color": "c25454",
+                    "lowerBound": null,
+                    "upperBound": null
+                  },
+                  {
+                    "color": "c2c254",
+                    "lowerBound": null,
+                    "upperBound": null
+                  },
+                  {
+                    "color": "54c254",
+                    "lowerBound": null,
+                    "upperBound": null
+                  }
+                ]
+              }
+            ],
+            "decimalPrecision": null,
+            "displayUnits": "auto",
+            "metricLabel": "Closed Won amount",
+            "showRange": false
+          },
+          "visualizationType": "Metric"
+        },
+        "reportId": "00O000000000002AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 1,
+        "footer": null,
+        "header": "Pipeline by Stage",
+        "id": "01a000000000003AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "axisRange": {
+              "max": null,
+              "min": null,
+              "rangeType": "auto"
+            },
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "groupByType": "none",
+            "legendPosition": "Right",
+            "showChatterPhotos": false,
+            "showValues": true
+          },
+          "visualizationType": "Bar"
+        },
+        "reportId": "00O000000000004AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 2,
+        "footer": null,
+        "header": "Stage Funnel",
+        "id": "01a000000000005AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "combineSmallGroups": true,
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "legendPosition": "Right",
+            "showPercentages": false,
+            "showValues": true
+          },
+          "visualizationType": "Funnel"
+        },
+        "reportId": "00O000000000004AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 3,
+        "footer": null,
+        "header": "Won vs Target",
+        "id": "01a000000000006AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": null,
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "breakPoints": [
+              {
+                "aggregateName": "s!AMOUNT",
+                "breaks": [
+                  {
+                    "color": "c25454",
+                    "lowerBound": 0,
+                    "upperBound": 2000000
+                  },
+                  {
+                    "color": "c2c254",
+                    "lowerBound": 2000000,
+                    "upperBound": 4000000
+                  },
+                  {
+                    "color": "54c254",
+                    "lowerBound": 4000000,
+                    "upperBound": 5000000
+                  }
+                ]
+              }
+            ],
+            "decimalPrecision": null,
+            "displayUnits": "auto",
+            "dynamicGaugeSegmentProperties": null,
+            "showPercentages": true,
+            "showRange": true,
+            "showTotal": true
+          },
+          "visualizationType": "Gauge"
+        },
+        "reportId": "00O000000000002AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 4,
+        "footer": null,
+        "header": "Amount by Close Month",
+        "id": "01a000000000007AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "CLOSE_DATE",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "axisRange": {
+              "max": null,
+              "min": null,
+              "rangeType": "auto"
+            },
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "groupByType": "none",
+            "legendPosition": "Right",
+            "showValues": true
+          },
+          "visualizationType": "Line"
+        },
+        "reportId": "00O000000000008AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 5,
+        "footer": null,
+        "header": "Close Month Columns",
+        "id": "01a000000000009AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "CLOSE_DATE",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "aggregateVisualizationInfos": [
+              {
+                "axis": "Y",
+                "visualizationType": "Column"
+              }
+            ],
+            "axisRange": {
+              "max": null,
+              "min": null,
+              "rangeType": "auto"
+            },
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "groupByType": "none",
+            "legendPosition": "Right",
+            "showValues": true
+          },
+          "visualizationType": "Column"
+        },
+        "reportId": "00O000000000008AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 6,
+        "footer": null,
+        "header": "Pipeline Mix",
+        "id": "01a000000000010AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "combineSmallGroups": true,
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "legendPosition": "Right",
+            "showPercentages": false,
+            "showTotal": false,
+            "showValues": true
+          },
+          "visualizationType": "Donut"
+        },
+        "reportId": "00O000000000004AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 7,
+        "footer": null,
+        "header": "Stage Table",
+        "id": "01a000000000011AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": true,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": null,
+              "name": "STAGE_NAME",
+              "sortAggregate": "s!AMOUNT",
+              "sortOrder": "Desc"
+            }
+          ],
+          "maxRows": 10,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "breakPoints": [
+              {
+                "aggregateName": "s!AMOUNT",
+                "breaks": [
+                  {
+                    "color": "c25454",
+                    "lowerBound": null,
+                    "upperBound": null
+                  },
+                  {
+                    "color": "c2c254",
+                    "lowerBound": null,
+                    "upperBound": null
+                  },
+                  {
+                    "color": "54c254",
+                    "lowerBound": null,
+                    "upperBound": null
+                  }
+                ]
+              }
+            ],
+            "decimalPrecision": null,
+            "displayUnits": "auto",
+            "showChatterPhotos": false,
+            "tableColumns": [
+              {
+                "column": "STAGE_NAME",
+                "isPercent": false,
+                "scale": null,
+                "showTotal": false,
+                "type": "grouping"
+              },
+              {
+                "column": "s!AMOUNT",
+                "isPercent": false,
+                "scale": null,
+                "showTotal": false,
+                "type": "aggregate"
+              }
+            ]
+          },
+          "visualizationType": "Table"
+        },
+        "reportId": "00O000000000004AAA",
+        "title": null,
+        "type": "Report"
+      }
+    ],
+    "dashboardType": "SpecifiedUser",
+    "description": null,
+    "developerName": "Pipeline_Overview",
+    "filters": [
+      {
+        "dataType": "picklist",
+        "errorMessage": null,
+        "id": "0IB000000000012AAA",
+        "name": "Stage",
+        "options": [
+          {
+            "alias": null,
+            "endValue": null,
+            "id": "0IC000000000013AAA",
+            "operation": "equals",
+            "startValue": null,
+            "value": "Prospecting"
+          },
+          {
+            "alias": null,
+            "endValue": null,
+            "id": "0IC000000000014AAA",
+            "operation": "equals",
+            "startValue": null,
+            "value": "Negotiation/Review"
+          },
+          {
+            "alias": null,
+            "endValue": null,
+            "id": "0IC000000000015AAA",
+            "operation": "equals",
+            "startValue": null,
+            "value": "Closed Won"
+          }
+        ],
+        "selectedOption": 0
+      }
+    ],
+    "flexTableImplementation": "REPORT_INSTANCE",
+    "folderId": "00l000000000016AAA",
+    "folderName": "Dashboard Probe Dashboards",
+    "id": "01Z000000000017AAA",
+    "layout": {
+      "components": [
+        {
+          "colspan": 3,
+          "column": 0,
+          "row": 0,
+          "rowspan": 4
+        },
+        {
+          "colspan": 6,
+          "column": 0,
+          "row": 4,
+          "rowspan": 8
+        },
+        {
+          "colspan": 6,
+          "column": 6,
+          "row": 16,
+          "rowspan": 8
+        },
+        {
+          "colspan": 3,
+          "column": 3,
+          "row": 0,
+          "rowspan": 4
+        },
+        {
+          "colspan": 6,
+          "column": 6,
+          "row": 8,
+          "rowspan": 8
+        },
+        {
+          "colspan": 6,
+          "column": 0,
+          "row": 20,
+          "rowspan": 8
+        },
+        {
+          "colspan": 6,
+          "column": 6,
+          "row": 0,
+          "rowspan": 8
+        },
+        {
+          "colspan": 6,
+          "column": 0,
+          "row": 12,
+          "rowspan": 8
+        }
+      ],
+      "gridLayout": true,
+      "numColumns": 12,
+      "rowHeight": 36
+    },
+    "maxFilterOptions": 50,
+    "name": "Pipeline Overview",
+    "owner": {
+      "displayName": "User 1",
+      "id": "005000000000018AAA"
+    },
+    "runningUser": {
+      "displayName": "User 1",
+      "id": "005000000000018AAA"
+    }
+  },
+  "picklistColors": {}
+}

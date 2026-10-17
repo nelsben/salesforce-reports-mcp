@@ -1,0 +1,683 @@
+{
+  "attributes": {
+    "dashboardId": "01Z000000000017AAA",
+    "dashboardName": "Pipeline Overview",
+    "describeUrl": "/services/data/v62.0/analytics/dashboards/01Z000000000017AAA/describe",
+    "statusUrl": "/services/data/v62.0/analytics/dashboards/01Z000000000017AAA/status",
+    "type": "Dashboard"
+  },
+  "chatterPhotoUrls": {},
+  "componentData": [
+    {
+      "componentId": "01a000000000001AAA",
+      "reportResult": null,
+      "status": {
+        "componentDataStatus": "NO_DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": null,
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000003AAA",
+      "reportResult": null,
+      "status": {
+        "componentDataStatus": "NO_DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": null,
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000005AAA",
+      "reportResult": null,
+      "status": {
+        "componentDataStatus": "NO_DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": null,
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000006AAA",
+      "reportResult": null,
+      "status": {
+        "componentDataStatus": "NO_DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": null,
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000007AAA",
+      "reportResult": null,
+      "status": {
+        "componentDataStatus": "NO_DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": null,
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000009AAA",
+      "reportResult": null,
+      "status": {
+        "componentDataStatus": "NO_DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": null,
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000010AAA",
+      "reportResult": null,
+      "status": {
+        "componentDataStatus": "NO_DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": null,
+        "refreshStatus": "IDLE"
+      }
+    },
+    {
+      "componentId": "01a000000000011AAA",
+      "reportResult": null,
+      "status": {
+        "componentDataStatus": "NO_DATA",
+        "errorCode": null,
+        "errorMessage": null,
+        "errorSeverity": null,
+        "refreshDate": null,
+        "refreshStatus": "IDLE"
+      }
+    }
+  ],
+  "dashboardMetadata": {
+    "canChangeRunningUser": false,
+    "canUseStickyFilter": true,
+    "chartTheme": "light",
+    "colorPalette": "unity",
+    "components": [
+      {
+        "chartTheme": null,
+        "componentData": 0,
+        "footer": null,
+        "header": "Won to Date",
+        "id": "01a000000000001AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": null,
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "breakPoints": [
+              {
+                "aggregateName": "s!AMOUNT",
+                "breaks": [
+                  {
+                    "color": "c25454",
+                    "lowerBound": null,
+                    "upperBound": null
+                  },
+                  {
+                    "color": "c2c254",
+                    "lowerBound": null,
+                    "upperBound": null
+                  },
+                  {
+                    "color": "54c254",
+                    "lowerBound": null,
+                    "upperBound": null
+                  }
+                ]
+              }
+            ],
+            "decimalPrecision": null,
+            "displayUnits": "auto",
+            "metricLabel": "Closed Won amount",
+            "showRange": false
+          },
+          "visualizationType": "Metric"
+        },
+        "reportId": "00O000000000002AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 1,
+        "footer": null,
+        "header": "Pipeline by Stage",
+        "id": "01a000000000003AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "axisRange": {
+              "max": null,
+              "min": null,
+              "rangeType": "auto"
+            },
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "groupByType": "none",
+            "legendPosition": "Right",
+            "showChatterPhotos": false,
+            "showValues": true
+          },
+          "visualizationType": "Bar"
+        },
+        "reportId": "00O000000000004AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 2,
+        "footer": null,
+        "header": "Stage Funnel",
+        "id": "01a000000000005AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "combineSmallGroups": true,
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "legendPosition": "Right",
+            "showPercentages": false,
+            "showValues": true
+          },
+          "visualizationType": "Funnel"
+        },
+        "reportId": "00O000000000004AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 3,
+        "footer": null,
+        "header": "Won vs Target",
+        "id": "01a000000000006AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": null,
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "breakPoints": [
+              {
+                "aggregateName": "s!AMOUNT",
+                "breaks": [
+                  {
+                    "color": "c25454",
+                    "lowerBound": 0,
+                    "upperBound": 2000000
+                  },
+                  {
+                    "color": "c2c254",
+                    "lowerBound": 2000000,
+                    "upperBound": 4000000
+                  },
+                  {
+                    "color": "54c254",
+                    "lowerBound": 4000000,
+                    "upperBound": 5000000
+                  }
+                ]
+              }
+            ],
+            "decimalPrecision": null,
+            "displayUnits": "auto",
+            "dynamicGaugeSegmentProperties": null,
+            "showPercentages": true,
+            "showRange": true,
+            "showTotal": true
+          },
+          "visualizationType": "Gauge"
+        },
+        "reportId": "00O000000000002AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 4,
+        "footer": null,
+        "header": "Amount by Close Month",
+        "id": "01a000000000007AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "CLOSE_DATE",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "axisRange": {
+              "max": null,
+              "min": null,
+              "rangeType": "auto"
+            },
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "groupByType": "none",
+            "legendPosition": "Right",
+            "showValues": true
+          },
+          "visualizationType": "Line"
+        },
+        "reportId": "00O000000000008AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 5,
+        "footer": null,
+        "header": "Close Month Columns",
+        "id": "01a000000000009AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "CLOSE_DATE",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "aggregateVisualizationInfos": [
+              {
+                "axis": "Y",
+                "visualizationType": "Column"
+              }
+            ],
+            "axisRange": {
+              "max": null,
+              "min": null,
+              "rangeType": "auto"
+            },
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "groupByType": "none",
+            "legendPosition": "Right",
+            "showValues": true
+          },
+          "visualizationType": "Column"
+        },
+        "reportId": "00O000000000008AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 6,
+        "footer": null,
+        "header": "Pipeline Mix",
+        "id": "01a000000000010AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": false,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": "reportGrouping",
+              "name": "STAGE_NAME",
+              "sortAggregate": null,
+              "sortOrder": null
+            }
+          ],
+          "maxRows": null,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "combineSmallGroups": true,
+            "decimalPrecision": -1,
+            "displayUnits": "auto",
+            "legendPosition": "Right",
+            "showPercentages": false,
+            "showTotal": false,
+            "showValues": true
+          },
+          "visualizationType": "Donut"
+        },
+        "reportId": "00O000000000004AAA",
+        "title": null,
+        "type": "Report"
+      },
+      {
+        "chartTheme": null,
+        "componentData": 7,
+        "footer": null,
+        "header": "Stage Table",
+        "id": "01a000000000011AAA",
+        "lastModifiedDate": "2026-10-17T01:32:09Z",
+        "properties": {
+          "aggregates": [
+            {
+              "name": "s!AMOUNT"
+            }
+          ],
+          "autoSelectColumns": true,
+          "drillUrl": null,
+          "filterColumns": [
+            {
+              "label": "Stage",
+              "name": "STAGE_NAME"
+            }
+          ],
+          "groupings": [
+            {
+              "inheritedReportSort": null,
+              "name": "STAGE_NAME",
+              "sortAggregate": "s!AMOUNT",
+              "sortOrder": "Desc"
+            }
+          ],
+          "maxRows": 10,
+          "reportFormat": "SUMMARY",
+          "sort": null,
+          "useReportChart": false,
+          "visualizationProperties": {
+            "breakPoints": [
+              {
+                "aggregateName": "s!AMOUNT",
+                "breaks": [
+                  {
+                    "color": "c25454",
+                    "lowerBound": null,
+                    "upperBound": null
+                  },
+                  {
+                    "color": "c2c254",
+                    "lowerBound": null,
+                    "upperBound": null
+                  },
+                  {
+                    "color": "54c254",
+                    "lowerBound": null,
+                    "upperBound": null
+                  }
+                ]
+              }
+            ],
+            "decimalPrecision": null,
+            "displayUnits": "auto",
+            "showChatterPhotos": false,
+            "tableColumns": [
+              {
+                "column": "STAGE_NAME",
+                "isPercent": false,
+                "scale": null,
+                "showTotal": false,
+                "type": "grouping"
+              },
+              {
+                "column": "s!AMOUNT",
+                "isPercent": false,
+                "scale": null,
+                "showTotal": false,
+                "type": "aggregate"
+              }
+            ]
+          },
+          "visualizationType": "Table"
+        },
+        "reportId": "00O000000000004AAA",
+        "title": null,
+        "type": "Report"
+      }
+    ],
+    "dashboardType": "SpecifiedUser",
+    "description": null,
+    "developerName": "Pipeline_Overview",
+    "filters": [
+      {
+        "dataType": "picklist",
+        "errorMessage": null,
+        "id": "0IB000000000012AAA",
+        "name": "Stage",
+        "options": [
+          {
+            "alias": null,
+            "endValue": null,
+            "id": "0IC000000000013AAA",
+            "operation": "equals",
+            "startValue": null,
+            "value": "Prospecting"
+          },
+          {
+            "alias": null,
+            "endValue": null,
+            "id": "0IC000000000014AAA",
+            "operation": "equals",
+            "startValue": null,
+            "value": "Negotiation/Review"
+          },
+          {
+            "alias": null,
+            "endValue": null,
+            "id": "0IC000000000015AAA",
+            "operation": "equals",
+            "startValue": null,
+            "value": "Closed Won"
+          }
+        ],
+        "selectedOption": 2
+      }
+    ],
+    "flexTableImplementation": "REPORT_INSTANCE",
+    "folderId": "00l000000000016AAA",
+    "folderName": "Dashboard Probe Dashboards",
+    "id": "01Z000000000017AAA",
+    "layout": {
+      "components": [
+        {
+          "colspan": 3,
+          "column": 0,
+          "row": 0,
+          "rowspan": 4
+        },
+        {
+          "colspan": 6,
+          "column": 0,
+          "row": 4,
+          "rowspan": 8
+        },
+        {
+          "colspan": 6,
+          "column": 6,
+          "row": 16,
+          "rowspan": 8
+        },
+        {
+          "colspan": 3,
+          "column": 3,
+          "row": 0,
+          "rowspan": 4
+        },
+        {
+          "colspan": 6,
+          "column": 6,
+          "row": 8,
+          "rowspan": 8
+        },
+        {
+          "colspan": 6,
+          "column": 0,
+          "row": 20,
+          "rowspan": 8
+        },
+        {
+          "colspan": 6,
+          "column": 6,
+          "row": 0,
+          "rowspan": 8
+        },
+        {
+          "colspan": 6,
+          "column": 0,
+          "row": 12,
+          "rowspan": 8
+        }
+      ],
+      "gridLayout": true,
+      "numColumns": 12,
+      "rowHeight": 36
+    },
+    "maxFilterOptions": 50,
+    "name": "Pipeline Overview",
+    "owner": {
+      "displayName": "User 1",
+      "id": "005000000000018AAA"
+    },
+    "runningUser": {
+      "displayName": "User 1",
+      "id": "005000000000018AAA"
+    }
+  },
+  "picklistColors": {}
+}
