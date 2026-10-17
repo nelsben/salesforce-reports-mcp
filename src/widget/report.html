@@ -5,44 +5,57 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Salesforce report</title>
 <style>
+/*@slds-tokens*/
+  /* The card's own names for the SLDS values. The host's theme variables set the surface (background, text and
+     border) first; the SLDS neutrals are the fallbacks, light and dark. */
   :root {
-    --fallback-bg: #ffffff;
-    --fallback-bg-2: #f4f6f9;
-    --fallback-text: #181818;
-    --fallback-text-2: #5c5c5c;
-    --fallback-border: #dddbda;
-    --fallback-accent: #0b5cab;
-    --bar-mix: 62%;
-    --track-mix: 10%;
-    --heat-cool: 72%;
+    --fallback-bg: var(--slds-neutral-100);
+    --fallback-bg-2: var(--slds-neutral-95);
+    --fallback-text: var(--slds-neutral-10);
+    --fallback-text-2: var(--slds-neutral-30);
+    --fallback-border: var(--slds-card-border);
+    --fallback-rule: var(--slds-neutral-90);
+    --link: var(--slds-link);
+    --link-hover: var(--slds-link-hover);
+    --series-1: var(--slds-dataviz-1);
+    --series-other: var(--slds-neutral-50);
+    --track-mix: 18%;
+    --heat-cool: 60%;
     --heat-hot: 85%;
+    --heat-ink: var(--text);
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --fallback-bg: #1f1f1e;
-      --fallback-bg-2: #2b2b29;
-      --fallback-text: #ececea;
-      --fallback-text-2: #a8a8a3;
-      --fallback-border: #3d3d3a;
-      --fallback-accent: #78b0fd;
-      --bar-mix: 72%;
-      --track-mix: 14%;
+      --fallback-bg: var(--slds-neutral-15);
+      --fallback-bg-2: var(--slds-neutral-20);
+      --fallback-text: var(--slds-neutral-95);
+      --fallback-text-2: var(--slds-neutral-70);
+      --fallback-border: var(--slds-neutral-30);
+      --fallback-rule: var(--slds-neutral-30);
+      --link: var(--slds-link-dark);
+      --link-hover: var(--slds-link-dark-hover);
+      --series-other: var(--slds-neutral-70);
+      --track-mix: 24%;
       --heat-cool: 50%;
-      --heat-hot: 75%;
+      --heat-hot: 80%;
+      --heat-ink: var(--slds-neutral-10);
     }
   }
   :root[data-theme="dark"] {
-    --fallback-bg: #1f1f1e;
-    --fallback-bg-2: #2b2b29;
-    --fallback-text: #ececea;
-    --fallback-text-2: #a8a8a3;
-    --fallback-border: #3d3d3a;
-    --fallback-accent: #78b0fd;
-    --bar-mix: 72%;
-    --track-mix: 14%;
+    --fallback-bg: var(--slds-neutral-15);
+    --fallback-bg-2: var(--slds-neutral-20);
+    --fallback-text: var(--slds-neutral-95);
+    --fallback-text-2: var(--slds-neutral-70);
+    --fallback-border: var(--slds-neutral-30);
+    --fallback-rule: var(--slds-neutral-30);
+    --link: var(--slds-link-dark);
+    --link-hover: var(--slds-link-dark-hover);
+    --series-other: var(--slds-neutral-70);
+    --track-mix: 24%;
     --heat-cool: 50%;
-    --heat-hot: 75%;
+    --heat-hot: 80%;
+    --heat-ink: var(--slds-neutral-10);
   }
   :root {
     --bg: var(--color-background-primary, var(--fallback-bg));
@@ -50,109 +63,117 @@
     --text: var(--color-text-primary, var(--fallback-text));
     --text-2: var(--color-text-secondary, var(--fallback-text-2));
     --border: var(--color-border-primary, var(--fallback-border));
-    --accent: var(--color-text-info, var(--fallback-accent));
-    --radius: var(--border-radius-md, 8px);
-    --radius-full: var(--border-radius-full, 999px);
+    --rule: var(--color-border-primary, var(--fallback-rule));
+    /* SLDS shadow-outset-focus-1 (2px of the surface, then 2px of link blue), drawn in the theme's own colours. */
+    --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--link);
+    --caption: var(--slds-font-size-2);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
-    font-size: var(--font-text-sm-size, 14px);
-    line-height: var(--font-text-sm-line-height, 1.45);
+    font-family: var(--slds-font-family);
+    font-size: var(--slds-font-size-3);
+    line-height: var(--slds-line-height-text);
   }
-  .card { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  a, button, summary { border-radius: var(--slds-card-radius); }
+  a:focus-visible, button:focus-visible, summary:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .card { padding: var(--slds-spacing-medium); display: flex; flex-direction: column; gap: var(--slds-spacing-small); min-width: 0; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--slds-spacing-x-small); }
   h1 {
     margin: 0;
-    font-size: var(--font-heading-sm-size, 17px);
-    line-height: var(--font-heading-sm-line-height, 1.3);
-    font-weight: var(--font-weight-semibold, 600);
+    font-size: var(--slds-font-size-6);
+    line-height: var(--slds-line-height-heading);
+    font-weight: var(--slds-font-weight-bold);
     overflow-wrap: anywhere;
   }
-  h1 a { color: inherit; text-decoration: none; }
-  h1 a:hover { text-decoration: underline; }
-  .meta { color: var(--text-2); font-size: var(--font-text-xs-size, 12px); }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  h1 a { color: var(--link); text-decoration: none; }
+  h1 a:hover { color: var(--link-hover); text-decoration: underline; }
+  .meta { color: var(--text-2); font-size: var(--caption); }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--slds-spacing-xx-small); margin: 0; padding: 0; list-style: none; }
   .chips li {
-    background: var(--bg-2);
+    background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-full);
-    padding: 2px 10px;
-    font-size: var(--font-text-xs-size, 12px);
-    color: var(--text-2);
+    border-radius: var(--slds-card-radius);
+    padding: var(--slds-spacing-xxx-small) var(--slds-spacing-x-small);
+    font-size: var(--caption);
+    color: var(--text);
     overflow-wrap: anywhere;
   }
-  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--slds-card-radius); }
   table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-  th, td { padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-  th { background: var(--bg-2); color: var(--text-2); font-weight: var(--font-weight-medium, 500); font-size: var(--font-text-xs-size, 12px); }
+  th, td { padding: var(--slds-spacing-xx-small) var(--slds-spacing-x-small); text-align: left; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  th { background: var(--bg-2); color: var(--text-2); font-weight: var(--slds-font-weight-bold); font-size: var(--caption); }
   td.num, th.num { text-align: right; }
   tbody tr:last-child td { border-bottom: none; }
-  tr.total td { font-weight: var(--font-weight-semibold, 600); background: var(--bg-2); border-top: 1px solid var(--border); }
-  .section-title { margin: 0 0 6px; font-size: var(--font-text-xs-size, 12px); color: var(--text-2); font-weight: var(--font-weight-medium, 500); text-transform: uppercase; letter-spacing: 0.04em; }
-  .cut { margin: 6px 0 0; color: var(--text-2); font-size: var(--font-text-xs-size, 12px); }
-  .notes { margin: 0; padding-left: 18px; color: var(--text-2); font-size: var(--font-text-xs-size, 12px); }
-  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  tr.total td { font-weight: var(--slds-font-weight-bold); background: var(--bg-2); border-top: 1px solid var(--rule); }
+  .section-title { margin: 0 0 var(--slds-spacing-x-small); font-size: var(--caption); color: var(--text-2); font-weight: var(--slds-font-weight-regular); text-transform: uppercase; letter-spacing: 0.0625rem; }
+  .cut { margin: var(--slds-spacing-xx-small) 0 0; color: var(--text-2); font-size: var(--caption); }
+  .notes { margin: 0; padding-left: var(--slds-spacing-medium); color: var(--text-2); font-size: var(--caption); }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--slds-spacing-x-small); }
+  /* SLDS buttons: neutral (Open in Salesforce) and brand (Save this report). */
   button {
     font: inherit;
-    font-size: var(--font-text-sm-size, 14px);
-    padding: 6px 12px;
-    border-radius: var(--radius);
+    font-size: var(--slds-font-size-3);
+    line-height: 1.875rem;
+    padding: 0 var(--slds-spacing-medium);
+    border-radius: var(--slds-card-radius);
     border: 1px solid var(--border);
     background: var(--bg);
-    color: var(--text);
+    color: var(--link);
     cursor: pointer;
   }
-  button.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button:hover { background: var(--bg-2); color: var(--link-hover); }
+  button.primary { background: var(--slds-brand-accessible); border-color: var(--slds-brand-accessible); color: var(--slds-neutral-100); }
+  button.primary:hover { background: var(--slds-brand-accessible-active); border-color: var(--slds-brand-accessible-active); color: var(--slds-neutral-100); }
   button:disabled { opacity: 0.6; cursor: default; }
   .empty { color: var(--text-2); }
   td.blank { color: var(--text-2); }
-  tbody th { background: none; color: var(--text); font-weight: var(--font-weight-medium, 500); font-size: inherit; }
+  tbody th { background: none; color: var(--text); font-weight: var(--slds-font-weight-regular); font-size: inherit; }
 
   /* The KPI strip: the answer before the rows. */
-  .kpis { display: flex; flex-wrap: wrap; gap: 8px; }
+  .kpis { display: flex; flex-wrap: wrap; gap: var(--slds-spacing-x-small); }
   .kpi {
     flex: 1 1 150px;
     min-width: 0;
     max-width: 240px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding: 10px 12px;
+    gap: var(--slds-spacing-xxx-small);
+    padding: var(--slds-spacing-x-small) var(--slds-spacing-small);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--bg-2);
+    border-radius: var(--slds-card-radius);
+    background: var(--bg);
   }
-  .kpi-label { color: var(--text-2); font-size: var(--font-text-xs-size, 12px); overflow-wrap: anywhere; }
+  .kpi-label { color: var(--text-2); font-size: var(--caption); overflow-wrap: anywhere; }
   .kpi-value {
-    font-size: var(--font-heading-md-size, 22px);
-    line-height: 1.2;
-    font-weight: var(--font-weight-semibold, 600);
+    font-size: var(--slds-font-size-8);
+    line-height: var(--slds-line-height-heading);
+    font-weight: var(--slds-font-weight-bold);
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
   }
-  .kpi-sub { color: var(--text-2); font-size: var(--font-text-xs-size, 12px); overflow-wrap: anywhere; }
+  .kpi-sub { color: var(--text-2); font-size: var(--caption); overflow-wrap: anywhere; }
 
   /* Data bars: a track and the number side by side, so a bar never sits under text.
-     The number keeps one width per column, so every track has the same length and bars compare across rows. */
-  .barcell { display: flex; align-items: center; gap: 10px; }
+     The number keeps one width per column, so every track has the same length and bars compare across rows.
+     One measure is one series, so every bar takes the first colour of the data-visualization palette. */
+  .barcell { display: flex; align-items: center; gap: var(--slds-spacing-x-small); }
   .bar {
     flex: 1 1 auto;
     min-width: 64px;
     height: 10px;
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--accent) var(--track-mix), transparent);
+    border-radius: var(--slds-radius-small);
+    background: color-mix(in srgb, var(--series-1) var(--track-mix), transparent);
     overflow: hidden;
   }
   .bar i {
     display: block;
     height: 100%;
     width: var(--bar, 0%);
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--accent) var(--bar-mix), transparent);
+    border-radius: var(--slds-radius-small);
+    background: var(--series-1);
     transform-origin: left center;
     animation: grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
@@ -162,34 +183,34 @@
     .bar i { animation: none; }
   }
 
-  /* The matrix grid: each cell shaded by its value against the largest cell (--heat, 0% to 100%).
-     Cool cells (below 60%) shade up to --heat-cool under the normal text. Hot cells jump to --heat-hot and
-     above, with the text in the background colour, so the top cells read at a glance and both stay AA.
-     --t is the cell's place within its band, from 0 to 1. */
-  td.heat { background: color-mix(in srgb, var(--accent) calc(var(--t, 0) * var(--heat-cool)), transparent); }
+  /* The matrix grid: each cell shaded in the first palette colour by its value against the largest cell (--heat).
+     Cool cells (below 60%) shade up to --heat-cool under the normal text. Hot cells jump to --heat-hot and above,
+     with the text in --heat-ink: the normal text in light, where the palette colour is light enough under it, and
+     the darkest SLDS neutral in dark, so both bands stay AA. --t is the cell's place within its band, from 0 to 1. */
+  td.heat { background: color-mix(in srgb, var(--series-1) calc(var(--t, 0) * var(--heat-cool)), transparent); }
   td.heat.hot {
-    background: color-mix(in srgb, var(--accent) calc(var(--heat-hot) + var(--t, 0) * (100% - var(--heat-hot))), transparent);
-    color: var(--bg);
-    font-weight: var(--font-weight-semibold, 600);
+    background: color-mix(in srgb, var(--series-1) calc(var(--heat-hot) + var(--t, 0) * (100% - var(--heat-hot))), transparent);
+    color: var(--heat-ink);
+    font-weight: var(--slds-font-weight-bold);
   }
-  .grid tr.total td, .grid td.rowtotal { background: var(--bg-2); font-weight: var(--font-weight-semibold, 600); }
-  .grid td.rowtotal { border-left: 1px solid var(--border); }
+  .grid tr.total td, .grid td.rowtotal { background: var(--bg-2); font-weight: var(--slds-font-weight-bold); }
+  .grid td.rowtotal { border-left: 1px solid var(--rule); }
   .all-groups summary { cursor: pointer; margin: 0; }
-  .all-groups details[open] summary { margin-bottom: 6px; }
+  .all-groups details[open] summary { margin-bottom: var(--slds-spacing-x-small); }
 
   /* The column chart above a summary's groups: one column per top-level group, in inline SVG.
      Columns sit in percent slots, so the chart fills any width; labels are fitted to their slot in script. */
   .chart { display: block; width: 100%; height: 172px; overflow: visible; }
-  .chart text { font-family: inherit; font-size: var(--font-text-xs-size, 12px); fill: var(--text-2); }
-  .chart text.value { fill: var(--text); font-weight: var(--font-weight-medium, 500); font-variant-numeric: tabular-nums; }
+  .chart text { font-family: inherit; font-size: var(--caption); fill: var(--text-2); }
+  .chart text.value { fill: var(--text); font-weight: var(--slds-font-weight-bold); font-variant-numeric: tabular-nums; }
   .chart line.base { stroke: var(--border); stroke-width: 1; }
   .chart rect.col {
-    fill: color-mix(in srgb, var(--accent) var(--bar-mix), transparent);
+    fill: var(--series-1);
     transform-box: fill-box;
     transform-origin: center bottom;
     animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
-  .chart rect.col.other { fill: color-mix(in srgb, var(--text-2) 45%, transparent); }
+  .chart rect.col.other { fill: var(--series-other); }
   @keyframes rise { from { transform: scaleY(0); } }
   @media (prefers-reduced-motion: reduce) {
     .chart rect.col { animation: none; }
@@ -199,12 +220,14 @@
      the grouping labels stack on the left, the lead measure and its bar sit on the right, and every other
      column stacks under the row as "label value". Nothing scrolls sideways. */
   @media (max-width: 480px) {
+    /* One tile a row, so a headline number never breaks across lines. */
+    .kpi { flex-basis: 100%; max-width: none; }
     table.fold, table.fold thead, table.fold tbody { display: block; }
-    table.fold tr { display: grid; grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid var(--border); }
+    table.fold tr { display: grid; grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid var(--rule); }
     table.fold.led tr { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
     table.fold tbody tr:last-child { border-bottom: none; }
     table.fold thead tr, table.fold tr.total { background: var(--bg-2); }
-    table.fold tr.total { border-top: 1px solid var(--border); }
+    table.fold tr.total { border-top: 1px solid var(--rule); }
     table.fold th, table.fold td { border: none; white-space: normal; overflow-wrap: break-word; background: none; }
     table.fold .key { grid-column: 1; }
     table.fold .key ~ .key { padding-top: 0; color: var(--text-2); }
@@ -216,9 +239,9 @@
       grid-column: 1 / -1;
       display: flex;
       justify-content: space-between;
-      gap: 12px;
+      gap: var(--slds-spacing-small);
       padding-top: 0;
-      font-size: var(--font-text-xs-size, 12px);
+      font-size: var(--caption);
     }
     table.fold td.extra::before { content: attr(data-label); color: var(--text-2); text-align: left; font-weight: normal; }
   }

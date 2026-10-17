@@ -4,7 +4,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import { ReportsApi } from "../src/reports/api.js";
 import { SalesforceError, type SalesforceApi } from "../src/salesforce/client.js";
-import { buildServer, DASHBOARD_VIEW_HINT, VIEW_HINT, type ServerOptions } from "../src/server.js";
+import { buildServer, DASHBOARD_VIEW_HINT, dashboardView, VIEW_HINT, type ServerOptions } from "../src/server.js";
 import { doorDescription } from "../salesforce/scripts/door-tools.js";
 import { inlineBundle } from "../src/widget/view.js";
 import { fixture } from "./helpers.js";
@@ -145,6 +145,62 @@ describe("report view", () => {
   });
 });
 
+// Both cards are styled with Lightning Design System token values, vendored in src/widget/tokens.css (decision 0018).
+describe("SLDS tokens", () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
+  const styles = (html: string) => [...html.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join("\n");
+
+  it("tokens.css names the package, its version, the token files and the BSD-3-Clause notice, and holds no URL or font file", () => {
+    const tokens = read("../src/widget/tokens.css");
+    expect(tokens).toContain("@salesforce-ux/design-system 2.264.1");
+    expect(tokens).toContain("BSD-3-Clause");
+    expect(tokens).toContain("Copyright (c) 2015, salesforce.com, inc. All rights reserved.");
+    for (const file of ["palettes.json", "theme-one-salesforce.json", "slds-hooks.raw.json", "font.raw.json"]) expect(tokens).toContain(file);
+    expect(tokens).toMatch(/--slds-font-family:\s*"Salesforce Sans",/);
+    // The data-visualization palette, in its order.
+    expect([...tokens.matchAll(/--slds-dataviz-(\d):\s*(#[0-9a-f]{6})/gi)].map((m) => m[2]!.toLowerCase())).toEqual(["#52b7d8", "#e16032", "#ffb03b", "#54a77b", "#4fd2d2", "#e287b2"]);
+    expect(tokens).not.toMatch(/url\(|@font-face|@import|\.woff|https?:/i);
+  });
+
+  it("the build inlines tokens.css into both cards, and the served cards load no font file or URL", async () => {
+    const tokens = read("../src/widget/tokens.css").trim();
+    for (const file of ["report.html", "dashboard.html"]) {
+      expect(read(`../src/widget/${file}`)).toContain("/*@slds-tokens*/");
+      const built = read(`../dist/widget/${file}`);
+      expect(built).not.toContain("/*@slds-tokens*/");
+      expect(styles(built)).toContain(tokens);
+    }
+    const client = await connect();
+    for (const uri of [VIEW_URI, DASHBOARD_URI]) {
+      const { contents } = await client.readResource({ uri });
+      const html = (contents[0] as { text?: string }).text ?? "";
+      expect(html).not.toContain("/*@slds-tokens*/");
+      expect(styles(html)).toContain(tokens);
+      expect(styles(html)).not.toMatch(/url\(|@font-face|@import/i);
+      expect(html).not.toMatch(/\.woff2?\b|\.ttf\b|\.otf\b/i);
+    }
+  });
+
+  it("both cards draw with the SLDS font stack, card look, brand blue, focus ring and data-visualization palette", () => {
+    for (const file of ["report.html", "dashboard.html"]) {
+      const css = styles(read(`../src/widget/${file}`));
+      expect(css).toContain("font-family: var(--slds-font-family)");
+      expect(css).toContain("var(--slds-card-radius)");
+      expect(css).toContain("var(--slds-brand-accessible)");
+      expect(css).toContain("var(--slds-link)");
+      expect(css).toContain(":focus-visible");
+      expect(css).toContain("var(--slds-dataviz-1)");
+      // The host still sets the surface: background, text and border take the host's variables first.
+      expect(css).toContain("var(--color-background-primary, ");
+      expect(css).toContain("var(--color-text-primary, ");
+      expect(css).toContain("var(--color-border-primary, ");
+      // No ad hoc pixel font sizes: the type scale comes from the tokens.
+      expect(css).not.toMatch(/font-size:\s*\d+px/);
+    }
+    expect(styles(read("../src/widget/dashboard.html"))).toContain("box-shadow: var(--slds-card-shadow)");
+  });
+});
+
 describe("inlineBundle", () => {
   it("turns the module's export list into a scoped ExtApps object", () => {
     const out = inlineBundle('var a=1;class B{}var s="</script>";export{a as one,B as App};');
@@ -199,6 +255,22 @@ describe("dashboard view", () => {
     expect(metric.gauge).toBeUndefined();
     expect(gauge.gauge).toEqual({ min: 0, max: 5000000, breakpoints: [2000000, 4000000], colors: ["#c25454", "#c2c254", "#54c254"] });
     expect(donut.sourceReport.id).toBe("00O000000000004AAA");
+  });
+
+  it("passes the dashboard's colour palette name through for the card, and a component's own when it sets one", async () => {
+    const client = await connect();
+    const result = (await client.callTool({ name: "run_dashboard", arguments: { dashboardId: DASH } })) as CallResult;
+    const parsed = JSON.parse(result.content[0]!.text);
+    expect(parsed.colorPalette).toBe("unity");
+    for (const component of parsed.components) expect(component.colorPalette).toBeUndefined();
+    const raw = fixture("dashboard-results") as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+    const first = raw.dashboardMetadata.components[0];
+    first.properties.visualizationProperties = { ...first.properties.visualizationProperties, colorPalette: "watermelon" };
+    const shaped = { ...parsed, colorPalette: undefined, components: parsed.components.map((c: Record<string, unknown>) => ({ id: c.id, visualizationType: c.visualizationType, status: c.status, result: c.result })) };
+    const view = dashboardView(raw, shaped, "https://example.my.salesforce.com");
+    expect(view.colorPalette).toBe("unity");
+    expect(view.components[0]!.colorPalette).toBe("watermelon");
+    expect(view.components[1]!.colorPalette).toBeUndefined();
   });
 
   it("serves the dashboard view as one self-contained HTML document, in read-only mode too", async () => {

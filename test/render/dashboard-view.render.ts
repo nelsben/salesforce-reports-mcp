@@ -17,6 +17,8 @@ test.beforeEach(async ({ page }) => {
 const HEADERS = ["Won to Date", "Won vs Target", "Pipeline Mix", "Pipeline by Stage", "Amount by Close Month", "Stage Table", "Stage Funnel", "Close Month Columns"];
 const TYPES = ["Metric", "Gauge", "Donut", "Bar", "Line", "Table", "Funnel", "Column"];
 const BASE = "https://example.my.salesforce.com";
+// The SLDS data-visualization Default Palette, as Chromium reports a computed colour (decision 0018).
+const DEFAULT_PALETTE = ["rgb(82, 183, 216)", "rgb(225, 96, 50)", "rgb(255, 176, 59)", "rgb(84, 167, 123)", "rgb(79, 210, 210)", "rgb(226, 135, 178)"];
 
 function tile(frame: Frame, header: string) {
   return frame.locator("li.tile").filter({ has: frame.getByRole("heading", { name: header, exact: true }) });
@@ -152,6 +154,19 @@ test("dashboard card, light", async ({ page }) => {
   await expectReadable(frame);
   await expect(frame.locator(".notes")).toHaveCount(0);
 
+  // The charts draw with the SLDS data-visualization Default Palette in order ("unity" is not a palette the card
+  // knows); the gauge keeps the dashboard's own band colours.
+  await expect(frame.locator("html")).not.toHaveAttribute("data-palette", /./);
+  const strokes = await frame.locator("circle.slice").evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n).stroke));
+  expect(strokes.slice(0, 5)).toEqual(DEFAULT_PALETTE.slice(0, 5));
+  expect(await tile(frame, "Pipeline by Stage").locator("rect.bar").first().evaluate((n) => getComputedStyle(n).fill)).toBe(DEFAULT_PALETTE[0]);
+  const bands = await frame.locator("rect.band").evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n).fill));
+  expect(bands.slice(0, 6)).toEqual(DEFAULT_PALETTE);
+  const fixture = await dashboardFixture("dashboard-results");
+  const gaugeColors = (fixture.components as { gauge?: { colors?: string[] } }[])[1]!.gauge!.colors!;
+  const rgb = (hex: string) => `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(", ")})`;
+  expect(await frame.locator("path.arc").evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n).stroke))).toEqual(gaugeColors.map(rgb));
+
   // Every chart grows in, unless the reader asked for less motion.
   const marks = ["g.needle", "g.ring", "rect.bar", "path.line", "rect.band", "rect.col", ".metric-value"];
   const names = (motion: string) => Promise.all(marks.map((m) => frame.locator(m).first().evaluate((n) => getComputedStyle(n).animationName).then((a) => `${motion} ${a}`)));
@@ -187,7 +202,8 @@ test("dashboard card at tablet width shows two columns", async ({ page }) => {
   await page.evaluate(() => window.testHost.setWidth(720));
   await expect.poll(() => columnsAcross(frame)).toBe(3);
   await expect(frame.locator("li.tile h2")).toHaveText(HEADERS);
-  expect(await frame.locator("rect.col").first().evaluate((n) => getComputedStyle(n).animationName)).toBe("none");
+  // Polled: the grid reflows before the resize redraw swaps the chart, and a swapped-out node reads "".
+  await expect.poll(() => frame.locator("rect.col").first().evaluate((n) => getComputedStyle(n).animationName)).toBe("none");
 });
 
 test("dashboard card with no data", async ({ page }) => {
@@ -216,10 +232,15 @@ test("dashboard card opens a tile's source report and the dashboard through the 
   expect(await page.evaluate(() => window.hostLog.messages)).toEqual([]);
 });
 
-test("dashboard card shows a footer, a failed tile, and a table for a type it does not draw", async ({ page }) => {
+test("dashboard card shows a footer, a failed tile, a table for a type it does not draw, and a named palette", async ({ page }) => {
   const result = await dashboardFixture("dashboard-results");
   const [metric, gauge, donut] = result.components as Record<string, unknown>[];
   donut!.visualizationType = "Scatter";
+  // A palette the card knows, on the dashboard and on one component; "unity" on another is unknown, so it inherits.
+  (result as Record<string, unknown>).colorPalette = "Watermelon";
+  const components = result.components as Record<string, unknown>[];
+  components[6]!.colorPalette = "water";
+  components[3]!.colorPalette = "unity";
   metric!.footer = "Booked revenue only";
   Object.assign(gauge!, { status: "error", result: undefined, error: { code: "ERROR", message: "The source report was deleted." } });
   const frame = await draw(page, { result });
@@ -229,4 +250,10 @@ test("dashboard card shows a footer, a failed tile, and a table for a type it do
   await expect(fallback.locator("svg")).toHaveCount(0);
   expect(await fallback.locator("thead th").allTextContents()).toEqual(["Stage", "Sum of Amount"]);
   await expect(fallback.locator("tbody tr")).toHaveCount(10);
+  await expect(frame.locator("html")).toHaveAttribute("data-palette", "watermelon");
+  // Watermelon 1 on the bar chart (its own "unity" is unknown, so the dashboard's palette holds), Water in order on the funnel.
+  expect(await tile(frame, "Pipeline by Stage").locator("rect.bar").first().evaluate((n) => getComputedStyle(n).fill)).toBe("rgb(245, 152, 167)");
+  const bands = await tile(frame, "Stage Funnel").locator("rect.band").evaluateAll((nodes) => nodes.map((n) => getComputedStyle(n).fill));
+  expect(bands.slice(0, 3)).toEqual(["rgb(150, 242, 238)", "rgb(104, 206, 238)", "rgb(45, 156, 237)"]);
+  await expectReadable(frame);
 });

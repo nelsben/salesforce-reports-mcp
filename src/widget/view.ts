@@ -9,6 +9,15 @@ export const DASHBOARD_VIEW_URI = "ui://salesforce-reports/dashboard";
 
 const BUNDLE_MARKER = "/*@ext-apps-bundle*/";
 
+/** Where a template's <style> takes src/widget/tokens.css, the vendored SLDS token values (decision 0018). */
+export const TOKENS_MARKER = "/*@slds-tokens*/";
+
+/** Put the token CSS in place of the marker. scripts/build-widget.ts does this at build, so dist has no marker. */
+export function inlineTokens(template: string, tokens: string): string {
+  if (!template.includes(TOKENS_MARKER)) throw new Error("The view template has no place for the SLDS tokens.");
+  return template.replace(TOKENS_MARKER, () => tokens.trim());
+}
+
 const cached = new Map<string, string>();
 
 /**
@@ -29,7 +38,9 @@ function viewHtml(file: string, what: string): string {
   const hit = cached.get(file);
   if (hit) return hit;
   try {
-    const template = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
+    let template = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
+    // A template read from src (tests, tsx) still has the marker; a built one already carries the tokens.
+    if (template.includes(TOKENS_MARKER)) template = inlineTokens(template, readFileSync(new URL("./tokens.css", import.meta.url), "utf8"));
     const bundlePath = createRequire(import.meta.url).resolve("@modelcontextprotocol/ext-apps/app-with-deps");
     const bundle = inlineBundle(readFileSync(bundlePath, "utf8"));
     if (!template.includes(BUNDLE_MARKER)) throw new Error("The view template has no place for the ext-apps client.");

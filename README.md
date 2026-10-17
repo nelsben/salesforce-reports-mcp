@@ -21,7 +21,7 @@ Most of what a company knows about its customers and its pipeline sits in Salesf
 | **1. Three ways to connect Salesforce and Claude**, each with its own trade-offs | [Three ways to connect](#three-ways-to-connect) | One tool contract and result shape on every door (16 tools locally, 11 in the org); a [parity check](docs/decisions/0010-verification-by-parity.md) runs the same calls through two doors against a real org and compares them |
 | **2. A useful feature added to Salesforce itself**, packaged the way an admin expects | [A feature inside Salesforce](#a-feature-inside-salesforce) | Three package directories; layered Apex with a CI test that fails if the layers leak; 65 Apex tests at 98% coverage |
 | **3. Security, authentication and integration** done deliberately, per door | [Security and identity](#security-and-identity) | A different identity per door, a per-user JWT named credential with no stored secret, writes behind a custom permission, and a test that keeps org values out of the repo |
-| **4. Product and architecture judgment**, shown in the work | [How it was built](#how-it-was-built) | Personas and [experiences](docs/experiences.md), [7 probes](docs/probes/) before building, [17 decision records](docs/decisions/README.md), [live findings](docs/design.md), [7 rehearsals](docs/rehearsals/README.md) |
+| **4. Product and architecture judgment**, shown in the work | [How it was built](#how-it-was-built) | Personas and [experiences](docs/experiences.md), [7 probes](docs/probes/) before building, [18 decision records](docs/decisions/README.md), [live findings](docs/design.md), [7 rehearsals](docs/rehearsals/README.md) |
 
 ## The product
 
@@ -41,7 +41,7 @@ Most of what a company knows about its customers and its pipeline sits in Salesf
 
 **Answers you can trust.** Every run returns the same compact shape: the filters that were applied, including the ones Salesforce adds on its own, the groups and totals, and notes that say when rows were cut or Salesforce ignored part of the request. The [experiences page](docs/experiences.md) has the personas and the facts that shaped them.
 
-**A report card in the chat.** In Claude Desktop, a report run on the local server also draws as a card: the headline numbers across the top, the filters, the groups with a bar beside each amount (or, for a matrix, a heat grid), the totals, a link to open it in Salesforce and, for an unsaved report, a button that asks Claude to save it. Claude's reply then leads with what the card cannot show instead of repeating it. The card is an MCP App that loads nothing from the network, and every heat cell passes WCAG AA contrast in light and dark. Clients that show only text, such as Claude Code, get the same result as text ([decision 0013](docs/decisions/0013-report-view-as-an-mcp-app.md), [decision 0015](docs/decisions/0015-report-card-visuals.md)).
+**A report card in the chat.** In Claude Desktop, a report run on the local server also draws as a card: the headline numbers across the top, the filters, the groups with a bar beside each amount (or, for a matrix, a heat grid), the totals, a link to open it in Salesforce and, for an unsaved report, a button that asks Claude to save it. Claude's reply then leads with what the card cannot show instead of repeating it. The card is an MCP App that loads nothing from the network, styled with the Lightning Design System's own tokens so it reads as Salesforce ([decision 0018](docs/decisions/0018-cards-follow-the-lightning-design-system.md)), and every heat cell passes WCAG AA contrast in light and dark. Clients that show only text, such as Claude Code, get the same result as text ([decision 0013](docs/decisions/0013-report-view-as-an-mcp-app.md), [decision 0015](docs/decisions/0015-report-card-visuals.md)).
 
 ![The report card for an unsaved opportunity report grouped by stage, drawn in light, then dark, then at phone width](docs/assets/report-view.gif)
 
@@ -127,9 +127,9 @@ The method was the same for every feature: probe the platform, decide in writing
 | Step | What it produced |
 | --- | --- |
 | **Probe** before building | [7 probe write-ups](docs/probes/): can a hosted MCP server wrap Apex, can Apex call its own org's API, how big a result fits in the heap, which identity works under a hosted sign-in, how dashboards refresh and filter |
-| **Decide** in writing | [17 decision records](docs/decisions/README.md), each with what it costs and what was turned down |
+| **Decide** in writing | [18 decision records](docs/decisions/README.md), each with what it costs and what was turned down |
 | **Build** to one contract | [design.md](docs/design.md): the input and output shapes, and the live findings where Salesforce did not behave as documented |
-| **Verify** against a real org | 194 unit and server tests, 24 render tests that draw the report and dashboard cards in a browser, 65 Apex tests, a live end-to-end check that leaves no report behind, and a parity check across doors |
+| **Verify** against a real org | 198 unit and server tests, 24 render tests that draw the report and dashboard cards in a browser, 65 Apex tests, a live end-to-end check that leaves no report behind, and a parity check across doors |
 | **Rehearse** the experience | [7 rehearsals](docs/rehearsals/README.md): real Claude runs of each skill on each door, with what went wrong and what changed |
 
 ## Get started

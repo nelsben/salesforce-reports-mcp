@@ -5,167 +5,180 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Salesforce dashboard</title>
 <style>
+/*@slds-tokens*/
+  /* The card's own names for the SLDS values. The host's theme variables set the surface (background, text and
+     border) first; the SLDS neutrals are the fallbacks, light and dark. */
   :root {
-    --fallback-bg: #ffffff;
-    --fallback-bg-2: #f4f6f9;
-    --fallback-text: #181818;
-    --fallback-text-2: #5c5c5c;
-    --fallback-border: #dddbda;
-    --fallback-accent: #0b5cab;
-    --bar-mix: 62%;
-    --area-mix: 12%;
-    --series-1: #2a78d6;
-    --series-2: #eb6834;
-    --series-3: #1baf7a;
-    --series-4: #eda100;
-    --series-5: #e87ba4;
-    --series-other: #a8a8a3;
+    --fallback-bg: var(--slds-neutral-100);
+    --fallback-bg-2: var(--slds-neutral-95);
+    --fallback-text: var(--slds-neutral-10);
+    --fallback-text-2: var(--slds-neutral-30);
+    --fallback-border: var(--slds-card-border);
+    --fallback-rule: var(--slds-neutral-90);
+    --link: var(--slds-link);
+    --link-hover: var(--slds-link-hover);
+    --series-other: var(--slds-neutral-50);
+    --area-mix: 16%;
     color-scheme: light dark;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --fallback-bg: #1f1f1e;
-      --fallback-bg-2: #2b2b29;
-      --fallback-text: #ececea;
-      --fallback-text-2: #a8a8a3;
-      --fallback-border: #3d3d3a;
-      --fallback-accent: #78b0fd;
-      --bar-mix: 72%;
-      --area-mix: 18%;
-      --series-1: #3987e5;
-      --series-2: #d95926;
-      --series-3: #199e70;
-      --series-4: #c98500;
-      --series-5: #d55181;
-      --series-other: #6b6b66;
+      --fallback-bg: var(--slds-neutral-15);
+      --fallback-bg-2: var(--slds-neutral-20);
+      --fallback-text: var(--slds-neutral-95);
+      --fallback-text-2: var(--slds-neutral-70);
+      --fallback-border: var(--slds-neutral-30);
+      --fallback-rule: var(--slds-neutral-30);
+      --link: var(--slds-link-dark);
+      --link-hover: var(--slds-link-dark-hover);
+      --series-other: var(--slds-neutral-70);
+      --area-mix: 22%;
     }
   }
   :root[data-theme="dark"] {
-    --fallback-bg: #1f1f1e;
-    --fallback-bg-2: #2b2b29;
-    --fallback-text: #ececea;
-    --fallback-text-2: #a8a8a3;
-    --fallback-border: #3d3d3a;
-    --fallback-accent: #78b0fd;
-    --bar-mix: 72%;
-    --area-mix: 18%;
-    --series-1: #3987e5;
-    --series-2: #d95926;
-    --series-3: #199e70;
-    --series-4: #c98500;
-    --series-5: #d55181;
-    --series-other: #6b6b66;
+    --fallback-bg: var(--slds-neutral-15);
+    --fallback-bg-2: var(--slds-neutral-20);
+    --fallback-text: var(--slds-neutral-95);
+    --fallback-text-2: var(--slds-neutral-70);
+    --fallback-border: var(--slds-neutral-30);
+    --fallback-rule: var(--slds-neutral-30);
+    --link: var(--slds-link-dark);
+    --link-hover: var(--slds-link-dark-hover);
+    --series-other: var(--slds-neutral-70);
+    --area-mix: 22%;
   }
+  /* The chart palette: the SLDS data-visualization Default Palette, or the named palette the dashboard or the
+     component chose when it is one decision 0018 lists (the view sets data-palette on the root or the tile). */
+  :root {
+    --series-1: var(--slds-dataviz-1);
+    --series-2: var(--slds-dataviz-2);
+    --series-3: var(--slds-dataviz-3);
+    --series-4: var(--slds-dataviz-4);
+    --series-5: var(--slds-dataviz-5);
+    --series-6: var(--slds-dataviz-6);
+  }
+  [data-palette="bluegrass"] { --series-1: var(--slds-dataviz-bluegrass-1); --series-2: var(--slds-dataviz-bluegrass-2); --series-3: var(--slds-dataviz-bluegrass-3); --series-4: var(--slds-dataviz-bluegrass-4); --series-5: var(--slds-dataviz-bluegrass-5); --series-6: var(--slds-dataviz-bluegrass-6); }
+  [data-palette="sunrise"] { --series-1: var(--slds-dataviz-sunrise-1); --series-2: var(--slds-dataviz-sunrise-2); --series-3: var(--slds-dataviz-sunrise-3); --series-4: var(--slds-dataviz-sunrise-4); --series-5: var(--slds-dataviz-sunrise-5); --series-6: var(--slds-dataviz-sunrise-6); }
+  [data-palette="water"] { --series-1: var(--slds-dataviz-water-1); --series-2: var(--slds-dataviz-water-2); --series-3: var(--slds-dataviz-water-3); --series-4: var(--slds-dataviz-water-4); --series-5: var(--slds-dataviz-water-5); --series-6: var(--slds-dataviz-water-6); }
+  [data-palette="watermelon"] { --series-1: var(--slds-dataviz-watermelon-1); --series-2: var(--slds-dataviz-watermelon-2); --series-3: var(--slds-dataviz-watermelon-3); --series-4: var(--slds-dataviz-watermelon-4); --series-5: var(--slds-dataviz-watermelon-5); --series-6: var(--slds-dataviz-watermelon-6); }
   :root {
     --bg: var(--color-background-primary, var(--fallback-bg));
     --bg-2: var(--color-background-secondary, var(--fallback-bg-2));
     --text: var(--color-text-primary, var(--fallback-text));
     --text-2: var(--color-text-secondary, var(--fallback-text-2));
     --border: var(--color-border-primary, var(--fallback-border));
-    --accent: var(--color-text-info, var(--fallback-accent));
-    --radius: var(--border-radius-md, 8px);
-    --radius-full: var(--border-radius-full, 999px);
-    --xs: var(--font-text-xs-size, 12px);
+    --rule: var(--color-border-primary, var(--fallback-rule));
+    /* SLDS shadow-outset-focus-1 (2px of the surface, then 2px of link blue), drawn in the theme's own colours. */
+    --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--link);
+    --xs: var(--slds-font-size-2);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
-    font-size: var(--font-text-sm-size, 14px);
-    line-height: var(--font-text-sm-line-height, 1.45);
+    font-family: var(--slds-font-family);
+    font-size: var(--slds-font-size-3);
+    line-height: var(--slds-line-height-text);
   }
-  .card { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+  a, button { border-radius: var(--slds-card-radius); }
+  a:focus-visible, button:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+  .card { padding: var(--slds-spacing-medium); display: flex; flex-direction: column; gap: var(--slds-spacing-small); min-width: 0; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--slds-spacing-xx-small) var(--slds-spacing-small); }
   h1 {
     margin: 0;
-    font-size: var(--font-heading-sm-size, 17px);
-    line-height: var(--font-heading-sm-line-height, 1.3);
-    font-weight: var(--font-weight-semibold, 600);
+    font-size: var(--slds-font-size-6);
+    line-height: var(--slds-line-height-heading);
+    font-weight: var(--slds-font-weight-bold);
     overflow-wrap: anywhere;
   }
-  h1 a, h2 a { color: inherit; text-decoration: none; }
-  h1 a:hover, h2 a:hover { text-decoration: underline; }
+  h1 a, h2 a { color: var(--link); text-decoration: none; }
+  h1 a:hover, h2 a:hover { color: var(--link-hover); text-decoration: underline; }
   .meta { color: var(--text-2); font-size: var(--xs); }
-  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: var(--slds-spacing-xx-small); margin: 0; padding: 0; list-style: none; }
   .chips li {
-    background: var(--bg-2);
+    background: var(--bg);
     border: 1px solid var(--border);
-    border-radius: var(--radius-full);
-    padding: 2px 10px;
+    border-radius: var(--slds-card-radius);
+    padding: var(--slds-spacing-xxx-small) var(--slds-spacing-x-small);
     font-size: var(--xs);
-    color: var(--text-2);
+    color: var(--text);
     overflow-wrap: anywhere;
   }
   .empty { color: var(--text-2); }
-  .notes { margin: 0; padding-left: 18px; color: var(--text-2); font-size: var(--xs); }
-  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .notes { margin: 0; padding-left: var(--slds-spacing-medium); color: var(--text-2); font-size: var(--xs); }
+  .actions { display: flex; flex-wrap: wrap; gap: var(--slds-spacing-x-small); }
+  /* An SLDS brand button: Open in Salesforce is the card's one action. */
   button {
     font: inherit;
-    font-size: var(--font-text-sm-size, 14px);
-    padding: 6px 12px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--bg);
-    color: var(--text);
+    font-size: var(--slds-font-size-3);
+    line-height: 1.875rem;
+    padding: 0 var(--slds-spacing-medium);
+    border-radius: var(--slds-card-radius);
+    border: 1px solid var(--slds-brand-accessible);
+    background: var(--slds-brand-accessible);
+    color: var(--slds-neutral-100);
     cursor: pointer;
   }
+  button:hover { background: var(--slds-brand-accessible-active); border-color: var(--slds-brand-accessible-active); }
 
-  /* The grid: tiles in the dashboard's layout order. Three across on a wide card, two at tablet width, one on a phone. */
-  .tiles { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }
+  /* The grid: tiles in the dashboard's layout order. Three across on a wide card, two at tablet width, one on a phone.
+     Each tile is an SLDS card: a 1px neutral border, the card radius and the card shadow. */
+  .tiles { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--slds-spacing-small); margin: 0; padding: 0; list-style: none; }
   @media (min-width: 520px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .tile {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 10px 12px 12px;
+    gap: var(--slds-spacing-x-small);
+    padding: var(--slds-spacing-small);
     border: 1px solid var(--border);
-    border-radius: var(--radius);
+    border-radius: var(--slds-card-radius);
     background: var(--bg);
+    box-shadow: var(--slds-card-shadow);
   }
   .tile h2 {
     margin: 0;
-    font-size: var(--font-text-sm-size, 14px);
-    line-height: 1.3;
-    font-weight: var(--font-weight-semibold, 600);
+    font-size: var(--slds-font-size-4);
+    line-height: var(--slds-line-height-heading);
+    font-weight: var(--slds-font-weight-bold);
     overflow-wrap: anywhere;
   }
-  .tile .sub { margin: -6px 0 0; color: var(--text-2); font-size: var(--xs); overflow-wrap: anywhere; }
+  .tile .sub { margin: calc(-1 * var(--slds-spacing-xx-small)) 0 0; color: var(--text-2); font-size: var(--xs); overflow-wrap: anywhere; }
   .tile .body { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; }
   .tile[data-type="Metric"] .body { justify-content: center; }
   .tile .foot { margin: 0; color: var(--text-2); font-size: var(--xs); overflow-wrap: anywhere; }
   .nodata-text, .error-text { margin: 0; color: var(--text-2); font-size: var(--xs); }
-  .tile.nodata { background: var(--bg-2); border-style: dashed; }
+  .tile.nodata { background: var(--bg-2); border-style: dashed; box-shadow: none; }
 
   /* A metric: one big number. */
-  .metric { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; }
+  .metric { display: flex; flex-direction: column; gap: var(--slds-spacing-xxx-small); padding: var(--slds-spacing-xx-small) 0; }
   .metric-value {
-    font-size: var(--font-heading-lg-size, 28px);
-    line-height: 1.15;
-    font-weight: var(--font-weight-semibold, 600);
+    font-size: var(--slds-font-size-9);
+    line-height: var(--slds-line-height-heading);
+    font-weight: var(--slds-font-weight-bold);
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
     animation: lift 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
   .metric-label { color: var(--text-2); font-size: var(--xs); overflow-wrap: anywhere; }
 
-  /* The charts: inline SVG drawn to the tile's width in pixels, so text never scales. */
+  /* The charts: inline SVG drawn to the tile's width in pixels, so text never scales.
+     Marks take the data-visualization palette in order; text takes the text colours only. */
   svg.chart { display: block; width: 100%; overflow: visible; }
-  svg.chart text { font-family: inherit; font-size: 11px; fill: var(--text-2); }
-  svg.chart text.value { fill: var(--text); font-weight: var(--font-weight-medium, 500); font-variant-numeric: tabular-nums; }
-  svg.chart text.big { fill: var(--text); font-size: 18px; font-weight: var(--font-weight-semibold, 600); font-variant-numeric: tabular-nums; }
+  svg.chart text { font-family: inherit; font-size: var(--xs); fill: var(--text-2); }
+  svg.chart text.value { fill: var(--text); font-weight: var(--slds-font-weight-bold); font-variant-numeric: tabular-nums; }
+  svg.chart text.big { fill: var(--text); font-size: var(--slds-font-size-6); font-weight: var(--slds-font-weight-bold); font-variant-numeric: tabular-nums; }
   svg.chart line.base { stroke: var(--border); stroke-width: 1; }
-  .mark { fill: color-mix(in srgb, var(--accent) var(--bar-mix), transparent); }
+  .mark { fill: var(--series-1); }
   .mark.other { fill: var(--series-other); }
   rect.bar, rect.band { transform-box: fill-box; transform-origin: left center; animation: grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
   rect.band { transform-origin: center center; }
   rect.col { transform-box: fill-box; transform-origin: center bottom; animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  path.line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; animation: draw 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  path.area { fill: color-mix(in srgb, var(--accent) var(--area-mix), transparent); animation: fade 900ms ease-out both; }
-  circle.dot { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+  path.line { fill: none; stroke: var(--series-1); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; animation: draw 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  path.area { fill: color-mix(in srgb, var(--series-1) var(--area-mix), transparent); animation: fade 900ms ease-out both; }
+  circle.dot { fill: var(--series-1); stroke: var(--bg); stroke-width: 2; }
   circle.hit { fill: transparent; }
   g.ring { transform-box: fill-box; transform-origin: center; animation: spin 800ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
   circle.slice { fill: none; stroke-width: 18; }
@@ -187,9 +200,9 @@
   }
 
   /* The donut's legend: a swatch beside each label, the share in text. */
-  .legend { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 0; padding: 0; list-style: none; font-size: var(--xs); }
-  .legend li { display: flex; align-items: center; gap: 6px; min-width: 0; }
-  .legend .swatch { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+  .legend { display: flex; flex-direction: column; gap: var(--slds-spacing-xxx-small); margin: var(--slds-spacing-x-small) 0 0; padding: 0; list-style: none; font-size: var(--xs); }
+  .legend li { display: flex; align-items: center; gap: var(--slds-spacing-xx-small); min-width: 0; }
+  .legend .swatch { flex: none; width: 10px; height: 10px; border-radius: var(--slds-radius-small); }
   .legend .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .legend .share { flex: none; color: var(--text-2); font-variant-numeric: tabular-nums; }
 
@@ -198,12 +211,12 @@
   /* A fixed layout shares the tile's width between the columns, so a long label wraps instead of pushing the numbers out. */
   table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: var(--xs); font-variant-numeric: tabular-nums; }
   table.lead col:first-child { width: 55%; }
-  th, td { padding: 4px 6px; text-align: left; border-bottom: 1px solid var(--border); overflow-wrap: break-word; }
-  th { color: var(--text-2); font-weight: var(--font-weight-medium, 500); }
+  th, td { padding: var(--slds-spacing-xx-small); text-align: left; border-bottom: 1px solid var(--rule); overflow-wrap: break-word; }
+  th { color: var(--text-2); font-weight: var(--slds-font-weight-bold); }
   td.num, th.num { text-align: right; }
   tbody tr:last-child td { border-bottom: none; }
   td.blank { color: var(--text-2); }
-  .more { margin: 4px 0 0; color: var(--text-2); font-size: var(--xs); }
+  .more { margin: var(--slds-spacing-xx-small) 0 0; color: var(--text-2); font-size: var(--xs); }
 </style>
 </head>
 <body>
@@ -407,7 +420,8 @@ function gauge(component, measure, name, width) {
   const at = (v) => Math.max(0, Math.min(1, (v - range.min) / (range.max - range.min)));
   const point = (t, radius) => [round(cx + radius * Math.cos(Math.PI * (1 - t))), round(cy - radius * Math.sin(Math.PI * (1 - t)))];
   const stops = [range.min, ...range.breakpoints, range.max];
-  const defaults = ["#c25454", "#c2a038", "#4a9e5c"];
+  // The dashboard's own band colours when it sets them, else the SLDS red, orange and green (fills only).
+  const defaults = ["var(--slds-red-60)", "var(--slds-orange-65)", "var(--slds-green-60)"];
   const colors = range.colors && range.colors.length === stops.length - 1 ? range.colors : stops.slice(1).map((_, i) => defaults[Math.min(i, 2)]);
   const above = value > range.max ? " It is above the range." : value < range.min ? " It is below the range." : "";
   const svg = chartSvg(name, "Gauge of " + (measure ? measure.label : "the value") + ": " + cellText(value, type) + ", on a range from " + cellText(range.min, type) + " to " + cellText(range.max, type) +
@@ -415,9 +429,11 @@ function gauge(component, measure, name, width) {
   for (let i = 0; i < stops.length - 1; i++) {
     const [x0, y0] = point(at(stops[i]), r);
     const [x1, y1] = point(at(stops[i + 1]), r);
-    svg.appendChild(svgEl("path", { class: "arc", d: "M" + x0 + " " + y0 + " A" + r + " " + r + " 0 0 1 " + x1 + " " + y1, stroke: colors[i] }, [
+    const arc = svgEl("path", { class: "arc", d: "M" + x0 + " " + y0 + " A" + r + " " + r + " 0 0 1 " + x1 + " " + y1 }, [
       svgEl("title", { text: cellText(stops[i], type) + " to " + cellText(stops[i + 1], type) }),
-    ]));
+    ]);
+    arc.style.setProperty("stroke", colors[i]);
+    svg.appendChild(arc);
   }
   // The breakpoints, outside the arc.
   for (const b of range.breakpoints) {
@@ -459,7 +475,8 @@ function donut(component, measure, name, width) {
   const legend = el("ul", { class: "legend" });
   points.forEach((p, i) => {
     const share = (p.value / total) * 100;
-    const color = p.other ? "var(--series-other)" : "var(--series-" + ((i % 5) + 1) + ")";
+    // Each category takes the next palette colour, in order.
+    const color = p.other ? "var(--series-other)" : "var(--series-" + ((i % 6) + 1) + ")";
     const slice = svgEl("circle", {
       class: "slice",
       cx: round(width / 2), cy: c, r: round(r),
@@ -501,8 +518,8 @@ function rows(component, measure, name, width, funnel) {
     const mark = svgEl("rect", { class: (funnel ? "band mark" : "bar mark") + (p.other ? " other" : ""), x, y: y + 4, width: Math.max(w, 0.5), height: rowH - 8, rx: 2 }, [
       svgEl("title", { text: p.label + ": " + cellText(p.value, measure.dataType) }),
     ]);
-    // A funnel steps from the deepest shade at the top to a lighter one at the bottom, never below 2:1.
-    if (funnel && !p.other) mark.style.setProperty("fill", "color-mix(in srgb, var(--accent) " + Math.round(85 - (40 * i) / Math.max(1, points.length - 1)) + "%, transparent)");
+    // A funnel's stages take the palette in order; a bar chart is one measure, so one colour.
+    if (funnel && !p.other) mark.style.setProperty("fill", "var(--series-" + ((i % 6) + 1) + ")");
     svg.appendChild(mark);
     const label = svgEl("text", { class: "label", x: 0, y: y + rowH / 2 + 4, text: p.label });
     svg.appendChild(label);
@@ -661,10 +678,19 @@ function drawChart(component, width) {
 
 const drawn = [];
 
+// The named Salesforce palettes the card can draw (decision 0018). Any other name, "unity" included, draws the default.
+const PALETTES = new Set(["bluegrass", "sunrise", "water", "watermelon"]);
+function paletteOf(holder) {
+  const name = holder && typeof holder.colorPalette === "string" ? holder.colorPalette.toLowerCase() : "";
+  return PALETTES.has(name) ? name : null;
+}
+
 function tile(component) {
   const status = component.status;
   const node = el("li", { class: "tile" + (status === "no data" ? " nodata" : status === "error" ? " failed" : "") });
   node.dataset.type = component.visualizationType || "";
+  const palette = paletteOf(component);
+  if (palette) node.dataset.palette = palette;
   const name = tileName(component);
   const source = component.sourceReport || {};
   const url = safeUrl(source.url) || safeUrl(component.result && component.result.report && component.result.report.url);
@@ -720,6 +746,9 @@ function render(result) {
     return;
   }
   const dashboard = result.dashboard;
+  const palette = paletteOf(result) || paletteOf(dashboard);
+  if (palette) document.documentElement.dataset.palette = palette;
+  else delete document.documentElement.dataset.palette;
   const url = safeUrl(dashboard.url);
   const title = el("h1", {});
   if (url) {

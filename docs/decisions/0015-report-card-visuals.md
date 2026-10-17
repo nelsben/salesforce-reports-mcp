@@ -2,6 +2,8 @@
 
 Status: Accepted, 2026-10-15
 
+The card's type, chrome and colours now come from the Lightning Design System tokens, and its bars, columns and heat grid use the SLDS data-visualization palette ([0018](0018-cards-follow-the-lightning-design-system.md)).
+
 ## Context
 
 The report view ([0013](0013-report-view-as-an-mcp-app.md)) drew a `ReportResult` as plain tables. In Claude Desktop that showed the rows but not the answer, and the README demo needs a card that reads at a glance. The view is one self-contained HTML document with no network, so anything it draws must be inline. The `ReportResult` contract is shared by three doors and must not move for a picture.

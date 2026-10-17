@@ -1,0 +1,122 @@
+  /*
+   * Salesforce Lightning Design System token values for the report card and the dashboard card (decision 0018).
+   * Values only: no SLDS stylesheet, no Salesforce Sans font file, nothing loaded from the network.
+   * scripts/build-widget.ts inlines this file into both cards in place of their tokens marker.
+   *
+   * Source: @salesforce-ux/design-system 2.264.1 (npm, BSD-3-Clause), design-tokens/dist:
+   *   font.raw.json                font-family (the fallbacks after "Salesforce Sans")
+   *   theme-one-salesforce.json    FONT_SIZE_2 to FONT_SIZE_9, FONT_WEIGHT_REGULAR, FONT_WEIGHT_BOLD, LINE_HEIGHT_TEXT,
+   *                                LINE_HEIGHT_HEADING, SPACING_XXX_SMALL to SPACING_MEDIUM, BORDER_RADIUS_SMALL,
+   *                                BORDER_RADIUS_MEDIUM, CARD_COLOR_BORDER, CARD_SHADOW, BRAND_ACCESSIBLE,
+   *                                BRAND_ACCESSIBLE_ACTIVE
+   *   slds-hooks.raw.json          link-color, link-color-hover (shadow-outset-focus-1 is drawn from --link)
+   *   palettes.json                color-palette-neutral-*, color-palette-blue-70 and -80 (dark links),
+   *                                color-palette-red-60, color-palette-orange-65, color-palette-green-60 (gauge bands)
+   * The data-visualization palettes are not in the package's token files. They come from the Lightning Design System
+   * guidelines, Data Visualization, Charts, "Chart Color": the Default Palette and the named Bluegrass, Sunrise,
+   * Water and Watermelon palettes, each in the guideline's order.
+   *
+   * Copyright (c) 2015, salesforce.com, inc. All rights reserved.
+   *
+   * Redistribution and use in source and binary forms, with or without modification, are permitted provided that the
+   * following conditions are met: Redistributions of source code must retain the above copyright notice, this list of
+   * conditions and the following disclaimer. Redistributions in binary form must reproduce the above copyright notice,
+   * this list of conditions and the following disclaimer in the documentation and/or other materials provided with the
+   * distribution. Neither the name of salesforce.com, inc. nor the names of its contributors may be used to endorse or
+   * promote products derived from this software without specific prior written permission.
+   *
+   * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+   * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+   * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+   * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+   * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+   * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+   * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+   */
+  :root {
+    /* Type: the font stack, the type scale, weights and line heights. */
+    --slds-font-family: "Salesforce Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    --slds-font-size-2: 0.75rem;
+    --slds-font-size-3: 0.8125rem;
+    --slds-font-size-4: 0.875rem;
+    --slds-font-size-5: 1rem;
+    --slds-font-size-6: 1.125rem;
+    --slds-font-size-8: 1.5rem;
+    --slds-font-size-9: 1.75rem;
+    --slds-font-weight-regular: 400;
+    --slds-font-weight-bold: 700;
+    --slds-line-height-text: 1.5;
+    --slds-line-height-heading: 1.25;
+
+    /* Spacing steps. */
+    --slds-spacing-xxx-small: 0.125rem;
+    --slds-spacing-xx-small: 0.25rem;
+    --slds-spacing-x-small: 0.5rem;
+    --slds-spacing-small: 0.75rem;
+    --slds-spacing-medium: 1rem;
+
+    /* The card: border, radius and shadow. */
+    --slds-radius-small: 0.125rem;
+    --slds-card-radius: 0.25rem;
+    --slds-card-border: rgb(201, 201, 201);
+    --slds-card-shadow: 0 2px 2px 0 rgba(0, 0, 0, 0.10);
+
+    /* Brand blue: buttons, links and the focus ring. */
+    --slds-brand-accessible: rgb(1, 118, 211);
+    --slds-brand-accessible-active: rgb(1, 68, 134);
+    --slds-link: #0b5cab;
+    --slds-link-hover: #014486;
+    --slds-link-dark: rgb(120, 176, 253);
+    --slds-link-dark-hover: rgb(170, 203, 255);
+
+    /* Neutrals, light and dark. */
+    --slds-neutral-10: rgb(24, 24, 24);
+    --slds-neutral-15: rgb(36, 36, 36);
+    --slds-neutral-20: rgb(46, 46, 46);
+    --slds-neutral-30: rgb(68, 68, 68);
+    --slds-neutral-50: rgb(116, 116, 116);
+    --slds-neutral-70: rgb(174, 174, 174);
+    --slds-neutral-80: rgb(201, 201, 201);
+    --slds-neutral-90: rgb(229, 229, 229);
+    --slds-neutral-95: rgb(243, 243, 243);
+    --slds-neutral-100: rgb(255, 255, 255);
+
+    /* Gauge bands when a dashboard sets none: fills only, never text. */
+    --slds-red-60: rgb(254, 92, 76);
+    --slds-orange-65: rgb(243, 131, 3);
+    --slds-green-60: rgb(59, 167, 85);
+
+    /* The data-visualization Default Palette, in order. */
+    --slds-dataviz-1: #52B7D8;
+    --slds-dataviz-2: #E16032;
+    --slds-dataviz-3: #FFB03B;
+    --slds-dataviz-4: #54A77B;
+    --slds-dataviz-5: #4FD2D2;
+    --slds-dataviz-6: #E287B2;
+
+    /* The named chart palettes a dashboard can choose, in order. */
+    --slds-dataviz-bluegrass-1: #C7F296;
+    --slds-dataviz-bluegrass-2: #94E7A8;
+    --slds-dataviz-bluegrass-3: #51D2BB;
+    --slds-dataviz-bluegrass-4: #27AAB0;
+    --slds-dataviz-bluegrass-5: #116985;
+    --slds-dataviz-bluegrass-6: #053661;
+    --slds-dataviz-sunrise-1: #F5DE98;
+    --slds-dataviz-sunrise-2: #F5C062;
+    --slds-dataviz-sunrise-3: #F59623;
+    --slds-dataviz-sunrise-4: #CE6716;
+    --slds-dataviz-sunrise-5: #762F3D;
+    --slds-dataviz-sunrise-6: #300561;
+    --slds-dataviz-water-1: #96F2EE;
+    --slds-dataviz-water-2: #68CEEE;
+    --slds-dataviz-water-3: #2D9CED;
+    --slds-dataviz-water-4: #0E6ECE;
+    --slds-dataviz-water-5: #073E92;
+    --slds-dataviz-water-6: #051C61;
+    --slds-dataviz-watermelon-1: #F598A7;
+    --slds-dataviz-watermelon-2: #F56580;
+    --slds-dataviz-watermelon-3: #F4284E;
+    --slds-dataviz-watermelon-4: #C11C2F;
+    --slds-dataviz-watermelon-5: #5C3F22;
+    --slds-dataviz-watermelon-6: #0A611B;
+  }
