@@ -4,14 +4,17 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import { ReportsApi } from "../src/reports/api.js";
 import { SalesforceError, type SalesforceApi } from "../src/salesforce/client.js";
-import { buildServer, type ServerOptions } from "../src/server.js";
+import { buildServer, DASHBOARD_VIEW_HINT, VIEW_HINT, type ServerOptions } from "../src/server.js";
 import { doorDescription } from "../salesforce/scripts/door-tools.js";
 import { inlineBundle } from "../src/widget/view.js";
 import { fixture } from "./helpers.js";
 
 // The report view: run_report and query_report carry an MCP App card on the local door.
+// The dashboard view: run_dashboard and refresh_dashboard carry a second one.
 
 const VIEW_URI = "ui://salesforce-reports/report";
+const DASHBOARD_URI = "ui://salesforce-reports/dashboard";
+const DASH = "01Z000000000017AAA";
 const ID = "00O000000000001AAA";
 const MISSING = "00O000000000009AAA";
 
@@ -23,6 +26,8 @@ const routes: Handler = (method, path) => {
   if (method === "GET" && path.startsWith(`/analytics/reports/${ID}`)) return fixture("tabular");
   if (path.startsWith("/analytics/reportTypes/")) return fixture("report-type-opportunity");
   if (path.startsWith("/query?q=")) return { records: [] };
+  if (method === "GET" && path === `/analytics/dashboards/${DASH}`) return fixture("dashboard-results");
+  if (method === "GET" && path === `/analytics/dashboards/${DASH}/describe`) return fixture("dashboard-describe");
   throw new Error(`unexpected request ${method} ${path}`);
 };
 
@@ -45,7 +50,7 @@ describe("report view", () => {
   it("puts the view on run_report and query_report and on no other tool", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
-    const withView = tools.filter((t) => (t._meta as { ui?: { resourceUri?: string } } | undefined)?.ui?.resourceUri).map((t) => t.name).sort();
+    const withView = tools.filter((t) => (t._meta as { ui?: { resourceUri?: string } } | undefined)?.ui?.resourceUri === VIEW_URI).map((t) => t.name).sort();
     expect(withView).toEqual(["query_report", "run_report"]);
     for (const name of withView) {
       const tool = tools.find((t) => t.name === name)!;
@@ -57,7 +62,7 @@ describe("report view", () => {
   it("tells Claude not to repeat the card's rows on run_report and query_report only", async () => {
     const client = await connect();
     const { tools } = await client.listTools();
-    const withHint = tools.filter((t) => (t.description ?? "").includes("never repeat the card's rows")).map((t) => t.name).sort();
+    const withHint = tools.filter((t) => (t.description ?? "").includes("never repeat the card's rows,")).map((t) => t.name).sort();
     expect(withHint).toEqual(["query_report", "run_report"]);
     for (const name of withHint) {
       expect(tools.find((t) => t.name === name)!.description).toMatch(/report card above your reply\. There, lead with the one finding the card cannot show .*never repeat the card's rows, totals or a table\.$/);
@@ -151,5 +156,76 @@ describe("inlineBundle", () => {
 
   it("refuses a bundle without a trailing export list", () => {
     expect(() => inlineBundle("var a=1;")).toThrow(/unexpected shape/);
+  });
+});
+
+describe("dashboard view", () => {
+  type Meta = { ui?: { resourceUri?: string } } | undefined;
+
+  it("puts the dashboard view on run_dashboard and refresh_dashboard and on no other tool", async () => {
+    const client = await connect();
+    const { tools } = await client.listTools();
+    const withView = tools.filter((t) => (t._meta as Meta)?.ui?.resourceUri === DASHBOARD_URI).map((t) => t.name).sort();
+    expect(withView).toEqual(["refresh_dashboard", "run_dashboard"]);
+    for (const name of withView) expect(tools.find((t) => t.name === name)!.outputSchema).toBeUndefined();
+    // Every tool with a view carries one of the two.
+    const anyView = tools.filter((t) => (t._meta as Meta)?.ui?.resourceUri).map((t) => (t._meta as Meta)!.ui!.resourceUri);
+    expect(new Set(anyView)).toEqual(new Set([VIEW_URI, DASHBOARD_URI]));
+  });
+
+  it("tells Claude on the two dashboard tools to lead with what the card cannot show and not repeat its numbers", async () => {
+    const client = await connect();
+    const { tools } = await client.listTools();
+    const withHint = tools.filter((t) => (t.description ?? "").endsWith(DASHBOARD_VIEW_HINT)).map((t) => t.name).sort();
+    expect(withHint).toEqual(["refresh_dashboard", "run_dashboard"]);
+    expect(DASHBOARD_VIEW_HINT).toMatch(/dashboard card above your reply/);
+    expect(DASHBOARD_VIEW_HINT).toMatch(/lead with the one finding the card cannot show/);
+    expect(DASHBOARD_VIEW_HINT).toMatch(/never repeat the card's numbers/);
+    // The report card's hint stays on the report tools.
+    for (const name of withHint) expect(tools.find((t) => t.name === name)!.description).not.toContain(VIEW_HINT);
+  });
+
+  it("run_dashboard returns structuredContent equal to its text result, with each component's source report and gauge range", async () => {
+    const client = await connect();
+    const result = (await client.callTool({ name: "run_dashboard", arguments: { dashboardId: DASH } })) as CallResult;
+    expect(result.isError).toBeFalsy();
+    const parsed = JSON.parse(result.content[0]!.text);
+    expect(result.structuredContent).toEqual(parsed);
+    expect(parsed.components.map((c: { visualizationType: string }) => c.visualizationType)).toEqual(["Metric", "Gauge", "Donut", "Bar", "Line", "Table", "Funnel", "Column"]);
+    const [metric, gauge, donut] = parsed.components;
+    expect(metric.sourceReport).toEqual({ id: "00O000000000002AAA", url: "https://example.my.salesforce.com/lightning/r/Report/00O000000000002AAA/view" });
+    expect(metric.measure).toEqual({ name: "s!AMOUNT", label: "Sum of Amount", dataType: "currency" });
+    expect(metric.metricLabel).toBe("Closed Won amount");
+    expect(metric.gauge).toBeUndefined();
+    expect(gauge.gauge).toEqual({ min: 0, max: 5000000, breakpoints: [2000000, 4000000], colors: ["#c25454", "#c2c254", "#54c254"] });
+    expect(donut.sourceReport.id).toBe("00O000000000004AAA");
+  });
+
+  it("serves the dashboard view as one self-contained HTML document, in read-only mode too", async () => {
+    for (const readOnly of [false, true]) {
+      const client = await connect({ readOnly });
+      const { resources } = await client.listResources();
+      expect(resources.map((r) => r.uri)).toEqual(expect.arrayContaining([VIEW_URI, DASHBOARD_URI]));
+      const { contents } = await client.readResource({ uri: DASHBOARD_URI });
+      const view = contents[0] as { mimeType?: string; text?: string };
+      expect(view.mimeType).toBe("text/html;profile=mcp-app");
+      const html = view.text ?? "";
+      expect(html.toLowerCase()).toContain("<!doctype html");
+      expect(html).toContain("ontoolresult");
+      expect(html).toContain("salesforce-dashboard-view");
+      expect(html).not.toMatch(/<script[^>]*src=/i);
+      expect(html).not.toMatch(/<link[^>]*rel=.stylesheet/i);
+      expect(html).not.toMatch(/\bfetch\(/);
+      expect(html).toContain("ui/notifications/initialized");
+      expect(html).not.toContain("/*@ext-apps-bundle*/");
+    }
+  });
+
+  it("sets no markup from data and draws its charts as inline SVG", () => {
+    const template = readFileSync(new URL("../src/widget/dashboard.html", import.meta.url), "utf8");
+    expect(template).not.toMatch(/\.(innerHTML|outerHTML)\s*[+]?=/);
+    expect(template).not.toMatch(/insertAdjacentHTML|document\.write/);
+    expect(template).toContain("createElementNS");
+    expect(template).toContain("prefers-reduced-motion");
   });
 });

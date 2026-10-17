@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Salesforce dashboard</title>
+<style>
+  :root {
+    --fallback-bg: #ffffff;
+    --fallback-bg-2: #f4f6f9;
+    --fallback-text: #181818;
+    --fallback-text-2: #5c5c5c;
+    --fallback-border: #dddbda;
+    --fallback-accent: #0b5cab;
+    --bar-mix: 62%;
+    --area-mix: 12%;
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --series-4: #eda100;
+    --series-5: #e87ba4;
+    --series-other: #a8a8a3;
+    color-scheme: light dark;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fallback-bg: #1f1f1e;
+      --fallback-bg-2: #2b2b29;
+      --fallback-text: #ececea;
+      --fallback-text-2: #a8a8a3;
+      --fallback-border: #3d3d3a;
+      --fallback-accent: #78b0fd;
+      --bar-mix: 72%;
+      --area-mix: 18%;
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --series-4: #c98500;
+      --series-5: #d55181;
+      --series-other: #6b6b66;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fallback-bg: #1f1f1e;
+    --fallback-bg-2: #2b2b29;
+    --fallback-text: #ececea;
+    --fallback-text-2: #a8a8a3;
+    --fallback-border: #3d3d3a;
+    --fallback-accent: #78b0fd;
+    --bar-mix: 72%;
+    --area-mix: 18%;
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --series-4: #c98500;
+    --series-5: #d55181;
+    --series-other: #6b6b66;
+  }
+  :root {
+    --bg: var(--color-background-primary, var(--fallback-bg));
+    --bg-2: var(--color-background-secondary, var(--fallback-bg-2));
+    --text: var(--color-text-primary, var(--fallback-text));
+    --text-2: var(--color-text-secondary, var(--fallback-text-2));
+    --border: var(--color-border-primary, var(--fallback-border));
+    --accent: var(--color-text-info, var(--fallback-accent));
+    --radius: var(--border-radius-md, 8px);
+    --radius-full: var(--border-radius-full, 999px);
+    --xs: var(--font-text-xs-size, 12px);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+    font-size: var(--font-text-sm-size, 14px);
+    line-height: var(--font-text-sm-line-height, 1.45);
+  }
+  .card { padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; }
+  h1 {
+    margin: 0;
+    font-size: var(--font-heading-sm-size, 17px);
+    line-height: var(--font-heading-sm-line-height, 1.3);
+    font-weight: var(--font-weight-semibold, 600);
+    overflow-wrap: anywhere;
+  }
+  h1 a, h2 a { color: inherit; text-decoration: none; }
+  h1 a:hover, h2 a:hover { text-decoration: underline; }
+  .meta { color: var(--text-2); font-size: var(--xs); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .chips li {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+    font-size: var(--xs);
+    color: var(--text-2);
+    overflow-wrap: anywhere;
+  }
+  .empty { color: var(--text-2); }
+  .notes { margin: 0; padding-left: 18px; color: var(--text-2); font-size: var(--xs); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button {
+    font: inherit;
+    font-size: var(--font-text-sm-size, 14px);
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+
+  /* The grid: tiles in the dashboard's layout order. Three across on a wide card, two at tablet width, one on a phone. */
+  .tiles { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin: 0; padding: 0; list-style: none; }
+  @media (min-width: 520px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 700px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .tile {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg);
+  }
+  .tile h2 {
+    margin: 0;
+    font-size: var(--font-text-sm-size, 14px);
+    line-height: 1.3;
+    font-weight: var(--font-weight-semibold, 600);
+    overflow-wrap: anywhere;
+  }
+  .tile .sub { margin: -6px 0 0; color: var(--text-2); font-size: var(--xs); overflow-wrap: anywhere; }
+  .tile .body { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; }
+  .tile[data-type="Metric"] .body { justify-content: center; }
+  .tile .foot { margin: 0; color: var(--text-2); font-size: var(--xs); overflow-wrap: anywhere; }
+  .nodata-text, .error-text { margin: 0; color: var(--text-2); font-size: var(--xs); }
+  .tile.nodata { background: var(--bg-2); border-style: dashed; }
+
+  /* A metric: one big number. */
+  .metric { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; }
+  .metric-value {
+    font-size: var(--font-heading-lg-size, 28px);
+    line-height: 1.15;
+    font-weight: var(--font-weight-semibold, 600);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+    animation: lift 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  .metric-label { color: var(--text-2); font-size: var(--xs); overflow-wrap: anywhere; }
+
+  /* The charts: inline SVG drawn to the tile's width in pixels, so text never scales. */
+  svg.chart { display: block; width: 100%; overflow: visible; }
+  svg.chart text { font-family: inherit; font-size: 11px; fill: var(--text-2); }
+  svg.chart text.value { fill: var(--text); font-weight: var(--font-weight-medium, 500); font-variant-numeric: tabular-nums; }
+  svg.chart text.big { fill: var(--text); font-size: 18px; font-weight: var(--font-weight-semibold, 600); font-variant-numeric: tabular-nums; }
+  svg.chart line.base { stroke: var(--border); stroke-width: 1; }
+  .mark { fill: color-mix(in srgb, var(--accent) var(--bar-mix), transparent); }
+  .mark.other { fill: var(--series-other); }
+  rect.bar, rect.band { transform-box: fill-box; transform-origin: left center; animation: grow 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  rect.band { transform-origin: center center; }
+  rect.col { transform-box: fill-box; transform-origin: center bottom; animation: rise 700ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  path.line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; stroke-dasharray: 1; animation: draw 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  path.area { fill: color-mix(in srgb, var(--accent) var(--area-mix), transparent); animation: fade 900ms ease-out both; }
+  circle.dot { fill: var(--accent); stroke: var(--bg); stroke-width: 2; }
+  circle.hit { fill: transparent; }
+  g.ring { transform-box: fill-box; transform-origin: center; animation: spin 800ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  circle.slice { fill: none; stroke-width: 18; }
+  path.arc { fill: none; stroke-width: 14; }
+  g.needle { animation: sweep 900ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+  g.needle line { stroke: var(--text); stroke-width: 3; stroke-linecap: round; }
+  g.needle circle { fill: var(--text); }
+  @keyframes grow { from { transform: scaleX(0); } }
+  @keyframes rise { from { transform: scaleY(0); } }
+  @keyframes draw { from { stroke-dashoffset: 1; } }
+  @keyframes fade { from { opacity: 0; } }
+  @keyframes spin { from { transform: rotate(-90deg) scale(0.7); opacity: 0; } }
+  @keyframes sweep { from { transform: rotate(var(--sweep, 0deg)); } }
+  @keyframes lift { from { transform: translateY(6px); opacity: 0; } }
+  /* Redrawn at a new width, a chart does not grow in again. */
+  .still *, .still { animation: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    rect.bar, rect.band, rect.col, path.line, path.area, g.ring, g.needle, .metric-value { animation: none; }
+  }
+
+  /* The donut's legend: a swatch beside each label, the share in text. */
+  .legend { display: flex; flex-direction: column; gap: 2px; margin: 8px 0 0; padding: 0; list-style: none; font-size: var(--xs); }
+  .legend li { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .legend .swatch { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+  .legend .name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .legend .share { flex: none; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+  /* A table component, and the fallback for any type the card does not draw. */
+  .scroll { overflow-x: auto; }
+  /* A fixed layout shares the tile's width between the columns, so a long label wraps instead of pushing the numbers out. */
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; font-size: var(--xs); font-variant-numeric: tabular-nums; }
+  table.lead col:first-child { width: 55%; }
+  th, td { padding: 4px 6px; text-align: left; border-bottom: 1px solid var(--border); overflow-wrap: break-word; }
+  th { color: var(--text-2); font-weight: var(--font-weight-medium, 500); }
+  td.num, th.num { text-align: right; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.blank { color: var(--text-2); }
+  .more { margin: 4px 0 0; color: var(--text-2); font-size: var(--xs); }
+</style>
+</head>
+<body>
+<main class="card" id="root"><p class="empty">Waiting for the dashboard.</p></main>
+<script type="module">
+/*@ext-apps-bundle*/
+
+// The dashboard view. It draws one DashboardResult (structuredContent of run_dashboard or refresh_dashboard):
+// a header with the filters and the refresh time, then every component as a tile in layout order.
+// Every value from the result goes in through textContent, never innerHTML.
+const { App, applyDocumentTheme, applyHostStyleVariables, applyHostFonts } = ExtApps;
+
+const root = document.getElementById("root");
+const app = new App({ name: "salesforce-dashboard-view", version: "1.0.0" }, {}, { autoResize: true });
+
+function el(tag, attrs, children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (key === "text") node.textContent = value;
+    else if (key === "class") node.className = value;
+    else node.setAttribute(key, value);
+  }
+  for (const child of children || []) if (child) node.appendChild(child);
+  return node;
+}
+
+const SVG = "http://www.w3.org/2000/svg";
+function svgEl(tag, attrs, children) {
+  const node = document.createElementNS(SVG, tag);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (key === "text") node.textContent = value;
+    else node.setAttribute(key, String(value));
+  }
+  for (const child of children || []) if (child) node.appendChild(child);
+  return node;
+}
+
+const NUMERIC = new Set(["currency", "double", "int", "percent", "number"]);
+const BLANK = "-";
+// The same formats as the report card (decision 0015): currency as US dollars, dates in UTC, a blank as "-".
+const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 });
+const moneyWhole = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const moneyCents = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const compactMoney = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 1 });
+const compactNumber = new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 });
+const shareFormat = new Intl.NumberFormat(undefined, { style: "percent", maximumFractionDigits: 0 });
+const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
+const dateTimeFormat = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+function isBlank(value) {
+  return value === null || value === undefined || value === "";
+}
+
+function cellText(value, dataType) {
+  if (isBlank(value)) return BLANK;
+  if (typeof value === "number") {
+    if (dataType === "currency") return (Number.isInteger(value) ? moneyWhole : moneyCents).format(value);
+    if (dataType === "percent") return numberFormat.format(value) + "%";
+    return numberFormat.format(value);
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value));
+  if (day) return dateFormat.format(new Date(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3]))));
+  return String(value);
+}
+
+function compactText(value, dataType) {
+  if (typeof value !== "number") return BLANK;
+  if (dataType === "currency") return compactMoney.format(value);
+  if (dataType === "percent") return numberFormat.format(value) + "%";
+  return compactNumber.format(value);
+}
+
+// Salesforce sends "2026-10-17T02:13:35.000+0000"; the offset needs a colon to parse everywhere.
+function parseTime(value) {
+  if (typeof value !== "string") return null;
+  const time = new Date(value.replace(/([+-]\d{2})(\d{2})$/, "$1:$2"));
+  return Number.isNaN(time.getTime()) ? null : time;
+}
+
+// Only an https link is drawn or opened.
+function safeUrl(value) {
+  return typeof value === "string" && /^https:\/\//i.test(value) ? value : null;
+}
+
+const round = (n) => Math.round(n * 100) / 100;
+
+// Shorten a label with an ellipsis until it fits. The full label stays in the mark's title and the chart's desc.
+function fitLabel(node, full, room) {
+  node.textContent = full;
+  if (node.getComputedTextLength() <= room) return;
+  for (let n = full.length - 1; n > 0; n--) {
+    node.textContent = full.slice(0, n).trimEnd() + "…";
+    if (node.getComputedTextLength() <= room) return;
+  }
+  node.textContent = "";
+}
+
+// ---- reading a component's numbers ----
+
+// The component's measure: the one the server names (its first aggregate), else the first group measure,
+// else the first total. RowCount is a whole number.
+function measureOf(component) {
+  const result = component.result || {};
+  const named = component.measure;
+  const groups = result.groups;
+  if (named && named.name) {
+    const found = groups && groups.measures && groups.measures.find((m) => m.name === named.name);
+    return found || named;
+  }
+  if (groups && groups.measures && groups.measures.length) return groups.measures[0];
+  const first = result.totals && result.totals.measures && result.totals.measures[0];
+  if (!first) return null;
+  return { name: first, label: first === "RowCount" ? "Record Count" : first, dataType: first === "RowCount" ? "int" : "number" };
+}
+
+// A sum or a count adds up across groups; an average, a minimum or a maximum does not.
+function additive(measure) {
+  return measure.name === "RowCount" || measure.name.startsWith("s!");
+}
+
+function totalOf(result, measure) {
+  const totals = result && result.totals;
+  if (!totals || !totals.measures || !totals.values) return null;
+  let index = measure ? totals.measures.indexOf(measure.name) : -1;
+  if (index < 0) index = 0;
+  const value = totals.values[index];
+  return typeof value === "number" ? value : null;
+}
+
+// The top-level groups with their value of the measure, in report order. Leaf rows are summed by the first
+// grouping, so this needs a measure that adds up, or a single grouping where the rows are the groups.
+// With largestFirst the groups are sorted by value, largest first. Past `keep` groups, the rest are summed into one Other; a measure that does not add up draws nothing then.
+function seriesOf(component, measure, keep, largestFirst) {
+  const groups = component.result && component.result.groups;
+  if (!groups || !groups.rows || !groups.rows.length || !groups.dimensions || !groups.dimensions.length || !measure) return null;
+  const index = groups.measures.findIndex((m) => m.name === measure.name);
+  if (index < 0) return null;
+  const column = groups.dimensions.length + index;
+  const sums = additive(measure);
+  if (!sums && groups.dimensions.length !== 1) return null;
+  const order = [];
+  const values = new Map();
+  for (const row of groups.rows) {
+    const key = cellText(row[0], "string");
+    if (!values.has(key)) {
+      order.push(key);
+      values.set(key, null);
+    }
+    const value = row[column];
+    if (typeof value === "number") values.set(key, sums ? (values.get(key) || 0) + value : value);
+  }
+  const all = order.map((label) => ({ label, value: values.get(label) }));
+  if (largestFirst) all.sort((a, b) => num(b.value) - num(a.value));
+  const series = { dimension: groups.dimensions[0].label, points: all };
+  if (all.length <= keep) return series;
+  if (!sums) return null;
+  const rest = all.slice(keep - 1);
+  const other = rest.reduce((a, g) => a + (typeof g.value === "number" ? g.value : 0), 0);
+  series.points = [...all.slice(0, keep - 1), { label: "Other (" + rest.length + ")", value: other, other: true }];
+  return series;
+}
+
+const num = (v) => (typeof v === "number" ? v : 0);
+
+let chartId = 0;
+// An SVG chart with role img, a title that names it and a desc that says every value in words.
+function chartSvg(name, desc, width, height) {
+  const id = "c" + ++chartId;
+  return svgEl("svg", { class: "chart", role: "img", "aria-labelledby": id + "-t " + id + "-d", width, height, viewBox: "0 0 " + width + " " + height }, [
+    svgEl("title", { id: id + "-t", text: name }),
+    svgEl("desc", { id: id + "-d", text: desc }),
+  ]);
+}
+
+function describeSeries(kind, measure, series) {
+  return kind + " of " + measure.label + " by " + series.dimension + ". " + series.points.map((p) => p.label + ": " + cellText(p.value, measure.dataType) + ".").join(" ");
+}
+
+// ---- the charts: each takes the tile body's width in pixels and returns a node, or null to fall back ----
+
+function metric(component, measure) {
+  const value = totalOf(component.result, measure);
+  if (value === null) return null;
+  return el("div", { class: "metric" }, [
+    el("span", { class: "metric-value", text: cellText(value, measure && measure.dataType) }),
+    el("span", { class: "metric-label", text: component.metricLabel || (measure ? measure.label : "") }),
+  ]);
+}
+
+function gauge(component, measure, name, width) {
+  const range = component.gauge;
+  const value = totalOf(component.result, measure);
+  if (!range || value === null || !(range.max > range.min)) return metric(component, measure);
+  const type = measure && measure.dataType;
+  const r = Math.max(40, Math.min((width - 48) / 2, 92));
+  const top = 24;
+  const cx = width / 2;
+  const cy = top + r;
+  const height = cy + 40;
+  const at = (v) => Math.max(0, Math.min(1, (v - range.min) / (range.max - range.min)));
+  const point = (t, radius) => [round(cx + radius * Math.cos(Math.PI * (1 - t))), round(cy - radius * Math.sin(Math.PI * (1 - t)))];
+  const stops = [range.min, ...range.breakpoints, range.max];
+  const defaults = ["#c25454", "#c2a038", "#4a9e5c"];
+  const colors = range.colors && range.colors.length === stops.length - 1 ? range.colors : stops.slice(1).map((_, i) => defaults[Math.min(i, 2)]);
+  const above = value > range.max ? " It is above the range." : value < range.min ? " It is below the range." : "";
+  const svg = chartSvg(name, "Gauge of " + (measure ? measure.label : "the value") + ": " + cellText(value, type) + ", on a range from " + cellText(range.min, type) + " to " + cellText(range.max, type) +
+    (range.breakpoints.length ? ", with breakpoints at " + range.breakpoints.map((b) => cellText(b, type)).join(" and ") : "") + "." + above, width, height);
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [x0, y0] = point(at(stops[i]), r);
+    const [x1, y1] = point(at(stops[i + 1]), r);
+    svg.appendChild(svgEl("path", { class: "arc", d: "M" + x0 + " " + y0 + " A" + r + " " + r + " 0 0 1 " + x1 + " " + y1, stroke: colors[i] }, [
+      svgEl("title", { text: cellText(stops[i], type) + " to " + cellText(stops[i + 1], type) }),
+    ]));
+  }
+  // The breakpoints, outside the arc.
+  for (const b of range.breakpoints) {
+    const t = at(b);
+    const [x, y] = point(t, r + 12);
+    svg.appendChild(svgEl("text", { x, y: round(y + 3), "text-anchor": t < 0.4 ? "end" : t > 0.6 ? "start" : "middle", text: compactText(b, type) }));
+  }
+  svg.appendChild(svgEl("text", { x: round(cx - r), y: cy + 16, "text-anchor": "middle", text: compactText(range.min, type) }));
+  svg.appendChild(svgEl("text", { x: round(cx + r), y: cy + 16, "text-anchor": "middle", text: compactText(range.max, type) }));
+  const t = at(value);
+  const [nx, ny] = point(t, r - 12);
+  const needle = svgEl("g", { class: "needle" }, [
+    svgEl("line", { x1: round(cx), y1: cy, x2: nx, y2: ny }),
+    svgEl("circle", { cx: round(cx), cy, r: 5 }),
+  ]);
+  needle.style.setProperty("transform-origin", round(cx) + "px " + cy + "px");
+  needle.style.setProperty("--sweep", round(-180 * t) + "deg");
+  svg.appendChild(needle);
+  svg.appendChild(svgEl("text", { class: "big", x: round(cx), y: cy + 34, "text-anchor": "middle", text: cellText(value, type) }));
+  return svg;
+}
+
+const SLICES = 6;
+function donut(component, measure, name, width) {
+  // Largest first, so the named slices are the big ones and Other holds the tail.
+  const series = seriesOf(component, measure, SLICES, true);
+  if (!series || !additive(measure)) return null;
+  const points = series.points.filter((p) => num(p.value) > 0);
+  const total = points.reduce((a, p) => a + p.value, 0);
+  if (!points.length || total <= 0) return null;
+  const size = Math.min(width, 148);
+  const r = size / 2 - 12;
+  const c = size / 2;
+  const svg = chartSvg(name, describeSeries("Donut chart", measure, { dimension: series.dimension, points }), width, size);
+  const ring = svgEl("g", { class: "ring" });
+  // Each slice is an arc of one circle, drawn with a dash; a 1.5 point gap keeps neighbours apart.
+  const gap = points.length > 1 ? 1.5 : 0;
+  let start = 0;
+  const legend = el("ul", { class: "legend" });
+  points.forEach((p, i) => {
+    const share = (p.value / total) * 100;
+    const color = p.other ? "var(--series-other)" : "var(--series-" + ((i % 5) + 1) + ")";
+    const slice = svgEl("circle", {
+      class: "slice",
+      cx: round(width / 2), cy: c, r: round(r),
+      pathLength: 100,
+      "stroke-dasharray": round(Math.max(0.1, share - gap)) + " " + round(100 - Math.max(0.1, share - gap)),
+      "stroke-dashoffset": round(25 - start),
+    }, [svgEl("title", { text: p.label + ": " + cellText(p.value, measure.dataType) + " (" + shareFormat.format(p.value / total) + ")" })]);
+    slice.style.setProperty("stroke", color);
+    ring.appendChild(slice);
+    start += share;
+    const swatch = el("span", { class: "swatch", "aria-hidden": "true" });
+    swatch.style.setProperty("background", color);
+    legend.appendChild(el("li", { title: p.label }, [swatch, el("span", { class: "name", text: p.label }), el("span", { class: "share", text: shareFormat.format(p.value / total) })]));
+  });
+  svg.appendChild(ring);
+  svg.appendChild(svgEl("text", { class: "big", x: round(width / 2), y: c + 2, "text-anchor": "middle", "dominant-baseline": "middle", text: compactText(total, measure.dataType) }));
+  return el("div", {}, [svg, legend]);
+}
+
+const BAR_ROWS = 10;
+// Horizontal bars (Bar) or centred bands (Funnel): a label on the left, the mark, and the compact value on the right.
+function rows(component, measure, name, width, funnel) {
+  const series = seriesOf(component, measure, BAR_ROWS);
+  if (!series) return null;
+  const points = series.points;
+  const max = Math.max(0, ...points.map((p) => num(p.value)));
+  if (max <= 0) return null;
+  const rowH = 22;
+  const height = points.length * rowH;
+  const labelW = Math.round(width * 0.36);
+  const valueW = 52;
+  const x0 = labelW + 6;
+  const room = Math.max(10, width - x0 - valueW - 4);
+  const svg = chartSvg(name, describeSeries(funnel ? "Funnel" : "Bar chart", measure, series), width, height);
+  points.forEach((p, i) => {
+    const y = i * rowH;
+    const w = round((room * Math.max(0, num(p.value))) / max);
+    const x = funnel ? round(x0 + (room - w) / 2) : x0;
+    const mark = svgEl("rect", { class: (funnel ? "band mark" : "bar mark") + (p.other ? " other" : ""), x, y: y + 4, width: Math.max(w, 0.5), height: rowH - 8, rx: 2 }, [
+      svgEl("title", { text: p.label + ": " + cellText(p.value, measure.dataType) }),
+    ]);
+    // A funnel steps from the deepest shade at the top to a lighter one at the bottom, never below 2:1.
+    if (funnel && !p.other) mark.style.setProperty("fill", "color-mix(in srgb, var(--accent) " + Math.round(85 - (40 * i) / Math.max(1, points.length - 1)) + "%, transparent)");
+    svg.appendChild(mark);
+    const label = svgEl("text", { class: "label", x: 0, y: y + rowH / 2 + 4, text: p.label });
+    svg.appendChild(label);
+    svg.appendChild(svgEl("text", { class: "value", x: width, y: y + rowH / 2 + 4, "text-anchor": "end", text: compactText(p.value, measure.dataType) }));
+    fits.push(() => fitLabel(label, p.label, labelW));
+  });
+  return svg;
+}
+
+const COLUMNS = 24;
+function columns(component, measure, name, width) {
+  const series = seriesOf(component, measure, COLUMNS);
+  if (!series || series.points.length < 1) return null;
+  const points = series.points;
+  const max = Math.max(0, ...points.map((p) => num(p.value)));
+  if (max <= 0) return null;
+  const top = 18;
+  const plot = 104;
+  const base = top + plot;
+  const height = base + 22;
+  const slot = width / Math.max(points.length, 4);
+  const offset = (width - slot * points.length) / 2;
+  const svg = chartSvg(name, describeSeries("Column chart", measure, series), width, height);
+  svg.appendChild(svgEl("line", { class: "base", x1: 0, x2: width, y1: base - 0.5, y2: base - 0.5 }));
+  const every = points.length <= 6;
+  let tallest = 0;
+  points.forEach((p, i) => { if (num(p.value) > num(points[tallest].value)) tallest = i; });
+  points.forEach((p, i) => {
+    const center = offset + slot * (i + 0.5);
+    const h = round((plot * Math.max(0, num(p.value))) / max);
+    svg.appendChild(svgEl("rect", { class: "col mark" + (p.other ? " other" : ""), x: round(center - slot * 0.35), width: round(Math.max(1, slot * 0.7)), y: round(base - h), height: h, rx: Math.min(2, slot * 0.2) }, [
+      svgEl("title", { text: p.label + ": " + cellText(p.value, measure.dataType) }),
+    ]));
+    // Values only where they help: on every column when there are few, else on the tallest.
+    if (every || i === tallest) {
+      const anchor = every ? "middle" : center < width * 0.2 ? "start" : center > width * 0.8 ? "end" : "middle";
+      svg.appendChild(svgEl("text", { class: "value", x: round(center), y: round(base - h - 5), "text-anchor": anchor, text: compactText(p.value, measure.dataType) }));
+    }
+    // Labels under every column when there are few, else under the first and the last.
+    if (every || i === 0 || i === points.length - 1) {
+      const anchor = every ? "middle" : i === 0 ? "start" : "end";
+      const x = every ? center : i === 0 ? Math.max(0, center - slot / 2) : Math.min(width, center + slot / 2);
+      const label = svgEl("text", { class: "label", x: round(x), y: height - 6, "text-anchor": anchor, text: p.label });
+      svg.appendChild(label);
+      fits.push(() => fitLabel(label, p.label, every ? slot - 4 : width / 2 - 4));
+    }
+  });
+  return svg;
+}
+
+const POINTS = 60;
+function line(component, measure, name, width) {
+  const series = seriesOf(component, measure, POINTS);
+  if (!series || series.points.length < 2 || series.points.some((p) => p.other)) return null;
+  const points = series.points;
+  const values = points.map((p) => num(p.value));
+  const max = Math.max(0, ...values);
+  const min = Math.min(0, ...values);
+  if (max <= min) return null;
+  const top = 18;
+  const plot = 104;
+  const base = top + plot;
+  const height = base + 22;
+  const pad = 6;
+  const x = (i) => round(pad + ((width - 2 * pad) * i) / (points.length - 1));
+  const y = (v) => round(top + (plot * (max - v)) / (max - min));
+  const svg = chartSvg(name, describeSeries("Line chart", measure, series), width, height);
+  svg.appendChild(svgEl("line", { class: "base", x1: 0, x2: width, y1: y(0) - 0.5, y2: y(0) - 0.5 }));
+  const d = values.map((v, i) => (i ? "L" : "M") + x(i) + " " + y(v)).join(" ");
+  svg.appendChild(svgEl("path", { class: "area", d: d + " L" + x(points.length - 1) + " " + y(0) + " L" + x(0) + " " + y(0) + " Z" }));
+  svg.appendChild(svgEl("path", { class: "line", d, pathLength: 1 }));
+  // A point for each value, as a hover target with its title; the largest and the last are labelled.
+  let peak = 0;
+  values.forEach((v, i) => { if (v > values[peak]) peak = i; });
+  points.forEach((p, i) => {
+    const labelled = i === peak || i === points.length - 1;
+    svg.appendChild(svgEl("circle", { class: labelled ? "dot" : "hit", cx: x(i), cy: y(values[i]), r: labelled ? 4 : 6 }, [
+      svgEl("title", { text: p.label + ": " + cellText(p.value, measure.dataType) }),
+    ]));
+    if (labelled) {
+      const anchor = x(i) < width * 0.2 ? "start" : x(i) > width * 0.8 ? "end" : "middle";
+      svg.appendChild(svgEl("text", { class: "value", x: x(i), y: round(y(values[i]) - 8), "text-anchor": anchor, text: compactText(p.value, measure.dataType) }));
+    }
+  });
+  const first = svgEl("text", { class: "label", x: 0, y: height - 6, text: points[0].label });
+  const last = svgEl("text", { class: "label", x: width, y: height - 6, "text-anchor": "end", text: points[points.length - 1].label });
+  svg.append(first, last);
+  fits.push(() => fitLabel(first, points[0].label, width / 2 - 4), () => fitLabel(last, points[points.length - 1].label, width / 2 - 4));
+  return svg;
+}
+
+const TABLE_ROWS = 10;
+// A compact table: the groups (grouping labels then measures), else the detail rows, else the totals.
+function compactTable(component) {
+  const result = component.result || {};
+  const groups = result.groups;
+  let headers;
+  let body;
+  if (groups && groups.rows && groups.rows.length) {
+    headers = [...groups.dimensions.map((d) => ({ label: d.label, dataType: "string" })), ...groups.measures.map((m) => ({ label: m.label, dataType: m.dataType, numeric: true }))];
+    body = groups.rows;
+  } else if (result.detail && result.detail.rows && result.detail.rows.length) {
+    const columns = result.detail.columns.slice(0, 4);
+    headers = columns.map((c) => ({ label: c.label, dataType: c.dataType, numeric: NUMERIC.has(c.dataType) }));
+    body = result.detail.rows.map((row) => row.slice(0, 4));
+  } else if (result.totals && result.totals.values && result.totals.values.length) {
+    const measure = measureOf(component);
+    headers = result.totals.measures.map((name) => ({ label: measure && measure.name === name ? measure.label : name === "RowCount" ? "Record Count" : name, dataType: measure && measure.name === name ? measure.dataType : "number", numeric: true }));
+    body = [result.totals.values];
+  } else {
+    return el("p", { class: "nodata-text", text: "This component returned no rows." });
+  }
+  const shown = body.slice(0, TABLE_ROWS);
+  // With one label column and one number, the label takes the wider share.
+  const lead = headers.length === 2 && !headers[0].numeric && headers[1].numeric;
+  const table = el("table", { class: lead ? "lead" : "" }, [
+    el("colgroup", {}, headers.map(() => el("col"))),
+    el("thead", {}, [el("tr", {}, headers.map((h) => el("th", { text: h.label, class: h.numeric ? "num" : "" })))]),
+    el("tbody", {}, shown.map((row) => el("tr", {}, row.map((value, i) => {
+      const type = headers[i] && headers[i].dataType;
+      const classes = [];
+      if (typeof value === "number" || (headers[i] && headers[i].numeric)) classes.push("num");
+      if (isBlank(value)) classes.push("blank");
+      return el("td", { text: cellText(value, type), class: classes.join(" ") });
+    })))),
+  ]);
+  const box = el("div", { class: "scroll" }, [table]);
+  if (body.length > shown.length) return el("div", {}, [box, el("p", { class: "more", text: (body.length - shown.length) + " more rows in the report" })]);
+  return box;
+}
+
+// ---- tiles ----
+
+let fits = [];
+
+function tileName(component) {
+  return component.header || component.title || component.visualizationType || "Component";
+}
+
+function drawChart(component, width) {
+  const measure = measureOf(component);
+  const name = tileName(component);
+  const type = String(component.visualizationType || "");
+  let node = null;
+  if (measure) {
+    if (type === "Metric") node = metric(component, measure);
+    else if (type === "Gauge") node = gauge(component, measure, name, width);
+    else if (type === "Donut" || type === "Pie") node = donut(component, measure, name, width);
+    else if (type === "Bar") node = rows(component, measure, name, width, false);
+    else if (type === "Funnel") node = rows(component, measure, name, width, true);
+    else if (type === "Column") node = columns(component, measure, name, width);
+    else if (type === "Line") node = line(component, measure, name, width);
+  }
+  return node || compactTable(component);
+}
+
+const drawn = [];
+
+function tile(component) {
+  const status = component.status;
+  const node = el("li", { class: "tile" + (status === "no data" ? " nodata" : status === "error" ? " failed" : "") });
+  node.dataset.type = component.visualizationType || "";
+  const name = tileName(component);
+  const source = component.sourceReport || {};
+  const url = safeUrl(source.url) || safeUrl(component.result && component.result.report && component.result.report.url);
+  const heading = el("h2", {});
+  if (url) {
+    const link = el("a", { href: url, target: "_blank", rel: "noopener", title: "Open the source report in Salesforce", text: name });
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      openLink(url);
+    });
+    heading.appendChild(link);
+  } else {
+    heading.textContent = name;
+  }
+  node.appendChild(heading);
+  if (component.header && component.title) node.appendChild(el("p", { class: "sub", text: component.title }));
+  const body = el("div", { class: "body" });
+  node.appendChild(body);
+  if (status === "no data") {
+    body.appendChild(el("p", { class: "nodata-text", text: "No data yet for these filters. Refresh the dashboard to fill it." }));
+  } else if (status === "error") {
+    const error = component.error || {};
+    body.appendChild(el("p", { class: "error-text", text: "Salesforce could not run this component" + (error.message ? ": " + error.message : ".") }));
+  } else {
+    drawn.push({ component, body });
+  }
+  if (component.footer) node.appendChild(el("p", { class: "foot", text: component.footer }));
+  return node;
+}
+
+// Draw every chart to its tile's width. A redraw at a new width keeps the chart still.
+let widths = new Map();
+function drawCharts(still) {
+  fits = [];
+  for (const item of drawn) {
+    const width = Math.floor(item.body.clientWidth);
+    if (!width || widths.get(item.body) === width) continue;
+    widths.set(item.body, width);
+    const chart = drawChart(item.component, width);
+    if (still) chart.classList.add("still");
+    item.body.replaceChildren(chart);
+  }
+  for (const fit of fits) fit();
+}
+
+function render(result) {
+  root.replaceChildren();
+  drawn.length = 0;
+  widths = new Map();
+  chartId = 0;
+  if (!result || !result.dashboard) {
+    root.appendChild(el("p", { class: "empty", text: "This result has no dashboard to show." }));
+    return;
+  }
+  const dashboard = result.dashboard;
+  const url = safeUrl(dashboard.url);
+  const title = el("h1", {});
+  if (url) {
+    const link = el("a", { href: url, target: "_blank", rel: "noopener", text: dashboard.name });
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      openLink(url);
+    });
+    title.appendChild(link);
+  } else {
+    title.textContent = dashboard.name;
+  }
+  const time = parseTime(result.refreshedAt);
+  const refreshed = el("span", { class: "meta refreshed", text: time ? "Refreshed " + dateTimeFormat.format(time) : "Not refreshed for these filters" });
+  if (result.runningUser) refreshed.setAttribute("title", result.runningUser);
+  root.appendChild(el("div", { class: "head" }, [title, refreshed]));
+  if (result.filters && result.filters.length) {
+    root.appendChild(el("ul", { class: "chips", "aria-label": "Filters" }, result.filters.map((f) => el("li", { text: f }))));
+  }
+  const components = result.components || [];
+  if (components.length) root.appendChild(el("ul", { class: "tiles", "aria-label": "Components" }, components.map(tile)));
+  else root.appendChild(el("p", { class: "empty", text: "This dashboard has no components." }));
+  if (result.notes && result.notes.length) {
+    root.appendChild(el("ul", { class: "notes", "aria-label": "Notes" }, result.notes.map((n) => el("li", { text: n }))));
+  }
+  if (url) {
+    const open = el("button", { type: "button", text: "Open in Salesforce" });
+    open.addEventListener("click", () => openLink(url));
+    root.appendChild(el("div", { class: "actions" }, [open]));
+  }
+  drawCharts(false);
+}
+
+if (typeof ResizeObserver === "function") {
+  let last = 0;
+  new ResizeObserver(() => {
+    const width = root.clientWidth;
+    if (width === last) return;
+    const first = last === 0;
+    last = width;
+    if (!first) drawCharts(true);
+  }).observe(root);
+}
+
+async function openLink(url) {
+  try {
+    await app.openLink({ url });
+  } catch (error) {
+    // The host refused or does not support links; nothing else to do.
+  }
+}
+
+function applyContext(context) {
+  if (!context) return;
+  if (context.theme) applyDocumentTheme(context.theme);
+  if (context.styles && context.styles.variables) applyHostStyleVariables(context.styles.variables);
+  if (context.styles && context.styles.css && context.styles.css.fonts) applyHostFonts(context.styles.css.fonts);
+}
+
+// Handlers first, then connect, so the first tool result is not missed.
+app.ontoolresult = (result) => {
+  if (result.isError) {
+    root.replaceChildren(el("p", { class: "empty", text: "The dashboard did not load. Claude has the error." }));
+    return;
+  }
+  render(result.structuredContent);
+};
+app.onhostcontextchanged = (context) => applyContext(context);
+
+await app.connect();
+applyContext(app.getHostContext());
+</script>
+</body>
+</html>
