@@ -1,11 +1,12 @@
 /**
- * Core layer: the three dashboard readers, list_dashboards, describe_dashboard and run_dashboard, ported from
- * src/reports/dashboards.ts and the dashboard tools in src/server.ts (docs/decisions/0016 to 0018). Apex has no
+ * Core layer: the dashboard tools, list_dashboards, describe_dashboard, run_dashboard and refresh_dashboard, ported from
+ * src/reports/dashboards.ts and the dashboard tools in src/server.ts (docs/decisions/0016 to 0019). Apex has no
  * dashboard API, so describe, run and each listed dashboard's last refresh go through ReportsCallout to
  * /analytics/dashboards, as an unsaved report run does. The list itself is SOQL on Dashboard in user mode. Each
  * component's reportResult is an ordinary report run, so ReportsShape.shapeJson shapes it. Filters go on the GET's
- * query string as filter<n>=<optionId>, never in a body. refresh_dashboard stays on the local server. Every failure
- * leaves as a ReportsException; the class knows nothing of HTTP.
+ * query string as filter<n>=<optionId>, never in a body. refresh_dashboard is a write: ReportsService checks the
+ * Reports_Write permission before it gets here. Apex cannot sleep, so its wait is a bounded run of back-to-back /status
+ * polls (decision 0019). Every failure leaves as a ReportsException; the class knows nothing of HTTP.
  */
 public with sharing class ReportsDashboards {
     /** Default cap on detail rows per component. */
@@ -16,6 +17,14 @@ public with sharing class ReportsDashboards {
     static final Map<String, String> AGGREGATE_WORDS = new Map<String, String>{ 's' => 'Sum of', 'a' => 'Average of', 'm' => 'Smallest', 'mx' => 'Largest', 'u' => 'Unique' };
     /** A Salesforce date such as 2026-10-17T02:13:35.000+0000, or an ISO 8601 one. */
     static final Pattern STAMP = Pattern.compile('(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2}):(\\d{2})(?:\\.(\\d{1,3})\\d*)?(Z|[+-]\\d{2}:?\\d{2})?');
+
+    /** The most /status polls one refresh makes after its PUT. A transaction allows 100 callouts, so 20 leaves room. */
+    public static final Integer REFRESH_POLLS = 20;
+    /** The most callout time one refresh spends polling, in milliseconds. A transaction allows 120 seconds in all. */
+    public static final Integer REFRESH_BUDGET_MS = 30000;
+    /** Tests set this to run out the time budget. */
+    @TestVisible
+    static Integer refreshBudgetMs = REFRESH_BUDGET_MS;
 
     /** Tests set this to fix "now" for the age note. */
     @TestVisible
@@ -209,6 +218,18 @@ public with sharing class ReportsDashboards {
      * data call, so a bad label costs one describe and no data call.
      */
     public static Map<String, Object> runDashboard(Map<String, Object> input) {
+        return read(input, false);
+    }
+
+    /**
+     * refresh_dashboard: refresh, wait within the budget, then the same result run_dashboard gives, with the refresh's
+     * notes first. The caller has checked the write permission.
+     */
+    public static Map<String, Object> refreshDashboard(Map<String, Object> input) {
+        return read(input, true);
+    }
+
+    static Map<String, Object> read(Map<String, Object> input, Boolean refresh) {
         String id = ReportsInput.dashboardId(input, 'dashboardId');
         List<Choice> choices = choices(input);
         Integer maxRows = ReportsInput.optInt(input, 'maxRows', 1, ReportsShape.HARD_ROW_CEILING);
@@ -216,12 +237,83 @@ public with sharing class ReportsDashboards {
         if (!choices.isEmpty()) {
             resolved = resolveFilters(ReportsInput.asMap(ReportsCallout.send('GET', path(id) + '/describe', null), 'The dashboard describe'), choices);
         }
+        List<String> refreshNotes = refresh ? refreshAndWait(id, resolved == null ? '' : resolved.query) : new List<String>();
         Object answer = ReportsCallout.send('GET', path(id) + (resolved == null ? '' : resolved.query), null);
         ReportsShape.guardHeap();
         Map<String, Object> raw = ReportsInput.asMap(answer, 'The dashboard results');
         if (resolved == null) resolved = resolveFilters(jsonMap(raw.get('dashboardMetadata')), new List<Choice>());
         Integer cap = Math.min(maxRows == null ? COMPONENT_ROWS : maxRows, ReportsShape.HARD_ROW_CEILING);
-        return shape(raw, ReportsService.baseUrl(), cap, resolved, clock != null ? clock : Datetime.now());
+        Map<String, Object> out = shape(raw, ReportsService.baseUrl(), cap, resolved, clock != null ? clock : Datetime.now());
+        List<String> notes = new List<String>(refreshNotes);
+        notes.addAll((List<String>) out.get('notes'));
+        out.put('notes', notes);
+        return out;
+    }
+
+    // ---- refresh ----
+
+    /**
+     * Starts a refresh and waits for it, as src/reports/dashboards.ts refreshAndWait does, but without a pause: Apex
+     * cannot sleep. It reads /status for each component's last refresh, sends the PUT with the filters on the query
+     * string (a body is ignored), then polls /status back to back until refreshDone holds, at most REFRESH_POLLS
+     * polls or refreshBudgetMs of time. A failed poll counts and is retried. Answers the notes for the result: the
+     * once-a-minute refusal becomes a note, and so does a wait that ran out. Any other failure is thrown.
+     */
+    @TestVisible
+    static List<String> refreshAndWait(String id, String query) {
+        Map<String, String> before = new Map<String, String>();
+        try {
+            for (Object o : items(jsonMap(ReportsCallout.send('GET', path(id) + '/status' + query, null)).get('componentStatus'))) {
+                Map<String, Object> c = jsonMap(o);
+                before.put(str(c.get('componentId')), str(c.get('refreshDate')));
+            }
+        } catch (Exception e) {
+            // without the earlier dates, any data counts as new
+        }
+        try {
+            ReportsCallout.send('PUT', path(id) + query, null);
+        } catch (ReportsException e) {
+            if (e.code != ReportsCallout.REFRESH_LIMIT) throw e;
+            return new List<String>{ refreshLimitNote(before) };
+        }
+        Long started = System.currentTimeMillis();
+        Integer polls = 0;
+        while (polls < REFRESH_POLLS && System.currentTimeMillis() - started < refreshBudgetMs) {
+            polls++;
+            try {
+                if (refreshDone(jsonMap(ReportsCallout.send('GET', path(id) + '/status' + query, null)), before)) return new List<String>();
+            } catch (Exception e) {
+                // a failed poll is retried at the next one
+            }
+        }
+        return new List<String>{ 'The refresh had not finished when the in-org door stopped waiting (' + polls + ' status checks), so some components may show older data. Call run_dashboard in a minute to read the refreshed results.' };
+    }
+
+    /** A minute after this filter's last refresh when that is still ahead, else a minute from now. */
+    static String refreshLimitNote(Map<String, String> before) {
+        Long last = 0;
+        for (String d : before.values()) {
+            Long t = d == null ? null : timeOf(d);
+            if (t != null && t > last) last = t;
+        }
+        Long nowMs = (clock != null ? clock : Datetime.now()).getTime();
+        Long retry = last + 60000 > nowMs ? last + 60000 : nowMs + 60000;
+        String after = Datetime.newInstance(retry).formatGmt('yyyy-MM-dd\'T\'HH:mm:ss\'Z\'');
+        return 'Salesforce refreshes a dashboard at most once a minute, and this one was refreshed less than a minute ago, so these are the cached results. Try again after ' + after + '.';
+    }
+
+    /** A component is done when it is not running and has an error, or data newer than before the refresh. */
+    @TestVisible
+    static Boolean refreshDone(Map<String, Object> status, Map<String, String> before) {
+        for (Object o : items(status.get('componentStatus'))) {
+            Map<String, Object> c = jsonMap(o);
+            if (isText(c.get('refreshStatus'), 'RUNNING')) return false;
+            if (truthy(c.get('errorCode')) || isText(c.get('componentDataStatus'), 'ERROR')) continue;
+            String refreshed = str(c.get('refreshDate'));
+            Boolean fresh = isText(c.get('componentDataStatus'), 'DATA') && String.isNotEmpty(refreshed) && refreshed != before.get(str(c.get('componentId')));
+            if (!fresh) return false;
+        }
+        return true;
     }
 
     /**

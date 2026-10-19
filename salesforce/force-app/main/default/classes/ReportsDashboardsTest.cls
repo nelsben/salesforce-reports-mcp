@@ -1,7 +1,9 @@
 /**
- * The dashboard readers (list_dashboards, describe_dashboard, run_dashboard) through the REST door, against
- * HttpCalloutMock answers trimmed from the dashboard fixtures, with neutral names. The list rows are built in memory,
- * except in one SeeAllData test that lists the org's own dashboards with every /status call mocked. Creates nothing.
+ * The dashboard tools (list_dashboards, describe_dashboard, run_dashboard, refresh_dashboard) through the REST door,
+ * against HttpCalloutMock answers trimmed from the dashboard fixtures, with neutral names. The list rows are built in
+ * memory, except in one SeeAllData test that lists the org's own dashboards with every /status call mocked. The refresh
+ * tests run as the running user with the Salesforce_Reports_Write permission set (assigned in the test setup when
+ * missing), and as a Chatter Free reader without it; both roll back with the test. Creates nothing.
  */
 @IsTest
 private class ReportsDashboardsTest {
@@ -69,6 +71,11 @@ private class ReportsDashboardsTest {
         Integer otherStatus = 404;
         String otherBody = NOT_FOUND;
         List<String> paths = new List<String>();
+        List<String> methods = new List<String>();
+        List<String> sentBodies = new List<String>();
+        /** Answers for successive /status calls; the last one repeats. Used before the '*' + '/status' route. */
+        List<String> statusSequence = new List<String>();
+        Integer statusCalls = 0;
 
         Mock route(String key, Integer status, String body) {
             statuses.put(key, status);
@@ -79,8 +86,21 @@ private class ReportsDashboardsTest {
         public HttpResponse respond(HttpRequest req) {
             String full = req.getEndpoint().substringAfter(ReportsCallout.API_PATH);
             paths.add(full);
+            methods.add(req.getMethod());
+            sentBodies.add(req.getBody());
             String path = full.substringBefore('?');
-            String key = statuses.containsKey(full) ? full : (statuses.containsKey(path) ? path : (path.endsWith('/status') && statuses.containsKey('*/status') ? '*/status' : null));
+            if (req.getMethod() == 'GET' && path.endsWith('/status') && !statusSequence.isEmpty()) {
+                HttpResponse seq = new HttpResponse();
+                String next = statusSequence[Math.min(statusCalls, statusSequence.size() - 1)];
+                // An entry that starts with 'E:' answers HTTP 500 with the rest as its body.
+                seq.setStatusCode(next.startsWith('E:') ? 500 : 200);
+                seq.setBody(next.removeStart('E:'));
+                statusCalls++;
+                return seq;
+            }
+            String verb = req.getMethod() + ' ';
+            String key = statuses.containsKey(verb + full) ? verb + full : (statuses.containsKey(verb + path) ? verb + path : null);
+            if (key == null) key = statuses.containsKey(full) ? full : (statuses.containsKey(path) ? path : (path.endsWith('/status') && statuses.containsKey('*/status') ? '*/status' : null));
             HttpResponse res = new HttpResponse();
             res.setStatusCode(key == null ? otherStatus : statuses.get(key));
             res.setBody(key == null ? otherBody : bodies.get(key));
@@ -267,9 +287,6 @@ private class ReportsDashboardsTest {
         Assert.areEqual(400, call('list_dashboards', '{"limit":51}').status);
         Assert.areEqual(400, call('list_dashboards', '{"query":5}').status);
         Assert.areEqual(0, m.paths.size());
-        ReportsApi.Answer refresh = call('refresh_dashboard', '{"dashboardId":"' + ID + '"}');
-        Assert.areEqual(404, refresh.status);
-        Assert.areEqual('refresh_dashboard is not on the in-org door. Use the local server for it.', error(refresh).get('message'));
     }
 
     @IsTest
@@ -429,5 +446,236 @@ private class ReportsDashboardsTest {
             '1 of 2 components have no data (c1). Call refresh_dashboard with the same filters to fill them.',
             'c2 failed in Salesforce: RUNNING: Salesforce gave no message.'
         }, out.get('notes'));
+    }
+
+    // ---- refresh_dashboard ----
+
+    static final String LIMIT_403 = '[{"errorCode":"FORBIDDEN","message":"You can\'t refresh this dashboard more than once in a minute."}]';
+
+    /** One /status answer for the three components: all at this refresh date and state. */
+    static String statusAt(String stamp, String refreshStatus) {
+        String ids = '01a000000000001AAA,01a000000000003AAA,01a000000000006AAA';
+        List<String> parts = new List<String>();
+        for (String cid : ids.split(',')) {
+            parts.add('{"componentId":"' + cid + '","componentDataStatus":"DATA","refreshDate":"' + stamp + '","refreshStatus":"' + refreshStatus + '"}');
+        }
+        return '{"componentStatus":[' + String.join(parts, ',') + ']}';
+    }
+
+    static final String OLD_DATE = '2026-10-17T02:13:35.000+0000';
+    static final String NEW_DATE = '2026-10-17T05:00:00.000+0000';
+    static final String BEFORE = statusAt(OLD_DATE, 'IDLE');
+    static final String RUNNING = statusAt(OLD_DATE, 'RUNNING');
+    static final String DONE = statusAt(NEW_DATE, 'IDLE');
+
+    /** The running user, with the Salesforce_Reports_Write permission set assigned when missing. Call before Test.startTest. */
+    static User writer() {
+        PermissionSet write = [SELECT Id FROM PermissionSet WHERE Name = :ReportsService.WRITE_PERMISSION_SET];
+        List<PermissionSetAssignment> has = [SELECT Id FROM PermissionSetAssignment WHERE AssigneeId = :UserInfo.getUserId() AND PermissionSetId = :write.Id];
+        if (has.isEmpty()) insert new PermissionSetAssignment(AssigneeId = UserInfo.getUserId(), PermissionSetId = write.Id);
+        return new User(Id = UserInfo.getUserId());
+    }
+
+    /** A user without the write permission: a Chatter Free profile, else a Platform one, so it takes no Salesforce license. */
+    static User reader() {
+        Id profileId = UserInfo.getProfileId();
+        for (String key : new List<String>{ 'AUL', 'CSN_User' }) {
+            List<Profile> found = [SELECT Id FROM Profile WHERE UserLicense.LicenseDefinitionKey = :key ORDER BY Name LIMIT 1];
+            if (!found.isEmpty()) profileId = found[0].Id;
+        }
+        String name = 'reports-dash-reader-' + UserInfo.getOrganizationId() + '@example.com';
+        User u = new User(
+            LastName = 'Reader', Alias = 'dreader', Email = name, Username = name, ProfileId = profileId,
+            TimeZoneSidKey = 'America/Los_Angeles', LocaleSidKey = 'en_US', EmailEncodingKey = 'UTF-8', LanguageLocaleKey = 'en_US'
+        );
+        insert u;
+        return u;
+    }
+
+    /** A mock that answers the PUT, the results GET and a status sequence. */
+    static Mock refreshMock(List<String> sequence) {
+        Mock m = new Mock().route('PUT ' + BASE, 200, '{}').route(BASE, 200, RESULTS);
+        m.statusSequence = sequence;
+        return use(m);
+    }
+
+    static List<Object> refreshNotes(Map<String, Object> out) {
+        return items(out, 'notes');
+    }
+
+    static Boolean mentions(List<Object> notes, String text) {
+        for (Object n : notes) if (((String) n).contains(text)) return true;
+        return false;
+    }
+
+    @IsTest
+    static void refreshIsDoneOnTheFirstPoll() {
+        System.runAs(writer()) {
+            Test.startTest();
+            Mock m = refreshMock(new List<String>{ BEFORE, DONE });
+            Map<String, Object> out = ok(call('refresh_dashboard', '{"dashboardId":"' + ID + '"}'));
+            Test.stopTest();
+            Assert.areEqual(new List<String>{ BASE + '/status', BASE, BASE + '/status', BASE }, m.paths);
+            Assert.areEqual(new List<String>{ 'GET', 'PUT', 'GET', 'GET' }, m.methods);
+            Assert.isFalse(mentions(refreshNotes(out), 'refresh had not finished'), JSON.serialize(out.get('notes')));
+            Assert.isFalse(mentions(refreshNotes(out), 'once a minute'));
+            Assert.areEqual(4, items(out, 'components').size(), 'the run_dashboard result after the refresh');
+            Assert.areEqual('Pipeline Overview', child(out, 'dashboard').get('name'));
+        }
+    }
+
+    @IsTest
+    static void refreshIsDoneAfterSeveralPolls() {
+        System.runAs(writer()) {
+            Test.startTest();
+            Mock m = refreshMock(new List<String>{ BEFORE, RUNNING, RUNNING, RUNNING, DONE });
+            Map<String, Object> out = ok(call('refresh_dashboard', '{"dashboardId":"' + ID + '"}'));
+            Test.stopTest();
+            Assert.areEqual(5, m.statusCalls, 'one status before, four polls');
+            Assert.areEqual(7, m.paths.size(), 'status, PUT, four polls, results');
+            Assert.isFalse(mentions(refreshNotes(out), 'refresh had not finished'));
+        }
+    }
+
+    @IsTest
+    static void refreshStopsAtTheLastPollAndSaysSo() {
+        System.runAs(writer()) {
+            Test.startTest();
+            Mock m = refreshMock(new List<String>{ BEFORE, RUNNING });
+            Map<String, Object> out = ok(call('refresh_dashboard', '{"dashboardId":"' + ID + '"}'));
+            Test.stopTest();
+            Assert.areEqual(1 + ReportsDashboards.REFRESH_POLLS, m.statusCalls, 'one status before, then the poll budget');
+            String first = (String) refreshNotes(out)[0];
+            Assert.isTrue(first.startsWith('The refresh had not finished when the in-org door stopped waiting (20 status checks)'), first);
+            Assert.isTrue(first.contains('Call run_dashboard in a minute'), first);
+            Assert.areEqual(4, items(out, 'components').size(), 'the cached results still come back');
+        }
+    }
+
+    @IsTest
+    static void refreshStopsWhenTheTimeBudgetIsSpent() {
+        System.runAs(writer()) {
+            Test.startTest();
+            ReportsDashboards.refreshBudgetMs = 0;
+            Mock m = refreshMock(new List<String>{ BEFORE, DONE });
+            Map<String, Object> out = ok(call('refresh_dashboard', '{"dashboardId":"' + ID + '"}'));
+            Test.stopTest();
+            Assert.areEqual(1, m.statusCalls, 'no poll fits in a spent budget');
+            Assert.isTrue(((String) refreshNotes(out)[0]).startsWith('The refresh had not finished'));
+        }
+    }
+
+    @IsTest
+    static void aFailedPollCountsAndIsRetried() {
+        System.runAs(writer()) {
+            Test.startTest();
+            Mock m = refreshMock(new List<String>{ BEFORE, 'E:[{"errorCode":"SERVER_ERROR","message":"boom"}]', 'E:<html>', DONE });
+            Map<String, Object> out = ok(call('refresh_dashboard', '{"dashboardId":"' + ID + '"}'));
+            Test.stopTest();
+            Assert.areEqual(4, m.statusCalls);
+            Assert.isFalse(mentions(refreshNotes(out), 'refresh had not finished'));
+        }
+    }
+
+    @IsTest
+    static void theOnceAMinuteRefusalIsANoteWithTheCachedResults() {
+        System.runAs(writer()) {
+            Test.startTest();
+            ReportsDashboards.clock = Datetime.newInstanceGmt(2026, 10, 17, 2, 14, 0);
+            Mock m = refreshMock(new List<String>{ BEFORE });
+            m.route('PUT ' + BASE, 403, LIMIT_403);
+            Map<String, Object> out = ok(call('refresh_dashboard', '{"dashboardId":"' + ID + '"}'));
+            Test.stopTest();
+            Assert.areEqual(1, m.statusCalls, 'no polls after the refusal');
+            Assert.areEqual('Salesforce refreshes a dashboard at most once a minute, and this one was refreshed less than a minute ago, so these are the cached results. Try again after 2026-10-17T02:14:35Z.', refreshNotes(out)[0]);
+            Assert.areEqual(4, items(out, 'components').size());
+        }
+    }
+
+    @IsTest
+    static void theRefusalNamesAMinuteFromNowWhenTheLastRefreshIsOld() {
+        System.runAs(writer()) {
+            Test.startTest();
+            ReportsDashboards.clock = Datetime.newInstanceGmt(2026, 10, 18, 9, 0, 0);
+            Mock m = refreshMock(new List<String>{ BEFORE });
+            // Detected by the word "minute" when the code is another.
+            m.route('PUT ' + BASE, 403, '[{"errorCode":"INSUFFICIENT_ACCESS","message":"Only one refresh a MINUTE."}]');
+            Map<String, Object> out = ok(call('refresh_dashboard', '{"dashboardId":"' + ID + '"}'));
+            Test.stopTest();
+            Assert.isTrue(((String) refreshNotes(out)[0]).endsWith('Try again after 2026-10-18T09:01:00Z.'), (String) refreshNotes(out)[0]);
+        }
+    }
+
+    @IsTest
+    static void anyOtherRefreshFailureIsThrown() {
+        System.runAs(writer()) {
+            Test.startTest();
+            Mock m = refreshMock(new List<String>{ BEFORE });
+            m.route('PUT ' + BASE, 403, '[{"errorCode":"INSUFFICIENT_ACCESS","message":"You cannot refresh this dashboard."}]');
+            ReportsApi.Answer a = call('refresh_dashboard', '{"dashboardId":"' + ID + '"}');
+            Assert.isTrue(a.status != 200);
+            Assert.areEqual('INSUFFICIENT_ACCESS', error(a).get('code'));
+            m.route('PUT ' + BASE, 500, '[{"errorCode":"UNKNOWN_EXCEPTION","message":"boom"}]');
+            ReportsApi.Answer b = call('refresh_dashboard', '{"dashboardId":"' + ID + '"}');
+            Assert.areEqual(500, b.status);
+            Assert.areEqual('UNKNOWN_EXCEPTION', error(b).get('code'));
+            Test.stopTest();
+        }
+    }
+
+    @IsTest
+    static void aFilterGoesOnTheQueryStringAndNotInTheBody() {
+        System.runAs(writer()) {
+            Test.startTest();
+            Mock m = refreshMock(new List<String>{ BEFORE, DONE });
+            m.route(BASE + '/describe', 200, META).route(BASE + '?filter1=0IC000000000013AAA', 200, RESULTS);
+            ok(call('refresh_dashboard', '{"dashboardId":"' + ID + '","filters":[{"name":"Stage","option":"Prospecting"}]}'));
+            Test.stopTest();
+            Assert.areEqual(new List<String>{
+                BASE + '/describe', BASE + '/status?filter1=0IC000000000013AAA', BASE + '?filter1=0IC000000000013AAA',
+                BASE + '/status?filter1=0IC000000000013AAA', BASE + '?filter1=0IC000000000013AAA'
+            }, m.paths);
+            Assert.areEqual('PUT', m.methods[2]);
+            Assert.isTrue(String.isBlank(m.sentBodies[2]), 'the PUT carries no body');
+        }
+    }
+
+    @IsTest
+    static void withoutThePermissionARefreshIsRefusedBeforeAnyCallout() {
+        System.runAs(reader()) {
+            Test.startTest();
+            Mock m = refreshMock(new List<String>{ BEFORE, DONE });
+            ReportsApi.Answer a = call('refresh_dashboard', '{"dashboardId":"' + ID + '"}');
+            Assert.areEqual(403, a.status);
+            Assert.areEqual('WRITE_NOT_ALLOWED', error(a).get('code'));
+            Assert.isTrue(((String) error(a).get('hint')).contains('Salesforce_Reports_Write'));
+            Assert.areEqual(0, m.paths.size(), 'refused before any callout');
+            // The read tool never checks the permission.
+            Assert.areEqual(200, call('run_dashboard', '{"dashboardId":"' + ID + '"}').status);
+            Test.stopTest();
+        }
+    }
+
+    @IsTest
+    static void refreshDoneReadsEachComponent() {
+        Map<String, String> before = new Map<String, String>{ 'a' => OLD_DATE, 'b' => OLD_DATE };
+        Assert.isTrue(ReportsDashboards.refreshDone(new Map<String, Object>(), before), 'no components: done');
+        Assert.isFalse(ReportsDashboards.refreshDone((Map<String, Object>) JSON.deserializeUntyped(
+            '{"componentStatus":[{"componentId":"a","componentDataStatus":"DATA","refreshDate":"' + NEW_DATE + '"},{"componentId":"b","refreshStatus":"RUNNING"}]}'), before));
+        Assert.isFalse(ReportsDashboards.refreshDone((Map<String, Object>) JSON.deserializeUntyped(
+            '{"componentStatus":[{"componentId":"a","componentDataStatus":"DATA","refreshDate":"' + OLD_DATE + '"}]}'), before), 'same date as before: not yet');
+        Assert.isFalse(ReportsDashboards.refreshDone((Map<String, Object>) JSON.deserializeUntyped(
+            '{"componentStatus":[{"componentId":"a","componentDataStatus":"NO_DATA","refreshDate":null}]}'), before));
+        Assert.isTrue(ReportsDashboards.refreshDone((Map<String, Object>) JSON.deserializeUntyped(
+            '{"componentStatus":[{"componentId":"a","componentDataStatus":"ERROR"},{"componentId":"b","errorCode":"FAILED","componentDataStatus":"NO_DATA"}]}'), before), 'errors count as done');
+        Assert.isTrue(ReportsDashboards.refreshDone((Map<String, Object>) JSON.deserializeUntyped(
+            '{"componentStatus":[{"componentId":"new","componentDataStatus":"DATA","refreshDate":"' + OLD_DATE + '"}]}'), before), 'a component with no earlier date counts any data as new');
+    }
+
+    @IsTest
+    static void onlyTheRefreshPutReadsTheLimitCode() {
+        Assert.areEqual(ReportsCallout.REFRESH_LIMIT, ReportsCallout.toError(403, LIMIT_403, 'PUT /analytics/dashboards/' + ID).code);
+        Assert.areEqual('FORBIDDEN', ReportsCallout.toError(403, LIMIT_403, 'GET /analytics/dashboards/' + ID).code, 'a read keeps its own code');
+        Assert.areEqual('NOT_FOUND', ReportsCallout.toError(404, NOT_FOUND, 'PUT /analytics/dashboards/' + ID).code);
     }
 }

@@ -20,12 +20,12 @@ describe("Apex layers", () => {
     expect(source(f)).not.toMatch(/statusCode|RestContext/);
   });
 
-  it("ReportsService lists the three dashboard readers, and not refresh_dashboard", () => {
+  it("ReportsService lists the three dashboard readers and refresh_dashboard", () => {
     const tools = /static final List<String> TOOLS = new List<String>\{([^}]*)\}/.exec(source("ReportsService.cls"))?.[1] ?? "";
     const names = [...tools.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
     for (const t of ["list_dashboards", "describe_dashboard", "run_dashboard"]) expect(names, t).toContain(t);
-    expect(names).not.toContain("refresh_dashboard");
-    expect(names).toHaveLength(14);
+    expect(names).toContain("refresh_dashboard");
+    expect(names).toHaveLength(15);
   });
 
   it("the dashboard readers live in their own core class, which ReportsService dispatches to", () => {
