@@ -94,7 +94,7 @@ This is door 4: the same server over HTTP, behind a tunnel. claude.ai and the Cl
    node dist/index.js --org <alias> --http 8787 --public-url <tunnel url>
    ```
 
-   It prints `salesforce-reports-mcp: listening on http://127.0.0.1:8787/mcp`.
+   It prints one line: `salesforce-reports-mcp: listening on http://127.0.0.1:8787/mcp (public at <tunnel url>/mcp, OAuth sign-in on)`. `--public-url` takes the origin only, with no path.
 
 5. In claude.ai, open Settings, then Connectors, and add a custom connector. The URL is the tunnel address plus `/mcp`, for example `<tunnel url>/mcp`.
 
@@ -108,6 +108,7 @@ Notes:
 - Access tokens last one hour and refresh tokens 30 days. Tokens are random, held only as hashes in memory, and bound to this server.
 - A quick tunnel gets a new address each time it starts. Change the connector's URL and the server's `--public-url` to match, or use a named tunnel with a fixed address.
 - Without `--public-url`, `--http` listens on loopback only and needs no sign-in. A non-loopback `--host` without `--public-url` is refused.
+- Ten wrong passcodes within 15 minutes lock the sign-in page for everyone for the rest of that window, the right passcode included. That stops guessing, and it means a stranger who finds the page can make you wait.
 
 ## The in-org doors
 
