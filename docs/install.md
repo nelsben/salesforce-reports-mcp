@@ -127,7 +127,14 @@ To remove the REST door, remove the MCP door first if it is installed, then unas
 
 5. Connect Claude. In claude.ai, open Settings, then Connectors, then Add custom connector. Paste the URL from step 2. Under Advanced settings, paste the consumer key as the OAuth Client ID. Click Add, then Connect, and sign in to the org. A sandbox or scratch org uses `https://api.salesforce.com/platform/mcp/v1/sandbox/custom/SalesforceReports`. Production and Developer Edition use the same URL without `sandbox/`.
 
-Each user signs in as themselves, so sharing, folder access and field-level security apply. The save tools are listed for every user, and refuse anyone without `Salesforce_Reports_Write`. To check the door from a terminal, run `SF_MCP_TOKEN=<token> npm run mcp-check -- --org <alias>` with an access token from that sign-in. It lists the tools and runs `search_reports` and `run_report`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy `mcp-app` again.
+Each user signs in as themselves, so sharing, folder access and field-level security apply. The save tools are listed for every user, and refuse anyone without `Salesforce_Reports_Write`. To check the door from a terminal, sign the Salesforce CLI in through the External Client App once, then pass that alias to the check. The consumer key is read from the org as step 4 shows. Paste it into the command and do not print it elsewhere.
+
+```bash
+sf org login web --client-app reports-mcp --client-id <consumer key> --scopes "mcp_api refresh_token" -a <auth alias>
+npm run mcp-check -- --org <alias> --auth <auth alias>
+```
+
+The app already lists `http://localhost:1717/OauthRedirect` as a callback. The CLI refreshes the token itself, so the check can run in a loop. The check reads the token with `sf org auth show-access-token --json --target-org <auth alias>` and never prints it. `SF_MCP_TOKEN=<token>` still works and wins when set. The check expects the fifteen tools, runs `search_reports` and `run_report`, then `list_dashboards` and, when one is listed, `describe_dashboard` and `run_dashboard`. It refreshes and saves nothing, prints counts only, and ends with `mcp-check: tools=<n> steps=<passed>/<total>`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy `mcp-app` again.
 
 ### The callout tools on the MCP door
 
