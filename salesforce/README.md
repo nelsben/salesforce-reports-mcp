@@ -30,7 +30,7 @@ The class answers on two routes, and reads the tool name from the last segment o
 
 ## Tools
 
-The door has eleven tools: the eight read tools `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`, and the three save tools `create_report`, `update_report` and `clone_report`.
+The REST door has fourteen tools: the eight read tools `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`, the three save tools `create_report`, `update_report` and `clone_report`, and the three dashboard readers `list_dashboards`, `describe_dashboard` and `run_dashboard`. The hosted MCP door still lists the first eleven; its dashboard tools come in a later card.
 
 | Tool | On this door | Differences from the local server |
 | --- | --- | --- |
@@ -46,6 +46,10 @@ The door has eleven tools: the eight read tools `search_reports`, `list_report_f
 | `update_report` | yes, through the callout, with the write permission | none |
 | `clone_report` | yes, through the callout, with the write permission | none |
 | `delete_report` | no, 404 | Use the local server. |
+| `list_dashboards` | yes, with one callout per row | none. A failed `/status` call gives `lastRefreshed: null`. After a `CALLOUT_*` error, such as on the hosted route without `callout-app`, it stops calling `/status`, and a note says why. |
+| `describe_dashboard` | yes, through the callout | none |
+| `run_dashboard` | yes, through the callout | Detail rows per component have the same cap as `run_report`. Its notes still offer `refresh_dashboard`, which the door does not have yet. |
+| `refresh_dashboard` | no, 404 | Use the local server. A later card brings it to the door. |
 
 ### Saving
 
@@ -57,7 +61,7 @@ The save tools check the custom permission `Reports_Write` with `FeatureManageme
 
 ### The callout
 
-`list_report_types`, `describe_report_type`, `query_report` and the three save tools call the org's own Reports REST API through one helper, `ReportsCallout`. Which identity the call carries depends on the route:
+`list_report_types`, `describe_report_type`, `query_report`, the three save tools and the three dashboard readers call the org's own Reports and Dashboards REST API through one helper, `ReportsCallout`. Which identity the call carries depends on the route:
 
 | Route | Identity | Endpoint |
 | --- | --- | --- |
@@ -79,7 +83,8 @@ The save tools check the custom permission `Reports_Write` with `FeatureManageme
 | Class | Layer | What it does |
 | --- | --- | --- |
 | `ReportsApi` | REST adapter | The `@RestResource`. Reads the tool name from the URL and the body text, calls `ReportsService`, and answers 200, or maps an error's category to 400, 403, 404 or 500 with the error body. |
-| `ReportsService` | core | The tool list, the `Reports_Write` check for the save tools (before the input is read or any callout), dispatch by tool name, and the eleven tools, the SOQL ones included. Ported from `src/server.ts`. |
+| `ReportsService` | core | The tool list, the `Reports_Write` check for the save tools (before the input is read or any callout), dispatch by tool name, and the eleven report tools, the SOQL ones included. Ported from `src/server.ts`. |
+| `ReportsDashboards` | core | `src/reports/dashboards.ts` and the dashboard card fields from `src/server.ts`: `list_dashboards` (SOQL on `Dashboard`, then `/status` per row), `describe_dashboard` and `run_dashboard` through `ReportsCallout`, filters resolved to `filter1` option ids, each component's report result shaped by `ReportsShape`. |
 | `ReportsInput` | core | Parses the body and reads typed fields, refusing bad input with the local server's messages. |
 | `ReportsException` | core | The one error type: code, message, hint and a category (invalid input, forbidden, unknown tool, failed), never an HTTP status. Turns any other exception into one, as `src/format.ts` does. |
 | `ReportsDefinition` | core | `src/reports/definition.ts`: the friendly definition to `reportMetadata` to `Reports.ReportMetadata`. |
@@ -90,7 +95,7 @@ The save tools check the custom permission `Reports_Write` with `FeatureManageme
 
 The dependency rule: no class but `ReportsApi` and its tests names `ReportsApi`, so the core does not know which door called it. `scripts/measure.apex` and `scripts/measure-query.apex` call the core directly, with the row cap and base URL from `ReportsService`, and call `ReportsApi.handle` only where they measure the door itself.
 
-`ReportsApiTest` covers the adapter: status codes, error bodies, unknown tools and `delete_report`. The other test classes call the door through `ReportsApi.handle` or the core classes directly. The tests that run reports use `@IsTest(SeeAllData='true')` and the org's own saved reports. They create no reports. `ReportsCalloutTest` and `ReportsSaveTest` answer every callout with an `HttpCalloutMock`, and cover the hosted route in its three cases: without the named credential, through it, and for a user who cannot use it. They set whether the credential is installed, so they pass the same in an org with or without `callout-app`. `ReportsSaveTest` creates, in its test setup, a Chatter Free user without the write permission (so it takes no Salesforce license), and assigns the write permission set to the running user if it lacks it. Both roll back with the test.
+`ReportsApiTest` covers the adapter: status codes, error bodies, unknown tools and `delete_report`. The other test classes call the door through `ReportsApi.handle` or the core classes directly. The tests that run reports use `@IsTest(SeeAllData='true')` and the org's own saved reports. They create no reports. `ReportsCalloutTest` and `ReportsSaveTest` answer every callout with an `HttpCalloutMock`, and cover the hosted route in its three cases: without the named credential, through it, and for a user who cannot use it. They set whether the credential is installed, so they pass the same in an org with or without `callout-app`. `ReportsDashboardsTest` answers every dashboard callout with an `HttpCalloutMock` and trimmed inline JSON. Its list tests build `Dashboard` rows in memory, and one `SeeAllData='true'` test runs the SOQL on the org's own dashboards with every `/status` call mocked. `ReportsSaveTest` creates, in its test setup, a Chatter Free user without the write permission (so it takes no Salesforce license), and assigns the write permission set to the running user if it lacks it. Both roll back with the test.
 
 ## Commands
 
@@ -147,7 +152,7 @@ If a renewal stops part way, `SalesforceReportsCallout2` is left in the org. Run
 Test, with coverage:
 
 ```bash
-sf apex run test -o <alias> --class-names ReportsApiTest --class-names ReportsDefinitionTest --class-names ReportsSummaryTest --class-names ReportsCombineTest --class-names ReportsCalloutTest --class-names ReportsSaveTest --code-coverage --result-format human --wait 20
+sf apex run test -o <alias> --class-names ReportsApiTest --class-names ReportsDefinitionTest --class-names ReportsSummaryTest --class-names ReportsCombineTest --class-names ReportsCalloutTest --class-names ReportsSaveTest --class-names ReportsDashboardsTest --code-coverage --result-format human --wait 20
 ```
 
 Call it:
@@ -196,7 +201,7 @@ Removing the External Client App ends every Claude connector that signs in throu
 To remove the REST door after that, unassign both permission sets from every user first, since an assigned permission set cannot be deleted.
 
 - The pre step, `manifest/force-app/destructiveChangesPre.xml`, removes the two permission sets (`Salesforce_Reports` grants every non-test class, `ReportsService`, `ReportsInput` and `ReportsException` among them).
-- The post step, `manifest/force-app/destructiveChanges.xml`, then removes the custom permission and all fifteen classes: the adapter, the core, the callout and their tests.
+- The post step, `manifest/force-app/destructiveChanges.xml`, then removes the custom permission and all seventeen classes: the adapter, the core, the callout and their tests.
 
 ```bash
 sf project deploy start --manifest manifest/force-app/package.xml --pre-destructive-changes manifest/force-app/destructiveChangesPre.xml --post-destructive-changes manifest/force-app/destructiveChanges.xml -o <alias>

@@ -47,6 +47,26 @@ describe("permission names", () => {
     expect(read("salesforce/manifest/force-app/destructiveChanges.xml")).toContain("<members>Reports_Write</members>");
   });
 
+  it("the read set grants every core class, the dashboard readers among them", () => {
+    const xml = read("salesforce/force-app/main/default/permissionsets/Salesforce_Reports.permissionset-meta.xml");
+    const granted = [...xml.matchAll(/<apexClass>([^<]+)<\/apexClass>\s*<enabled>true<\/enabled>/g)].map((m) => m[1]).sort();
+    const classes = readdirSync(join(forceApp, "classes"))
+      .filter((f) => f.endsWith(".cls") && !f.endsWith("Test.cls"))
+      .map((f) => f.replace(/\.cls$/, ""))
+      .sort();
+    expect(classes).toContain("ReportsDashboards");
+    expect(granted).toEqual(classes);
+  });
+
+  it("the removal manifest names every class, the dashboard readers and their test among them", () => {
+    const post = read("salesforce/manifest/force-app/destructiveChanges.xml");
+    const listed = [...post.matchAll(/<members>([^<]+)<\/members>/g)].map((m) => m[1]);
+    const classes = readdirSync(join(forceApp, "classes")).filter((f) => f.endsWith(".cls")).map((f) => f.replace(/\.cls$/, ""));
+    expect(classes).toContain("ReportsDashboards");
+    expect(classes).toContain("ReportsDashboardsTest");
+    for (const c of classes) expect(listed, c).toContain(c);
+  });
+
   it("no shipped file still uses the old names", () => {
     const old = /Salesforce_Reports_MCP|Reports_MCP_Write/;
     const paths = [

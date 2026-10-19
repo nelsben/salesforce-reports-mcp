@@ -77,6 +77,13 @@ public with sharing class ReportsInput {
         return out;
     }
 
+    /** A dashboard id: 01Z plus 12 to 15 characters, as the local tools check it. */
+    public static String dashboardId(Map<String, Object> m, String key) {
+        String value = reqString(m, key);
+        if (!Pattern.matches('01Z[A-Za-z0-9]{12,15}', value)) throw ReportsException.invalidInput('A dashboard id starts with 01Z.');
+        return value;
+    }
+
     /** A report id: 00O plus 12 to 15 characters, and a valid Id. */
     public static Id reportId(Map<String, Object> m, String key) {
         String value = reqString(m, key);

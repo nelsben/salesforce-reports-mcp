@@ -7,6 +7,8 @@
         <members>ReportsCalloutTest</members>
         <members>ReportsCombine</members>
         <members>ReportsCombineTest</members>
+        <members>ReportsDashboards</members>
+        <members>ReportsDashboardsTest</members>
         <members>ReportsDefinition</members>
         <members>ReportsDefinitionTest</members>
         <members>ReportsException</members>

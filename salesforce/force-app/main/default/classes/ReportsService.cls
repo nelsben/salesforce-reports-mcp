@@ -4,17 +4,19 @@
  * out, then dispatches to the tool and answers with the JSON map the local tool returns (ported from src/server.ts).
  * Every failure leaves as a ReportsException with a category, never an HTTP status. The SOQL tools and
  * Reports.ReportManager run here, the callout tools go through ReportsCallout, and the class runs with sharing and its
- * queries in user mode, so sharing, folder access and field-level security stay Salesforce's own.
+ * queries in user mode, so sharing, folder access and field-level security stay Salesforce's own. The three dashboard
+ * readers live in ReportsDashboards; refresh_dashboard stays on the local server.
  */
 public with sharing class ReportsService {
     public static final Integer DEFAULT_MAX_ROWS = 200;
     static final List<String> TOOLS = new List<String>{
         'search_reports', 'list_report_folders', 'list_report_types', 'describe_report', 'describe_report_type', 'run_report', 'query_report', 'combine_reports',
+        'list_dashboards', 'describe_dashboard', 'run_dashboard',
         'create_report', 'update_report', 'clone_report'
     };
     /** The save tools. Each needs WRITE_PERMISSION, checked before the input is read and before any callout. */
     static final Set<String> SAVE_TOOLS = new Set<String>{ 'create_report', 'update_report', 'clone_report' };
-    static final Set<String> LOCAL_ONLY = new Set<String>{ 'delete_report' };
+    static final Set<String> LOCAL_ONLY = new Set<String>{ 'delete_report', 'refresh_dashboard' };
     public static final String WRITE_PERMISSION = 'Reports_Write';
     public static final String WRITE_PERMISSION_SET = 'Salesforce_Reports_Write';
     /** The longest report name Salesforce takes, as the local tools check it. */
@@ -76,6 +78,15 @@ public with sharing class ReportsService {
             }
             when 'clone_report' {
                 return cloneReport(input);
+            }
+            when 'list_dashboards' {
+                return ReportsDashboards.listDashboards(input);
+            }
+            when 'describe_dashboard' {
+                return ReportsDashboards.describeDashboard(input);
+            }
+            when 'run_dashboard' {
+                return ReportsDashboards.runDashboard(input);
             }
             when else {
                 return combineReports(input);
@@ -549,14 +560,12 @@ public with sharing class ReportsService {
     }
 
     /** For a LIKE clause: escape the quote and backslash, and the two wildcards (src/reports/api.ts). */
-    @TestVisible
-    static String soqlLike(String value) {
+    public static String soqlLike(String value) {
         return value.replace('\\', '\\\\').replace('\'', '\\\'').replace('%', '\\%').replace('_', '\\_');
     }
 
     /** A datetime as the REST query endpoint writes it, for example 2026-10-11T21:06:12.000+0000. */
-    @TestVisible
-    static String soqlDatetime(Datetime value) {
+    public static String soqlDatetime(Datetime value) {
         return value == null ? null : value.formatGmt('yyyy-MM-dd\'T\'HH:mm:ss.SSS') + '+0000';
     }
 }
