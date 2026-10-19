@@ -37,10 +37,10 @@ Most of what a company knows about its customers and its pipeline sits in Salesf
 
 | Claim | Where to look | Evidence you can check |
 | --- | --- | --- |
-| **1. MCP on Salesforce without Salesforce MCP**, plus two in-org doors for when a local server is not an option | [Three ways to connect](#three-ways-to-connect) | One tool contract and result shape on every door (16 tools locally, 11 in the org); a [parity check](docs/decisions/0010-verification-by-parity.md) runs the same calls through two doors against a real org and compares them |
-| **2. A useful feature added to Salesforce itself**, packaged the way an admin expects | [A feature inside Salesforce](#a-feature-inside-salesforce) | Three package directories; layered Apex with a CI test that fails if the layers leak; 65 Apex tests at 98% coverage |
+| **1. MCP on Salesforce without Salesforce MCP**, plus two in-org doors for when a local server is not an option | [Three ways to connect](#three-ways-to-connect) | One tool contract and result shape on every door (16 tools locally, 15 in the org); a [parity check](docs/decisions/0010-verification-by-parity.md) runs the same calls through two doors against a real org and compares them |
+| **2. A useful feature added to Salesforce itself**, packaged the way an admin expects | [A feature inside Salesforce](#a-feature-inside-salesforce) | Three package directories; layered Apex with a CI test that fails if the layers leak; 90 Apex tests at 99% coverage |
 | **3. Security, authentication and integration** done deliberately, per door | [Security and identity](#security-and-identity) | A different identity per door, a per-user JWT named credential with no stored secret, writes behind a custom permission, and a test that keeps org values out of the repo |
-| **4. Product and architecture judgment**, shown in the work | [How it was built](#how-it-was-built) | Personas and [experiences](docs/experiences.md), [7 probes](docs/probes/) before building, [18 decision records](docs/decisions/README.md), [live findings](docs/design.md), [7 rehearsals](docs/rehearsals/README.md) |
+| **4. Product and architecture judgment**, shown in the work | [How it was built](#how-it-was-built) | Personas and [experiences](docs/experiences.md), [7 probes](docs/probes/) before building, [19 decision records](docs/decisions/README.md), [live findings](docs/design.md), [7 rehearsals](docs/rehearsals/README.md) |
 
 ## The product
 
@@ -140,9 +140,9 @@ The method was the same for every feature: probe the platform, decide in writing
 | Step | What it produced |
 | --- | --- |
 | **Probe** before building | [7 probe write-ups](docs/probes/): can a hosted MCP server wrap Apex, can Apex call its own org's API, how big a result fits in the heap, which identity works under a hosted sign-in, how dashboards refresh and filter |
-| **Decide** in writing | [18 decision records](docs/decisions/README.md), each with what it costs and what was turned down |
+| **Decide** in writing | [19 decision records](docs/decisions/README.md), each with what it costs and what was turned down |
 | **Build** to one contract | [design.md](docs/design.md): the input and output shapes, and the live findings where Salesforce did not behave as documented |
-| **Verify** against a real org | 198 unit and server tests, 24 render tests that draw the report and dashboard cards in a browser, 65 Apex tests, a live end-to-end check that leaves no report behind, and a parity check across doors |
+| **Verify** against a real org | 256 unit and server tests, 24 render tests that draw the report and dashboard cards in a browser, 90 Apex tests, a live end-to-end check that leaves no report behind, and a parity check across doors; `npm run verify` runs all of it against one org and ends with one table of counts |
 | **Rehearse** the experience | [7 rehearsals](docs/rehearsals/README.md): real Claude runs of each skill on each door, with what went wrong and what changed |
 
 ## Get started
@@ -171,7 +171,6 @@ npm run capture -- --org <alias>               # refresh the test fixtures (anon
 
 ## Roadmap
 
-- Dashboards on the in-org doors.
 - Joined reports, report charts, and subscriptions.
 
 ## License

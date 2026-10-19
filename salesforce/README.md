@@ -211,7 +211,7 @@ sf project deploy start --manifest manifest/force-app/package.xml --pre-destruct
 
 ## Hosted MCP door
 
-**Upgrading a hosted door that lists eleven tools.** Redeploy `mcp-app`, rerun `npm run mcp:setup -- --org <alias> --yes`, then activate the four new operations (`list_dashboards`, `describe_dashboard`, `run_dashboard`, `refresh_dashboard`) in Setup, in the API Catalog entry `ReportsApi`. The dashboard tools call out, so they need `callout-app` on the hosted route, as the other callout tools do.
+**Upgrading a hosted door that lists eleven tools.** Redeploy `mcp-app`, rerun `npm run mcp:setup -- --org <alias> --yes`, then run `npm run mcp-check -- --org <alias> --auth <name>`: on 2026-10-19 the four new operations (`list_dashboards`, `describe_dashboard`, `run_dashboard`, `refresh_dashboard`) answered with no Setup activation. If the check reports fewer than fifteen tools, open Setup, API Catalog, `ReportsApi`, and activate the inactive operations. The dashboard tools call out, so they need `callout-app` on the hosted route, as the other callout tools do.
 
 The same class is also a Salesforce hosted MCP server. Everything it adds is in `mcp-app`, deployed on top of `force-app`, and none of it is code. The admin steps are in the repo's [README](../README.md), section "In the org", and the platform findings are in [docs/probes/v0.2-phase2.md](../docs/probes/v0.2-phase2.md).
 
