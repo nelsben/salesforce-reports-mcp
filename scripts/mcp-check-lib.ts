@@ -1,15 +1,14 @@
 /**
  * The logic behind scripts/mcp-check.ts, with no side effects at import: where the bearer token comes from,
- * how the tool list is compared, and the steps the check runs. The runner for `sf` and the `rpc` are injected,
- * so tests need no network and no real `sf`.
+ * how the tool list is compared, and the steps the check runs. `fetch`, the file store and the `rpc` are injected,
+ * so tests need no network.
  */
 import { DOOR_TOOLS } from "../salesforce/scripts/door-tools.js";
+import { loadAuth, refreshAccessToken, type FileStore } from "./mcp-auth-lib.js";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type Json = any;
 
-/** Runs `sf` with the given arguments and answers its exit code and stdout. It never throws. */
-export type SfRunner = (args: string[]) => Promise<{ code: number; stdout: string }>;
 export type Rpc = (method: string, params?: Json) => Promise<Json>;
 export interface StepResult {
   ok: boolean;
@@ -19,30 +18,22 @@ export interface StepResult {
 
 /** The refusal when no token source is given. It names both ways. */
 export const NO_TOKEN_MESSAGE =
-  "No token. Set SF_MCP_TOKEN to an access token with the mcp_api scope, or pass --auth <alias> to read one from a Salesforce CLI sign-in. The check never prints it.";
+  "No token. Set SF_MCP_TOKEN to an access token with the mcp_api scope, or sign in once with `npm run mcp-login -- --org <alias>` and pass --auth <name>. The check never prints it.";
 
-/** The arguments `sf` gets to print the access token of a signed-in alias. */
-export function showTokenArgs(alias: string): string[] {
-  return ["org", "auth", "show-access-token", "--json", "--target-org", alias];
-}
+/** The refusal when --auth names a sign-in that was never made. */
+export const NO_AUTH_FILE_MESSAGE = (name: string): string => `No stored sign-in named "${name}". Run \`npm run mcp-login -- --org <alias> --auth ${name}\` first.`;
 
 /**
- * The bearer token. SF_MCP_TOKEN wins when set. Otherwise --auth reads it from the CLI. A failed call says only that
- * it failed and the exit code: the output of `sf` is never put in a message.
+ * The bearer token. SF_MCP_TOKEN wins when set. Otherwise --auth reads the stored refresh token and exchanges it for a
+ * fresh access token on every call; the access token is not stored. A failed exchange says only the status and the
+ * `error` field.
  */
-export async function resolveToken(options: { env: string | undefined; auth: string | undefined; run: SfRunner }): Promise<string> {
+export async function resolveToken(options: { env: string | undefined; auth: string | undefined; fetch: typeof fetch; store: FileStore; home: string }): Promise<string> {
   if (options.env) return options.env;
   if (!options.auth) throw new Error(NO_TOKEN_MESSAGE);
-  const { code, stdout } = await options.run(showTokenArgs(options.auth));
-  if (code !== 0) throw new Error(`sf org auth show-access-token failed (exit code ${code}).`);
-  let token: unknown;
-  try {
-    token = JSON.parse(stdout)?.result?.accessToken;
-  } catch {
-    token = undefined;
-  }
-  if (typeof token !== "string" || !token) throw new Error("sf org auth show-access-token returned no access token.");
-  return token;
+  const auth = loadAuth(options.store, options.home, options.auth);
+  if (!auth) throw new Error(NO_AUTH_FILE_MESSAGE(options.auth));
+  return refreshAccessToken({ auth, fetch: options.fetch });
 }
 
 /** Compares the listed tool names with the door tools. Counts only: the check prints no name from the org. */

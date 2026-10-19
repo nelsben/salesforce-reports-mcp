@@ -118,6 +118,12 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 - **That exception escapes `catch (Exception e)`.** `ReportsApi.handle` catches every `Exception`, yet the client got Salesforce's own `APEX_ERROR`, not the door's `UNEXPECTED`, with class names and line numbers in the message. Code that may hit it must avoid the call, not catch it (found 2026-10-12).
 - **A call without arguments through the hosted server answered `INVALID_INPUT`.** The hosted server most likely posts the JSON `null` for it (inferred from the reproduction, not observed on the wire), and `ReportsInput.parse` refused it as not a JSON object. The door now reads `null`, like a blank body, as no input, as the local server reads missing arguments. `[]` and `"x"` are still refused (found 2026-10-12).
 
+### Hosted door sign-in findings (checked 2026-10-19)
+
+- **The CLI's `--client-app` link cannot complete.** The External Client App allows only the `mcp_api` and `refresh_token` scopes. After the code exchange the CLI reads the user's identity, which needs an identity scope the app does not grant, and answers `INVALID_SCOPES`. Even a completed link is read by no CLI command, since `show-access-token` and `api request rest` know nothing of client apps.
+- **A plain PKCE authorization-code flow works.** As a public client (no secret), with the callback `http://localhost:1717/OauthRedirect` that the app already lists and the scope `mcp_api refresh_token`, the token endpoint answers an access token and a refresh token. `npm run mcp-login` runs this flow and keeps the refresh token; `mcp-check --auth` exchanges it on every run.
+- **The hosted door answered all 15 operations with no Setup activation** after `mcp:setup`: `mcp-check: tools=15 steps=7/7`.
+
 ### Dashboard findings (checked 2026-10-16, API v62.0, [v0.3 dashboards probe](probes/v0.3-dashboards.md))
 
 - **`GET /analytics/dashboards` lists only recently viewed dashboards** and returned `[]` for a dashboard never opened in the UI. Find dashboards with SOQL on `Dashboard` (`Id, Title, DeveloperName, FolderName, Type, RunningUserId`), which returns the ones the signed-in user can see.

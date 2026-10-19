@@ -40,6 +40,7 @@
     "parity": "tsx scripts/parity-check.ts",
     "capture": "tsx scripts/capture-fixtures.ts",
     "prepare": "npm run build",
+    "mcp-login": "tsx scripts/mcp-login.ts",
     "mcp-check": "tsx scripts/mcp-check.ts",
     "mcp:generate": "tsx salesforce/scripts/generate-metadata.ts",
     "mcp:setup": "tsx salesforce/scripts/mcp-setup.ts",

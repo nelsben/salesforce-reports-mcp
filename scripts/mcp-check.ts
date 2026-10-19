@@ -1,21 +1,22 @@
 /**
  * Check the hosted MCP door: the Salesforce Reports server that salesforce/scripts/mcp-setup.ts wires up.
- * Usage: npm run mcp-check -- --org <alias> [--auth <cli alias>] [--url <endpoint>] [--dump <file>]
+ * Usage: npm run mcp-check -- --org <alias> [--auth <name>] [--url <endpoint>] [--dump <file>]
  *
  * The bearer token is an access token with the mcp_api scope, from the External Client App's OAuth flow (the
- * CLI's own token is refused). SF_MCP_TOKEN wins when set. Otherwise --auth reads it from
- * `sf org auth show-access-token --json --target-org <alias>`, a CLI sign-in made through that app.
+ * CLI's own token is refused). SF_MCP_TOKEN wins when set. Otherwise --auth <name> reads the refresh token that
+ * `npm run mcp-login` stored and exchanges it for a fresh access token on every run. The access token is not stored.
  * --org finds the endpoint in the org's API Catalog through the Salesforce CLI; --url gives it directly.
  * The check requires the fifteen door tool names exactly, calls search_reports and run_report, then
  * list_dashboards and, when one is listed, describe_dashboard and run_dashboard. It refreshes and saves nothing.
  * It prints counts only, and no token. --dump writes the hosted tools/list result to a file.
  * The logic lives in scripts/mcp-check-lib.ts.
  */
-import { execFile } from "node:child_process";
 import { writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { parseArgs } from "node:util";
 import { Org, SERVER } from "../salesforce/scripts/org.js";
-import { resolveToken, runSteps, summaryLine, NO_TOKEN_MESSAGE, type Json, type SfRunner } from "./mcp-check-lib.js";
+import { nodeFileStore } from "./mcp-auth-lib.js";
+import { resolveToken, runSteps, summaryLine, NO_TOKEN_MESSAGE, type Json } from "./mcp-check-lib.js";
 
 process.on("uncaughtException", (error) => {
   console.error(`FAIL  ${error instanceof Error ? error.message : String(error)}`);
@@ -32,16 +33,7 @@ if (!values.org && !values.url) {
   process.exit(2);
 }
 
-/** Runs `sf` through execFile, never a shell. Its output goes only to the caller. */
-const runSf: SfRunner = (args) =>
-  new Promise((resolve) => {
-    execFile("sf", args, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout) => {
-      const code = error ? (typeof error.code === "number" ? error.code : 1) : 0;
-      resolve({ code, stdout: String(stdout) });
-    });
-  });
-
-const token = await resolveToken({ env: process.env.SF_MCP_TOKEN, auth: values.auth, run: runSf });
+const token = await resolveToken({ env: process.env.SF_MCP_TOKEN, auth: values.auth, fetch, store: nodeFileStore(), home: homedir() });
 
 async function endpoint(): Promise<string> {
   if (values.url) return values.url;
