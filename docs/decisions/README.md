@@ -25,3 +25,5 @@ One page per architectural decision: the context, the decision, what it costs, a
 | [0017](0017-dashboard-card.md) | The dashboard card is a second MCP App that draws every component as its chart | Accepted |
 | [0018](0018-cards-follow-the-lightning-design-system.md) | The report card and the dashboard card follow the Lightning Design System, as token values only | Accepted |
 | [0019](0019-refresh-wait-on-the-in-org-door.md) | The in-org door waits for a dashboard refresh by polling back to back within a budget | Accepted |
+| [0020](0020-door-four-the-local-server-over-http.md) | Door four: the local server over HTTP, behind a tunnel, with its own sign-in for one owner | Accepted |
+| [0021](0021-claude-dashboards-as-the-shareable-view.md) | Claude Dashboards are the shareable view, built on run_report from a connector | Accepted |

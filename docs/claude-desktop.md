@@ -76,17 +76,17 @@ The local server is a process on your machine, so it is available wherever Claud
 | Claude Desktop (macOS, Windows) | Yes | Report and dashboard cards | The surface this guide is for |
 | Claude Code | Yes, as a plugin or `claude mcp add` | Text only | The skills ride along in the plugin |
 | Cowork | Yes, through Claude Desktop's config | Cards, where Cowork draws MCP Apps | Same config entry |
-| claude.ai in a browser | No | | The browser cannot start a process. Needs a server hosted somewhere, or the in-org door |
-| Claude mobile (iOS, Android) | No | | Same as the browser. See below |
+| claude.ai in a browser | Yes, as door 4 | Cards, where claude.ai draws MCP Apps | The browser cannot start a process, so run the server over HTTP behind a tunnel: [From claude.ai and your phone](install.md#from-claudeai-and-your-phone). Or use the in-org door |
+| Claude mobile (iOS, Android) | Yes, as door 4 | Text, and cards where the app draws them | Same as the browser. See below |
 
 ### Claude mobile
 
-A phone cannot run the server, and the mobile apps take only remote MCP connectors: servers reached over HTTPS with OAuth, configured in claude.ai. So the headline recipe, nothing in the org and no Salesforce MCP, does not reach the phone on its own. Three ways to get there, each with a cost:
+A phone cannot run the server, and the mobile apps take only remote MCP connectors: servers reached over HTTPS with OAuth, configured in claude.ai. Door 4 is the self-hosted way to that connector: the same server over HTTP behind a tunnel, so the headline recipe, nothing in the org and no Salesforce MCP, reaches the phone. Three ways to get there, each with a cost:
 
 | Way | What it takes | What you get | Cost |
 | --- | --- | --- | --- |
 | **Leave the laptop on.** Claude Desktop can announce its local servers to your claude.ai account as remote tools, when it is running and connected. | Claude Desktop open on a machine that stays awake | The same tools, as text. No cards on that route. | Works only while the laptop is up. Observed on macOS in October 2026 and not yet tried from a phone, so treat it as a lead, not a promise. |
-| **Host this server yourself.** Run it on a small server with an HTTP transport and OAuth in front, and add it as a connector. | A host, a domain, an OAuth layer, and an HTTP transport this server does not ship yet | Everything the local server does, from any Claude surface | The server now holds Salesforce credentials off your machine, which is the thing the local door avoids. On the roadmap, not built. |
+| **Host this server yourself (door 4).** Run `--http` with `--public-url` on your machine or a small server, behind an HTTPS tunnel, and add it as a custom connector. It brings its own OAuth sign-in with a passcode. | Node, the `sf` CLI signed in, a tunnel, and the steps in [From claude.ai and your phone](install.md#from-claudeai-and-your-phone) | Everything the local server does, from any Claude surface | Every client acts as the one Salesforce user signed in on that machine, the machine must stay up, and the server has a public URL ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)). |
 | **The in-org hosted door.** Install the packages in `salesforce/` and add the org's MCP server as a connector. | An admin, the packages, and Salesforce hosted MCP | Eleven of the sixteen tools, as the signed-in user, governed by permission sets | This is Salesforce MCP, the thing the headline does without. It is why the Apex is in the repo. |
 
-For most people the honest answer is: build and explore on the laptop, where the cards are; read the saved reports from the phone through whichever remote door the org allows.
+For most people the honest answer is: build and explore on the laptop, where the cards are; read the saved reports from the phone through door 4 if you can keep a machine up, or the org's hosted door if you cannot.

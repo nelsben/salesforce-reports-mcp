@@ -124,3 +124,29 @@ describe("report-runner dashboards", () => {
     expect(section).toMatch(/Do not refresh without the user's yes/);
   });
 });
+
+describe("report-runner dashboard offer", () => {
+  const skill = read("skills/report-runner/SKILL.md");
+  const reference = read("skills/report-runner/reference.md");
+  const section = skill.split(/^## A dashboard to keep or share\s*$/m)[1]?.split(/^## /m)[0] ?? "";
+
+  it("offers a live Claude Dashboard on run_report only for a view to keep or share, and never unasked", () => {
+    expect(section).toMatch(/Claude's Dashboard artifacts/);
+    expect(section).toMatch(/`run_report`/);
+    expect(section).toMatch(/keep, share or open again/);
+    expect(section).toMatch(/Do not offer it unasked/);
+  });
+
+  it("says the local stdio server can only make a fixed copy, and why", () => {
+    expect(section).toMatch(/only a fixed copy/);
+    expect(reference).toMatch(/only a fixed copy/);
+  });
+
+  it("gives the loader recipe for a ReportResult", () => {
+    expect(reference).toMatch(/groups\.dimensions/);
+    expect(reference).toMatch(/groups\.measures/);
+    expect(reference).toMatch(/groups\.rows/);
+    expect(reference).toMatch(/`totals` becomes one more row/);
+    expect(reference).toMatch(/`filters` stay words/);
+  });
+});

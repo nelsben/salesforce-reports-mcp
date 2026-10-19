@@ -27,7 +27,7 @@ claude plugin marketplace add nelsben/salesforce-reports-mcp
 claude plugin install salesforce-reports@salesforce-reports
 ```
 
-That installs the three skills and the MCP server. For Claude Desktop, [docs/claude-desktop.md](docs/claude-desktop.md) is the full recipe: the config entry with the two paths that trip people up, how to check it works, the safety flags, and what each Claude surface, including mobile, can do with a local server. [docs/install.md](docs/install.md#the-local-mcp-server) has every option.
+That installs the three skills and the MCP server. For Claude Desktop, [docs/claude-desktop.md](docs/claude-desktop.md) is the full recipe: the config entry with the two paths that trip people up, how to check it works, the safety flags, and what each Claude surface, including mobile, can do with a local server. For claude.ai and your phone, [From claude.ai and your phone](docs/install.md#from-claudeai-and-your-phone) runs the same server over HTTP behind a tunnel. [docs/install.md](docs/install.md#the-local-mcp-server) has every option.
 
 ## Why I built this
 
@@ -37,10 +37,10 @@ Most of what a company knows about its customers and its pipeline sits in Salesf
 
 | Claim | Where to look | Evidence you can check |
 | --- | --- | --- |
-| **1. MCP on Salesforce without Salesforce MCP**, plus two in-org doors for when a local server is not an option | [Three ways to connect](#three-ways-to-connect) | One tool contract and result shape on every door (16 tools locally, 15 in the org); a [parity check](docs/decisions/0010-verification-by-parity.md) runs the same calls through two doors against a real org and compares them |
+| **1. MCP on Salesforce without Salesforce MCP**, from Claude Desktop and Claude Code, and from claude.ai and the phone through the same server over HTTP, plus two in-org doors for when a local server is not an option | [Four ways to connect](#four-ways-to-connect) | One tool contract and result shape on every door (16 tools locally, 15 in the org); a [parity check](docs/decisions/0010-verification-by-parity.md) runs the same calls through two doors against a real org and compares them |
 | **2. A useful feature added to Salesforce itself**, packaged the way an admin expects | [A feature inside Salesforce](#a-feature-inside-salesforce) | Three package directories; layered Apex with a CI test that fails if the layers leak; 90 Apex tests at 99% coverage |
 | **3. Security, authentication and integration** done deliberately, per door | [Security and identity](#security-and-identity) | A different identity per door, a per-user JWT named credential with no stored secret, writes behind a custom permission, and a test that keeps org values out of the repo |
-| **4. Product and architecture judgment**, shown in the work | [How it was built](#how-it-was-built) | Personas and [experiences](docs/experiences.md), [7 probes](docs/probes/) before building, [19 decision records](docs/decisions/README.md), [live findings](docs/design.md), [7 rehearsals](docs/rehearsals/README.md) |
+| **4. Product and architecture judgment**, shown in the work | [How it was built](#how-it-was-built) | Personas and [experiences](docs/experiences.md), [7 probes](docs/probes/) before building, [21 decision records](docs/decisions/README.md), [live findings](docs/design.md), [7 rehearsals](docs/rehearsals/README.md) |
 
 ## The product
 
@@ -64,9 +64,9 @@ Most of what a company knows about its customers and its pipeline sits in Salesf
 
 **Dashboards, read and refreshed.** Claude can find a dashboard, describe its components and filters, read the numbers Salesforce last cached, and refresh it when the data is missing or old. A refresh counts as a write, so read-only mode leaves it out, and no tool saves a dashboard ([decision 0016](docs/decisions/0016-dashboards-read-and-refresh-only.md)). In Claude Desktop the result draws as the dashboard card above, with every component as its own chart in the dashboard's layout ([decision 0017](docs/decisions/0017-dashboard-card.md)).
 
-## Three ways to connect
+## Four ways to connect
 
-The local server is the lead: it is the whole product for anyone on Claude Code or Claude Desktop, and it needs nothing from Salesforce beyond an API session. The same tools also reach Claude two more ways, for people who cannot run a local process: a seller on claude.ai, a Flow, an Agentforce agent. Those doors live inside the org as Apex. They differ in where the code runs, who hosts it and how the user signs in.
+The local server is the lead: it is the whole product for anyone on Claude Code or Claude Desktop, and it needs nothing from Salesforce beyond an API session. The same server also runs over HTTP behind a tunnel, which is how it reaches claude.ai and the phone with nothing in the org and no Salesforce MCP. The same tools also reach Claude two more ways, for people who cannot run a local process: a seller on claude.ai, a Flow, an Agentforce agent. Those doors live inside the org as Apex. They differ in where the code runs, who hosts it and how the user signs in.
 
 ```mermaid
 flowchart LR
@@ -75,9 +75,10 @@ flowchart LR
     LS["Local MCP server<br/>(Node)"]
     CLI["sf CLI"]
   end
-  subgraph Cloud["claude.ai"]
+  subgraph Cloud["claude.ai and the phone"]
     CAI["Claude"]
   end
+  TUN["HTTPS tunnel"]
   subgraph SF["Salesforce org"]
     GW["Hosted MCP<br/>(Salesforce gateway)"]
     REST["ReportsApi<br/>(Apex REST)"]
@@ -87,20 +88,21 @@ flowchart LR
   CC -- "1. stdio" --> LS -- "REST" --> API
   CC -- "2. skills + CLI" --> CLI -- "Apex REST" --> REST
   CAI -- "3. MCP over OAuth" --> GW --> REST
+  CAI -- "4. MCP over OAuth, passcode" --> TUN --> LS
   REST --> CORE --> API
 ```
 
-| | 1. Local MCP server | 2. In-org REST door with skills | 3. Hosted MCP door |
-| --- | --- | --- | --- |
-| **Direction** | Claude reaches into Salesforce | Salesforce offers a feature; Claude calls it | Salesforce serves Claude directly |
-| **Runs** | Node on your machine | Apex in the org | Salesforce's MCP gateway, then the same Apex |
-| **Installed in the org** | Nothing | `force-app` | `force-app`, `mcp-app`, optionally `callout-app` |
-| **Signs in with** | Your `sf` CLI session or a token | Your own Salesforce session | OAuth with PKCE through an External Client App |
-| **Clients** | Claude Code, Claude Desktop, any MCP client | Claude Code and any agent with a shell; Flow, Agentforce, any HTTP client | claude.ai and any remote MCP client, with nothing to host |
-| **Tools** | All 16, including dashboards; delete only with a flag | 11, no delete | 11, no delete |
-| **Choose it when** | You can run a process on your machine. No org change, no Salesforce MCP | An admin wants the feature in the org, used from scripts and agents | A team wants Claude in the browser, governed by the org |
+| | 1. Local MCP server | 2. In-org REST door with skills | 3. Hosted MCP door | 4. Local server over HTTP |
+| --- | --- | --- | --- | --- |
+| **Direction** | Claude reaches into Salesforce | Salesforce offers a feature; Claude calls it | Salesforce serves Claude directly | Claude reaches into Salesforce, from claude.ai and the phone |
+| **Runs** | Node on your machine | Apex in the org | Salesforce's MCP gateway, then the same Apex | Node on your machine, behind an HTTPS tunnel |
+| **Installed in the org** | Nothing | `force-app` | `force-app`, `mcp-app`, optionally `callout-app` | Nothing |
+| **Signs in with** | Your `sf` CLI session or a token | Your own Salesforce session | OAuth with PKCE through an External Client App | The server's own OAuth with a passcode, then your `sf` CLI session |
+| **Clients** | Claude Code, Claude Desktop, any MCP client | Claude Code and any agent with a shell; Flow, Agentforce, any HTTP client | claude.ai and any remote MCP client, with nothing to host | claude.ai, Claude mobile, Claude's Dashboard artifacts; one owner |
+| **Tools** | All 16, including dashboards; delete only with a flag | 11, no delete | 11, no delete | All 16; delete only with a flag |
+| **Choose it when** | You can run a process on your machine. No org change, no Salesforce MCP | An admin wants the feature in the org, used from scripts and agents | A team wants Claude in the browser, governed by the org | You want claude.ai or the phone with no org change and no Salesforce MCP, and can keep a machine up |
 
-Each door gets the same tool names, the same input and the same result ([decision 0001](docs/decisions/0001-one-contract-three-doors.md)). The skills bind to tool names, not to a door, so one skill works over all three. [docs/architecture.md](docs/architecture.md) has a numbered sequence diagram for each door, with every step explained.
+Each door gets the same tool names, the same input and the same result ([decision 0001](docs/decisions/0001-one-contract-three-doors.md)). The skills bind to tool names, not to a door, so one skill works over all four. Door 4 acts as one Salesforce user, the one signed in on that machine ([decision 0020](docs/decisions/0020-door-four-the-local-server-over-http.md)). [docs/architecture.md](docs/architecture.md) has a numbered sequence diagram for each door, with every step explained.
 
 ## A feature inside Salesforce
 
@@ -140,7 +142,7 @@ The method was the same for every feature: probe the platform, decide in writing
 | Step | What it produced |
 | --- | --- |
 | **Probe** before building | [7 probe write-ups](docs/probes/): can a hosted MCP server wrap Apex, can Apex call its own org's API, how big a result fits in the heap, which identity works under a hosted sign-in, how dashboards refresh and filter |
-| **Decide** in writing | [19 decision records](docs/decisions/README.md), each with what it costs and what was turned down |
+| **Decide** in writing | [21 decision records](docs/decisions/README.md), each with what it costs and what was turned down |
 | **Build** to one contract | [design.md](docs/design.md): the input and output shapes, and the live findings where Salesforce did not behave as documented |
 | **Verify** against a real org | 256 unit and server tests, 24 render tests that draw the report and dashboard cards in a browser, 90 Apex tests, a live end-to-end check that leaves no report behind, and a parity check across doors; `npm run verify` runs all of it against one org and ends with one table of counts |
 | **Rehearse** the experience | [7 rehearsals](docs/rehearsals/README.md): real Claude runs of each skill on each door, with what went wrong and what changed |
@@ -152,6 +154,7 @@ The method was the same for every feature: probe the platform, decide in writing
 | Claude Desktop on your own org, nothing installed in Salesforce | [Claude Desktop guide](docs/claude-desktop.md) |
 | Claude Code or another MCP client, the same way | [Local MCP server](docs/install.md#the-local-mcp-server) |
 | The feature inside your org, called from the CLI, scripts or agents | [The REST door](docs/install.md#the-rest-door) |
+| Claude on claude.ai or your phone, with nothing in the org and no Salesforce MCP | [From claude.ai and your phone](docs/install.md#from-claudeai-and-your-phone) |
 | Claude in the browser, signed in through Salesforce | [The MCP door](docs/install.md#the-mcp-door), then [the callout tools](docs/install.md#the-callout-tools-on-the-mcp-door) |
 
 The tools, the result shape, the safety rails and the limits are in [docs/reference.md](docs/reference.md).
