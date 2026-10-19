@@ -5,18 +5,18 @@
  * Every failure leaves as a ReportsException with a category, never an HTTP status. The SOQL tools and
  * Reports.ReportManager run here, the callout tools go through ReportsCallout, and the class runs with sharing and its
  * queries in user mode, so sharing, folder access and field-level security stay Salesforce's own. The three dashboard
- * readers live in ReportsDashboards; refresh_dashboard stays on the local server.
+ * readers and refresh_dashboard live in ReportsDashboards.
  */
 public with sharing class ReportsService {
     public static final Integer DEFAULT_MAX_ROWS = 200;
     static final List<String> TOOLS = new List<String>{
         'search_reports', 'list_report_folders', 'list_report_types', 'describe_report', 'describe_report_type', 'run_report', 'query_report', 'combine_reports',
-        'list_dashboards', 'describe_dashboard', 'run_dashboard',
+        'list_dashboards', 'describe_dashboard', 'run_dashboard', 'refresh_dashboard',
         'create_report', 'update_report', 'clone_report'
     };
-    /** The save tools. Each needs WRITE_PERMISSION, checked before the input is read and before any callout. */
-    static final Set<String> SAVE_TOOLS = new Set<String>{ 'create_report', 'update_report', 'clone_report' };
-    static final Set<String> LOCAL_ONLY = new Set<String>{ 'delete_report', 'refresh_dashboard' };
+    /** The write tools: the save tools and refresh_dashboard. Each needs WRITE_PERMISSION, checked before the input is read and before any callout. */
+    static final Set<String> WRITE_TOOLS = new Set<String>{ 'create_report', 'update_report', 'clone_report', 'refresh_dashboard' };
+    static final Set<String> LOCAL_ONLY = new Set<String>{ 'delete_report' };
     public static final String WRITE_PERMISSION = 'Reports_Write';
     public static final String WRITE_PERMISSION_SET = 'Salesforce_Reports_Write';
     /** The longest report name Salesforce takes, as the local tools check it. */
@@ -25,7 +25,7 @@ public with sharing class ReportsService {
     static final String FALLBACK_NOTE = 'The in-org door could not call the org\'s REST API under this sign-in, so it read the type through a saved report of that type instead.';
 
     /**
-     * The tool's answer: the JSON map the local tool returns. An unknown tool throws UNKNOWN_TOOL, a save tool without
+     * The tool's answer: the JSON map the local tool returns. An unknown tool throws UNKNOWN_TOOL, a write tool without
      * the write permission throws FORBIDDEN before the body is parsed, and any other failure is turned into a
      * ReportsException by ReportsException.fromException, so the caller sees one error type.
      */
@@ -37,7 +37,7 @@ public with sharing class ReportsService {
                     : 'There is no tool named "' + tool + '". This door offers ' + String.join(TOOLS, ', ') + '.';
                 throw ReportsException.create(ReportsException.ErrorCategory.UNKNOWN_TOOL, 'UNKNOWN_TOOL', message, null);
             }
-            if (SAVE_TOOLS.contains(tool)) requireWrite();
+            if (WRITE_TOOLS.contains(tool)) requireWrite();
             return dispatch(tool, ReportsInput.parse(body));
         } catch (Exception e) {
             throw ReportsException.fromException(e);
@@ -87,6 +87,9 @@ public with sharing class ReportsService {
             }
             when 'run_dashboard' {
                 return ReportsDashboards.runDashboard(input);
+            }
+            when 'refresh_dashboard' {
+                return ReportsDashboards.refreshDashboard(input);
             }
             when else {
                 return combineReports(input);
@@ -331,12 +334,12 @@ public with sharing class ReportsService {
 
     // ---- save tools (phase 3b), ported from src/server.ts ----
 
-    /** The save tools need the Reports_Write custom permission. The read tools never check it. */
+    /** The write tools (the save tools and refresh_dashboard) need the Reports_Write custom permission. The read tools never check it. */
     static void requireWrite() {
         if (FeatureManagement.checkPermission(WRITE_PERMISSION)) return;
         throw ReportsException.create(ReportsException.ErrorCategory.FORBIDDEN, 'WRITE_NOT_ALLOWED',
-            'Saving reports on the in-org door needs the ' + WRITE_PERMISSION + ' custom permission, and this user does not have it.',
-            'Ask an admin to assign the permission set ' + WRITE_PERMISSION_SET + ' to users who may save reports, or use the local server.');
+            'Saving reports and refreshing dashboards on the in-org door needs the ' + WRITE_PERMISSION + ' custom permission, and this user does not have it.',
+            'Ask an admin to assign the permission set ' + WRITE_PERMISSION_SET + ' to users who may save reports or refresh dashboards, or use the local server.');
     }
 
     /**

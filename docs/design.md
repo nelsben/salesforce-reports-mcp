@@ -293,7 +293,7 @@ One Apex class backs both in-org doors: a hosted MCP custom server wraps an Apex
 | `delete_report` | Not offered in the org | |
 | `list_dashboards` | SOQL on `Dashboard` | `GET /analytics/dashboards/{id}/status` per row, for the last refresh |
 | `describe_dashboard`, `run_dashboard` | No: Apex has no dashboard API | `GET /analytics/dashboards/{id}/describe` and `GET /analytics/dashboards/{id}[?filter1=<optionId>]` |
-| `refresh_dashboard` | No | `PUT /analytics/dashboards/{id}`; a later card |
+| `refresh_dashboard` | No | `PUT /analytics/dashboards/{id}?filter1=<optionId>`, then `/status` polls, then the results GET ([decision 0019](decisions/0019-refresh-wait-on-the-in-org-door.md)) |
 
 ### Phase 0: probes
 
@@ -337,12 +337,13 @@ Built 2026-10-12 ([decision 0012](decisions/0012-per-user-jwt-named-credential.m
 
 ### In-org dashboards
 
-Built 2026-10-18. `list_dashboards`, `describe_dashboard` and `run_dashboard` are on the REST door, in the core class `ReportsDashboards`, with the local tools' inputs, outputs, notes and error messages ([decisions 0016 to 0018](decisions/README.md)). `refresh_dashboard` is a later card, and the door answers it 404 `UNKNOWN_TOOL`. The hosted door's tool list, the skills and the README follow later too.
+Built 2026-10-18. `list_dashboards`, `describe_dashboard` and `run_dashboard` are on the REST door, in the core class `ReportsDashboards`, with the local tools' inputs, outputs, notes and error messages ([decisions 0016 to 0018](decisions/README.md)). `refresh_dashboard` follows on the same door (below). The hosted door's tool list and the skills follow later.
 
 - **Listing** is SOQL on `Dashboard` in user mode, newest first, with `query` matched against the title and developer name and `folder` against the folder name. Each row then gets its last refresh from `/status`. A failed `/status` call gives `lastRefreshed: null`. After a `CALLOUT_*` error (no session on the hosted route, or no credential), the list stops calling `/status`, keeps every row with `lastRefreshed: null`, and a note says why.
 - **Describe and run** call `/analytics/dashboards/{id}/describe` and `/analytics/dashboards/{id}` through `ReportsCallout`, so the callout identity is the caller's session on the REST route and the named credential on the hosted route ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md), [decision 0012](decisions/0012-per-user-jwt-named-credential.md)).
 - **Filters** are resolved against describe before the data call, as on the local server: the filter by name, and its option by id exactly or by label, value or alias. Names and labels are trimmed and matched without case. An unknown name or option, a filter given twice, or `filters` on a dashboard without any, answers 400 `INVALID_INPUT` with the local message, and no data call is made. The option id goes on the query string, URL-encoded, as `filter1`.
 - **Each component's `reportResult`** is shaped by `ReportsShape`, with detail rows only for a tabular report and `maxRows` capped by the in-org ceiling. A filtered component gets `Dashboard filter <words>` in its filters.
+- **Refresh** is a write on this door. `refresh_dashboard` needs the `Reports_Write` custom permission, like the save tools: without it the door answers 403 `WRITE_NOT_ALLOWED` before any callout, with a hint naming `Salesforce_Reports_Write`. It takes the local tool's inputs and returns the `run_dashboard` result after the refresh, with the refresh's notes first. It reads `/status` for each component's last refresh, sends `PUT /analytics/dashboards/{id}` with the filter on the query string (a body is ignored), then polls `/status` back to back until every component is done (not running, and either failed or holding data newer than before). Apex cannot sleep, a transaction allows 100 callouts and 120 seconds of callout time, and CPU time is capped at 10 seconds, so the local 3-second pause by 20 polls does not port. The door stops after 20 polls or 30 seconds, whichever comes first (`REFRESH_POLLS` and `REFRESH_BUDGET_MS` in `ReportsDashboards`), counts a failed poll as a poll, and then says in a note that the refresh had not finished and to call `run_dashboard` in a minute ([decision 0019](decisions/0019-refresh-wait-on-the-in-org-door.md)). The once-a-minute 403 becomes the same "cached results, try again after <time>" note as on the local server. `ReportsCallout` reads it, from a 403 on the refresh PUT with code `FORBIDDEN` or the word "minute" in the message, and gives it the code `REFRESH_LIMIT`; no other 403 is touched. Any other failure is thrown.
 - **The card fields** match the local `dashboardView`: `sourceReport`, `measure` (with `Record Count` and `int` for `RowCount`), `metricLabel`, `colorPalette` per component and for the dashboard, and `gauge` with its range, inner breakpoints and colours.
 - **Report names** in describe come from one SOQL on `Report` in user mode. A report the user cannot read gives `name: null`, and its id still works with `run_report`.
 
@@ -363,5 +364,5 @@ Built 2026-10-18. `list_dashboards`, `describe_dashboard` and `run_dashboard` ar
 
 - `ReportsApi` is `with sharing` and runs as the signed-in user, so sharing, folder access and field-level security stay Salesforce's own.
 - The permission set grants the Apex class and nothing else.
-- The save tools check a custom permission, `Reports_Write`, held by a second permission set, before any input is read or callout made. Without it they answer 403 `WRITE_NOT_ALLOWED`. They stay listed on the hosted server, because a tool list is not a security boundary: the REST door can be called directly, and one hosted server cannot vary its tools per user.
+- The save tools and `refresh_dashboard` check a custom permission, `Reports_Write`, held by a second permission set, before any input is read or callout made. Without it they answer 403 `WRITE_NOT_ALLOWED`. They stay listed on the hosted server, because a tool list is not a security boundary: the REST door can be called directly, and one hosted server cannot vary its tools per user.
 - No `delete_report` in the org.

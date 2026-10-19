@@ -23,6 +23,8 @@ public with sharing class ReportsCallout {
     public static final String HOSTED_HINT = 'On the hosted MCP server, search_reports, list_report_folders, describe_report, describe_report_type (through a saved report of the type), run_report with overrides and combine_reports over saved reports still work. For list_report_types, query_report, combine_reports with definitions and the save tools, use the local server or the in-org REST door (docs/decisions/0007).';
     public static final String CREDENTIAL_HINT = 'Ask an admin to assign the permission set ' + CREDENTIAL_PERMISSION_SET + ' to this user. It lets the hosted MCP server call the org\'s REST API as the user, through the named credential ' + CREDENTIAL + ' (docs/decisions/0012).';
     public static final String CREDENTIAL_SETUP_HINT = 'The named credential ' + CREDENTIAL + ' could not mint a token for this user. Ask an admin to run the callout setup again (salesforce/README.md) and to check that the user has the permission set ' + CREDENTIAL_PERMISSION_SET + '.';
+    /** The code of the once-a-minute refresh refusal: a 403 on the dashboard refresh PUT. ReportsDashboards turns it into a note. */
+    public static final String REFRESH_LIMIT = 'REFRESH_LIMIT';
     /** The longest one synchronous callout may take. */
     static final Integer TIMEOUT_MS = 120000;
 
@@ -164,6 +166,10 @@ public with sharing class ReportsCallout {
         }
         if (status == 401 || code == 'INVALID_SESSION_ID') {
             return refused('Salesforce refused the session for ' + call + ' (' + status + ' ' + code + ': ' + message + ').');
+        }
+        // src/reports/dashboards.ts isRefreshLimit: 403 with code FORBIDDEN, or the word "minute" in the message.
+        if (status == 403 && call.startsWith('PUT /analytics/dashboards/') && (code == 'FORBIDDEN' || message.containsIgnoreCase('minute'))) {
+            return ReportsException.create(ReportsException.ErrorCategory.INVALID_INPUT, REFRESH_LIMIT, message, null);
         }
         ReportsException.ErrorCategory category = status >= 400 && status < 500 ? ReportsException.ErrorCategory.INVALID_INPUT : ReportsException.ErrorCategory.FAILED;
         return ReportsException.create(category, code, message, status == 404 ? ReportsException.ID_HINT : ReportsException.hintFor(code, message));

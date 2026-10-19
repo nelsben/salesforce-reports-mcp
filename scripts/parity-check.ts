@@ -197,6 +197,26 @@ async function apexAnswers(label: string, tool: string, args: Record<string, unk
   }
 }
 
+/**
+ * A refresh case: each door answers with data, or with the once-a-minute note and the cached results. The second door
+ * usually meets the note, since the first has just refreshed. Both are fine; a failure or a refresh with no data is not.
+ */
+async function bothRefresh(label: string, args: Record<string, unknown>): Promise<void> {
+  try {
+    const seen: string[] = [];
+    for (const [door, answer] of [["local", await local("refresh_dashboard", args)], ["apex", await apex("refresh_dashboard", args)]] as const) {
+      if (!answer.ok) return line(false, label, `${door} answered ${answer.status ?? "an error"}: ${clip(answer.body)}`);
+      const limited = (answer.body.notes ?? []).some((n: string) => n.includes("once a minute"));
+      const hasData = (answer.body.components ?? []).some((c: Json) => c.status !== "no data");
+      if (!limited && !hasData) return line(false, label, `${door} refreshed but no component has data: ${clip(answer.body.notes)}`);
+      seen.push(`${door} ${limited ? "cached (once a minute)" : "data"}`);
+    }
+    line(true, label, seen.join(", "));
+  } catch (error) {
+    line(false, label, error instanceof Error ? error.message : String(error));
+  }
+}
+
 const prefix = "zz-parity";
 /** The dashboard the dashboard cases read: probes/v0.3-dashboards deploys it. */
 const PROBE_DASHBOARD = "Pipeline_Overview";
@@ -411,7 +431,7 @@ try {
   await apexAnswers("apex: an unknown tool answers 404", "no_such_tool", {}, 404, "UNKNOWN_TOOL");
   await apexAnswers("apex: a bad report id answers 400", "run_report", { reportId: "not-an-id" }, 400, "INVALID_INPUT");
 
-  // Dashboards: read only, against the probe dashboard. Nothing is refreshed or saved.
+  // Dashboards, against the probe dashboard. The refresh case is the only write, and it saves nothing.
   const listed = await local("list_dashboards", { query: PROBE_DASHBOARD });
   const dashboardId: string | undefined = listed.ok ? listed.body.dashboards.find((d: Json) => d.developerName === PROBE_DASHBOARD)?.id : undefined;
   if (!dashboardId) {
@@ -435,7 +455,7 @@ try {
       dashboardId,
       filters: [{ name: "zz-no-such-filter", option: "x" }],
     });
-    await apexAnswers("apex: refresh_dashboard is not on this door yet (404)", "refresh_dashboard", { dashboardId }, 404, "UNKNOWN_TOOL");
+    await bothRefresh("refresh_dashboard on both doors: data, or the once-a-minute note", { dashboardId });
     await apexAnswers("apex: a bad dashboard id answers 400", "describe_dashboard", { dashboardId: "00O000000000000AAA" }, 400, "INVALID_INPUT");
   }
 } catch (error) {

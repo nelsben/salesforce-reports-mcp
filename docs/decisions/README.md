@@ -24,3 +24,4 @@ One page per architectural decision: the context, the decision, what it costs, a
 | [0016](0016-dashboards-read-and-refresh-only.md) | Dashboards are read and refreshed, never saved, and listed through SOQL | Accepted |
 | [0017](0017-dashboard-card.md) | The dashboard card is a second MCP App that draws every component as its chart | Accepted |
 | [0018](0018-cards-follow-the-lightning-design-system.md) | The report card and the dashboard card follow the Lightning Design System, as token values only | Accepted |
+| [0019](0019-refresh-wait-on-the-in-org-door.md) | The in-org door waits for a dashboard refresh by polling back to back within a budget | Accepted |

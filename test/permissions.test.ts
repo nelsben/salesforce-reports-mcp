@@ -36,6 +36,14 @@ describe("permission names", () => {
     expect(cls).toContain("WRITE_PERMISSION_SET = 'Salesforce_Reports_Write'");
   });
 
+  it("ReportsService no longer lists refresh_dashboard as local only, and gates it like the save tools", () => {
+    const cls = read("salesforce/force-app/main/default/classes/ReportsService.cls");
+    const set = (name: string) => [...(new RegExp(`static final Set<String> ${name} = new Set<String>\\{([^}]*)\\}`).exec(cls)?.[1] ?? "").matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+    expect(set("LOCAL_ONLY")).toEqual(["delete_report"]);
+    expect(set("WRITE_TOOLS")).toEqual(["create_report", "update_report", "clone_report", "refresh_dashboard"]);
+    expect(cls).toMatch(/if \(WRITE_TOOLS\.contains\(tool\)\) requireWrite\(\);/);
+  });
+
   it("the door sentence names the write set", () => {
     expect(read("salesforce/scripts/door-tools.ts")).toContain("the permission set Salesforce_Reports_Write.");
   });

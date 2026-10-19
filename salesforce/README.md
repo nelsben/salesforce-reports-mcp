@@ -17,7 +17,7 @@ POST /services/apexrest/reports/v1/<tool>
 Body: the tool's JSON input, as inputSchema in src/server.ts defines it
 200:  the JSON the local tool returns
 400:  bad input or a Salesforce 4xx, 500: anything else. Body: {"error": {"code", "message", "hint"?}}
-403:  a save tool, for a user without the Reports_Write custom permission. Body: {"error": {"code": "WRITE_NOT_ALLOWED", ...}}
+403:  a write tool (a save tool or refresh_dashboard), for a user without the Reports_Write custom permission. Body: {"error": {"code": "WRITE_NOT_ALLOWED", ...}}
 404:  a tool this door lacks. Body: {"error": {"code": "UNKNOWN_TOOL", ...}}
 ```
 
@@ -30,7 +30,7 @@ The class answers on two routes, and reads the tool name from the last segment o
 
 ## Tools
 
-The REST door has fourteen tools: the eight read tools `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`, the three save tools `create_report`, `update_report` and `clone_report`, and the three dashboard readers `list_dashboards`, `describe_dashboard` and `run_dashboard`. The hosted MCP door still lists the first eleven; its dashboard tools come in a later card.
+The REST door has fifteen tools: the eight read tools `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`, the three save tools `create_report`, `update_report` and `clone_report`, the three dashboard readers `list_dashboards`, `describe_dashboard` and `run_dashboard`, and `refresh_dashboard`, a write. The hosted MCP door still lists the first eleven; its dashboard tools come later.
 
 | Tool | On this door | Differences from the local server |
 | --- | --- | --- |
@@ -48,12 +48,12 @@ The REST door has fourteen tools: the eight read tools `search_reports`, `list_r
 | `delete_report` | no, 404 | Use the local server. |
 | `list_dashboards` | yes, with one callout per row | none. A failed `/status` call gives `lastRefreshed: null`. After a `CALLOUT_*` error, such as on the hosted route without `callout-app`, it stops calling `/status`, and a note says why. |
 | `describe_dashboard` | yes, through the callout | none |
-| `run_dashboard` | yes, through the callout | Detail rows per component have the same cap as `run_report`. Its notes still offer `refresh_dashboard`, which the door does not have yet. |
-| `refresh_dashboard` | no, 404 | Use the local server. A later card brings it to the door. |
+| `run_dashboard` | yes, through the callout | Detail rows per component have the same cap as `run_report`. Its notes offer `refresh_dashboard`. |
+| `refresh_dashboard` | yes, through the callout, with the write permission | The wait is shorter: it polls `/status` back to back, at most 20 times or about 30 seconds, not every 3 seconds for 60. A refresh that has not finished says so in a note and points to `run_dashboard` in a minute. The once-a-minute refusal is the same note with the cached results ([decision 0019](../docs/decisions/0019-refresh-wait-on-the-in-org-door.md)). |
 
 ### Saving
 
-The save tools check the custom permission `Reports_Write` with `FeatureManagement.checkPermission` before they read the input or call out. The permission set `Salesforce_Reports_Write` grants it. A user without it gets HTTP 403, code `WRITE_NOT_ALLOWED`, and a hint naming that permission set. The read tools never check it. A user who saves also needs Create and Customize Reports, as on the local server.
+The save tools and `refresh_dashboard` check the custom permission `Reports_Write` with `FeatureManagement.checkPermission` before they read the input or call out. The permission set `Salesforce_Reports_Write` grants it. A user without it gets HTTP 403, code `WRITE_NOT_ALLOWED`, and a hint naming that permission set. The read tools never check it. A user who saves also needs Create and Customize Reports, as on the local server.
 
 - `create_report` posts to `/analytics/reports`. From `fromReportId`, it first reads the saved report's REST describe, so the copy keeps fields Apex does not expose, such as `sortBy` and `presentationOptions`.
 - `update_report` patches `/analytics/reports/{id}` with only the given fields, and answers one `changes` line per field sent.
@@ -83,8 +83,8 @@ The save tools check the custom permission `Reports_Write` with `FeatureManageme
 | Class | Layer | What it does |
 | --- | --- | --- |
 | `ReportsApi` | REST adapter | The `@RestResource`. Reads the tool name from the URL and the body text, calls `ReportsService`, and answers 200, or maps an error's category to 400, 403, 404 or 500 with the error body. |
-| `ReportsService` | core | The tool list, the `Reports_Write` check for the save tools (before the input is read or any callout), dispatch by tool name, and the eleven report tools, the SOQL ones included. Ported from `src/server.ts`. |
-| `ReportsDashboards` | core | `src/reports/dashboards.ts` and the dashboard card fields from `src/server.ts`: `list_dashboards` (SOQL on `Dashboard`, then `/status` per row), `describe_dashboard` and `run_dashboard` through `ReportsCallout`, filters resolved to `filter1` option ids, each component's report result shaped by `ReportsShape`. |
+| `ReportsService` | core | The tool list, the `Reports_Write` check for the save tools and `refresh_dashboard` (before the input is read or any callout), dispatch by tool name, and the eleven report tools, the SOQL ones included. Ported from `src/server.ts`. |
+| `ReportsDashboards` | core | `src/reports/dashboards.ts` and the dashboard card fields from `src/server.ts`: `list_dashboards` (SOQL on `Dashboard`, then `/status` per row), `describe_dashboard` and `run_dashboard` through `ReportsCallout`, filters resolved to `filter1` option ids, each component's report result shaped by `ReportsShape`, and `refresh_dashboard` (a status read, the PUT, then a bounded run of `/status` polls). |
 | `ReportsInput` | core | Parses the body and reads typed fields, refusing bad input with the local server's messages. |
 | `ReportsException` | core | The one error type: code, message, hint and a category (invalid input, forbidden, unknown tool, failed), never an HTTP status. Turns any other exception into one, as `src/format.ts` does. |
 | `ReportsDefinition` | core | `src/reports/definition.ts`: the friendly definition to `reportMetadata` to `Reports.ReportMetadata`. |

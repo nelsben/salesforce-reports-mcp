@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `refresh_dashboard` on the in-org REST door, in `ReportsDashboards`, with the local tool's inputs, output (the `run_dashboard` result after the refresh) and notes. It is a write: it needs the `Reports_Write` custom permission, like the save tools, and a user without it gets 403 `WRITE_NOT_ALLOWED` before any callout. The REST door now has 15 tools. Apex cannot sleep, so the wait polls `/status` back to back, at most 20 times or about 30 seconds, then says in a note that the refresh had not finished and to call `run_dashboard` in a minute ([decision 0019](docs/decisions/0019-refresh-wait-on-the-in-org-door.md)). The once-a-minute 403 becomes the same cached-results note as on the local server, read in `ReportsCallout`. The parity check gains a refresh case on both doors, and the live check runs the refresh on the in-org door.
+
 - [docs/claude-desktop.md](docs/claude-desktop.md): the recipe for the local server in Claude Desktop, with the absolute `node` path and the `PATH` for `sf` that a Dock-launched app needs, how to check it works, the safety flags, the log file, and a table of what each Claude surface can do with a local server. Claude mobile cannot start one, and the page gives the three ways round that with their costs.
 
 - The README leads with the local MCP server: MCP on Salesforce with nothing installed in the org and no Salesforce MCP, a Claude Desktop conversation as the headline, the cards right under it, and the two-command install near the top. The in-org packages are introduced as the same tools rebuilt for people who cannot run a local server. The local door's tool count in the doors table is now 16.
