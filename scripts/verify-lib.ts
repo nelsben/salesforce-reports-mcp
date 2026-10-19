@@ -53,12 +53,16 @@ export function stepSpecs(org: string, auth?: string): StepSpec[] {
 // eslint-disable-next-line no-control-regex
 const stripAnsi = (text: string) => text.replace(/\u001b\[[0-9;]*m/g, "");
 
-/** The JSON object in the output, which may follow some lines of text. Undefined when there is none. */
+/**
+ * The JSON object in the output, which may follow some lines of text and be followed by more (the Salesforce CLI
+ * prints its update warning on stderr, after the JSON). Undefined when there is none.
+ */
 function jsonIn(output: string): Record<string, any> | undefined {
   const start = output.indexOf("{");
-  if (start < 0) return undefined;
+  const end = output.lastIndexOf("}");
+  if (start < 0 || end < start) return undefined;
   try {
-    return JSON.parse(output.slice(start));
+    return JSON.parse(output.slice(start, end + 1));
   } catch {
     return undefined;
   }
