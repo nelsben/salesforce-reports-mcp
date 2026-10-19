@@ -103,7 +103,7 @@ To remove the REST door, remove the MCP door first if it is installed, then unas
 
 ### The MCP door
 
-`salesforce/mcp-app` holds the API Catalog entry `ReportsApi`, the MCP server `SalesforceReports` with its eleven tools, and the External Client App that Claude signs in through. It holds no code: install the REST door first.
+`salesforce/mcp-app` holds the API Catalog entry `ReportsApi`, the MCP server `SalesforceReports` with its fifteen tools, and the External Client App that Claude signs in through. It holds no code: install the REST door first.
 
 1. Deploy it from `salesforce/`, on top of `force-app`.
 
@@ -111,13 +111,13 @@ To remove the REST door, remove the MCP door first if it is installed, then unas
    sf project deploy start -d mcp-app -o <alias>
    ```
 
-2. Run the setup script from the repo root. It writes the eleven tool rows if they are missing, turns the server on, and prints the server's URL. Name the org with `--org`, then either pass `--yes` or set `SF_REPORTS_SETUP_ORGS` to the aliases these scripts may change (comma-separated). When that variable is set, an alias not on it is refused even with `--yes`. The script prints the alias and instance URL before it writes.
+2. Run the setup script from the repo root. It writes the fifteen tool rows if they are missing, turns the server on, and prints the server's URL. Name the org with `--org`, then either pass `--yes` or set `SF_REPORTS_SETUP_ORGS` to the aliases these scripts may change (comma-separated). When that variable is set, an alias not on it is refused even with `--yes`. The script prints the alias and instance URL before it writes.
 
    ```bash
    npm run mcp:setup -- --org <alias> --yes
    ```
 
-3. If the script says operations are inactive and a tool call fails, open Setup, go to API Catalog, open `ReportsApi`, select its eleven operations, and click Activate. No API does this.
+3. If the script says operations are inactive and a tool call fails, open Setup, go to API Catalog, open `ReportsApi`, select its fifteen operations, and click Activate. No API does this.
 4. Read the External Client App's consumer key. It is a public client with PKCE and the `mcp_api` and `refresh_token` scopes. Run the query, then pass the Id it prints to the second command. Run both from `salesforce/`.
 
    ```bash
