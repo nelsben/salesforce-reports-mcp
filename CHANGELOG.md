@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- [docs/claude-desktop.md](docs/claude-desktop.md): the recipe for the local server in Claude Desktop, with the absolute `node` path and the `PATH` for `sf` that a Dock-launched app needs, how to check it works, the safety flags, the log file, and a table of what each Claude surface can do with a local server. Claude mobile cannot start one, and the page gives the three ways round that with their costs.
+
 - The README leads with the local MCP server: MCP on Salesforce with nothing installed in the org and no Salesforce MCP, a Claude Desktop conversation as the headline, the cards right under it, and the two-command install near the top. The in-org packages are introduced as the same tools rebuilt for people who cannot run a local server. The local door's tool count in the doors table is now 16.
 
 - `npm run typecheck` checks the scripts and tests that `tsc` skips (`salesforce/scripts`, `scripts`, `test`) through `tsconfig.check.json`, and CI runs it after the build. Types only, no change in behaviour: one cast in `salesforce/scripts/org.ts` and one in `test/server.test.ts`.

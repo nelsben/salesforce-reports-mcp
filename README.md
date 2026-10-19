@@ -27,7 +27,7 @@ claude plugin marketplace add nelsben/salesforce-reports-mcp
 claude plugin install salesforce-reports@salesforce-reports
 ```
 
-That installs the three skills and the MCP server. Claude Desktop and any other MCP client take the server on its own; [docs/install.md](docs/install.md#the-local-mcp-server) has the config, the `--read-only` flag and the token option.
+That installs the three skills and the MCP server. For Claude Desktop, [docs/claude-desktop.md](docs/claude-desktop.md) is the full recipe: the config entry with the two paths that trip people up, how to check it works, the safety flags, and what each Claude surface, including mobile, can do with a local server. [docs/install.md](docs/install.md#the-local-mcp-server) has every option.
 
 ## Why I built this
 
@@ -149,7 +149,8 @@ The method was the same for every feature: probe the platform, decide in writing
 
 | You want | Start here |
 | --- | --- |
-| Claude Code or Desktop on your own org, nothing installed in Salesforce | [Local MCP server](docs/install.md#the-local-mcp-server) |
+| Claude Desktop on your own org, nothing installed in Salesforce | [Claude Desktop guide](docs/claude-desktop.md) |
+| Claude Code or another MCP client, the same way | [Local MCP server](docs/install.md#the-local-mcp-server) |
 | The feature inside your org, called from the CLI, scripts or agents | [The REST door](docs/install.md#the-rest-door) |
 | Claude in the browser, signed in through Salesforce | [The MCP door](docs/install.md#the-mcp-door), then [the callout tools](docs/install.md#the-callout-tools-on-the-mcp-door) |
 
