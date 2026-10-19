@@ -8,7 +8,7 @@
  * answers after normalize(), and delete every report through the local server. The org's user needs the
  * Salesforce_Reports_Write permission set for the door's save cases. The dashboard cases read the probe dashboard
  * Pipeline_Overview (probes/v0.3-dashboards) through both doors: list, describe, run from the cache, run with filter1
- * and two refused filters. They never refresh it.
+ * and two refused filters. They never refresh it. With no such dashboard in the org they read SKIP, as in the live check.
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -434,8 +434,10 @@ try {
   // Dashboards, against the probe dashboard. The refresh case is the only write, and it saves nothing.
   const listed = await local("list_dashboards", { query: PROBE_DASHBOARD });
   const dashboardId: string | undefined = listed.ok ? listed.body.dashboards.find((d: Json) => d.developerName === PROBE_DASHBOARD)?.id : undefined;
-  if (!dashboardId) {
-    line(false, `dashboard ${PROBE_DASHBOARD} found`, "deploy probes/v0.3-dashboards to check the dashboard cases");
+  if (!listed.ok) {
+    line(false, `list_dashboards ${PROBE_DASHBOARD}`, "the local door did not answer");
+  } else if (!dashboardId) {
+    console.log(`SKIP  dashboard cases: no dashboard ${PROBE_DASHBOARD} in this org (deploy probes/v0.3-dashboards to check them)`);
   } else {
     await same(`list_dashboards ${PROBE_DASHBOARD}`, "list_dashboards", { query: PROBE_DASHBOARD });
     await same("describe_dashboard", "describe_dashboard", { dashboardId });
