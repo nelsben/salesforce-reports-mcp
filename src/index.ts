@@ -4,9 +4,10 @@ import { parseArgs } from "node:util";
 import { ReportsApi } from "./reports/api.js";
 import { createClient, DEFAULT_API_VERSION } from "./salesforce/client.js";
 import { resolveConnection } from "./salesforce/connection.js";
+import { assertLoopbackHost, startHttpServer } from "./http.js";
 import { buildServer } from "./server.js";
 
-const HELP = `salesforce-reports-mcp: an MCP server for Salesforce reports (stdio)
+const HELP = `salesforce-reports-mcp: an MCP server for Salesforce reports (stdio, or Streamable HTTP with --http)
 
 Usage: salesforce-reports-mcp [--org <alias>] [options]
 
@@ -16,6 +17,8 @@ Usage: salesforce-reports-mcp [--org <alias>] [options]
   --read-only          Register no write tools (env SF_REPORTS_READ_ONLY=1).
   --allow-delete       Register delete_report (env SF_REPORTS_ALLOW_DELETE=1).
   --max-rows <n>       Default cap on detail rows per result (env SF_REPORTS_MAX_ROWS). Default 200, ceiling 2000.
+  --http <port>        Serve Streamable HTTP at /mcp instead of stdio (env SF_REPORTS_HTTP_PORT). Port 0 picks a free port.
+  --host <host>        Host for --http (env SF_REPORTS_HTTP_HOST). Default 127.0.0.1. Loopback only until the OAuth layer lands.
   -h, --help           Show this help.
 `;
 
@@ -31,6 +34,8 @@ async function main(): Promise<void> {
       "read-only": { type: "boolean" },
       "allow-delete": { type: "boolean" },
       "max-rows": { type: "string" },
+      http: { type: "string" },
+      host: { type: "string" },
       help: { type: "boolean", short: "h" },
     },
     strict: true,
@@ -46,14 +51,36 @@ async function main(): Promise<void> {
     throw new Error("--max-rows must be a whole number from 1 to 2000.");
   }
 
+  const httpRaw = values.http ?? process.env.SF_REPORTS_HTTP_PORT;
+  const host = values.host ?? process.env.SF_REPORTS_HTTP_HOST ?? "127.0.0.1";
+  let port: number | undefined;
+  if (httpRaw !== undefined && httpRaw !== "") {
+    port = Number(httpRaw);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) throw new Error("--http must be a port from 0 to 65535.");
+    assertLoopbackHost(host);
+  }
+
   const connection = resolveConnection({ org: values.org });
   const client = createClient(connection, { apiVersion: values["api-version"] ?? process.env.SF_API_VERSION });
-  const server = buildServer(new ReportsApi(client), {
-    readOnly: flag(values["read-only"], "SF_REPORTS_READ_ONLY"),
-    allowDelete: flag(values["allow-delete"], "SF_REPORTS_ALLOW_DELETE"),
-    maxRows,
-  });
-  await server.connect(new StdioServerTransport());
+  const reports = new ReportsApi(client);
+  const make = () =>
+    buildServer(reports, {
+      readOnly: flag(values["read-only"], "SF_REPORTS_READ_ONLY"),
+      allowDelete: flag(values["allow-delete"], "SF_REPORTS_ALLOW_DELETE"),
+      maxRows,
+    });
+
+  if (port === undefined) {
+    await make().connect(new StdioServerTransport());
+    return;
+  }
+  const handle = await startHttpServer({ port, host, createServer: make });
+  const shutdown = () => {
+    void handle.close().then(() => process.exit(0));
+  };
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
+  process.stderr.write(`salesforce-reports-mcp: listening on http://${host.includes(":") ? `[${host}]` : host}:${handle.port}/mcp\n`);
 }
 
 main().catch((error) => {
