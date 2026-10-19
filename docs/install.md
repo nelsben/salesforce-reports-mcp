@@ -156,6 +156,16 @@ Without more setup, `list_report_types`, `query_report`, `combine_reports` with 
 
 To remove the MCP door, run `npm run mcp:teardown -- --org <alias> --yes` (the same `--yes` or `SF_REPORTS_SETUP_ORGS` rule applies), then the `mcp-app` removal in [salesforce/README.md](../salesforce/README.md). The REST door stays and keeps working.
 
+### Verify
+
+From the repo root, one command runs the whole loop against one org:
+
+```bash
+npm run verify -- --org <alias> --auth <auth alias>
+```
+
+It runs `build`, `typecheck`, `test`, `deploy` (the Apex tests), `parity`, `live` (on the in-org door, with deletes), `hosted` and `leftover` (a query that proves no report was left behind), in that order. The first failure stops the run and the later steps read `SKIP`. `--skip <step,...>` skips named steps. `hosted` needs `--auth`, a CLI sign-in made through the External Client App (the recipe is above); without it the step reads `SKIP`. Each step's output goes to a file under `--log <dir>` (a fresh temp folder by default), and the run ends with one table of counts: tests passed, Apex tests run and failed, parity cases matched and differing, live steps passed, hosted tools and steps, and the leftover count. It exits 0 only when no step failed. The logic is in `scripts/verify-lib.ts`.
+
 ## The skills
 
 The skills live in `skills/`: `report-runner`, `report-designer` and `report-deploy`. Each has a `description` that makes Claude pick it for its own experience, and the designer and runner keep a `reference.md` with the definition grammar and how to read a result. The plugin installs all three.

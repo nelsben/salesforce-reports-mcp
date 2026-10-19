@@ -101,6 +101,8 @@ The dependency rule: no class but `ReportsApi` and its tests names `ReportsApi`,
 
 Run these from this folder (`salesforce/`). Replace `<alias>` with a Salesforce CLI alias.
 
+To run the deploy, the other checks and the leftover query in one go, use `npm run verify -- --org <alias>` from the repo root (see [docs/install.md](../docs/install.md), "Verify"). The steps by hand:
+
 Deploy the REST door, then, for the MCP door, `mcp-app` on top of it:
 
 ```bash

@@ -46,6 +46,7 @@
     "mcp:teardown": "tsx salesforce/scripts/mcp-teardown.ts",
     "callout:setup": "tsx salesforce/scripts/callout-setup.ts",
     "callout:renew": "tsx salesforce/scripts/callout-setup.ts --renew-certificate",
+    "verify": "tsx scripts/verify.ts",
     "demo:gif": "tsx scripts/demo-gif.ts"
   },
   "dependencies": {
