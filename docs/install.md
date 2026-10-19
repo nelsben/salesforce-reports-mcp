@@ -27,7 +27,7 @@ This gives you the server without the skills.
 claude mcp add salesforce-reports -- npx -y salesforce-reports-mcp --org <alias>
 ```
 
-**Claude Desktop**: add this to `claude_desktop_config.json`, then restart Claude Desktop.
+**Claude Desktop**: add this to `claude_desktop_config.json`, then restart Claude Desktop. Claude Desktop does not see your shell's `PATH`, so if the server never starts, give the full path to `npx` or `node` and put the directory that holds `sf` in `env.PATH`; [claude-desktop.md](claude-desktop.md) walks through it, with what each Claude surface can do.
 
 ```json
 {
@@ -69,7 +69,7 @@ There are three doors to the same tools. Each takes the same tool names and inpu
 
 | Door | What runs | Who uses it | Tools |
 | --- | --- | --- | --- |
-| Local MCP | This Node server, on your machine | Claude Code, Claude Desktop, any MCP client that starts a process | All 12 |
+| Local MCP | This Node server, on your machine | Claude Code, Claude Desktop, any MCP client that starts a process | All 16: the twelve report tools and the four dashboard tools |
 | In-org REST | The Apex class `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce, other agents | 11: the eight read tools and three save tools |
 | In-org MCP | Salesforce hosted MCP over `ReportsApi`, server `SalesforceReports` | claude.ai and other remote MCP clients, with nothing to host | 11: the eight read tools and three save tools |
 
