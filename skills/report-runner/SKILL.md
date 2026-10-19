@@ -34,6 +34,10 @@ Reach for a dashboard tool instead of a report run when the user names a dashboa
 3. **Read it** with `run_dashboard`. Lead with the two or three components that answer the question, each by its header, and say when the data was refreshed and whose data it shows (`runningUser`). Read `notes`.
 4. **No data or old data.** When a note says a component has no data, or the numbers are more than a day old, say so and offer `refresh_dashboard` with the same filters. Do not refresh without the user's yes: a refresh reruns every source report and changes what other viewers see. If it answers that the dashboard was refreshed less than a minute ago, give the cached numbers and the time to try again; do not retry at once.
 
+## A dashboard to keep or share
+
+Use this only where the host offers Claude's Dashboard artifacts and `run_report` comes from a connector (the in-org hosted server, or the local server over HTTP on claude.ai). When the person wants a view to keep, share or open again ("make this a dashboard", "can the team see this"), offer a live Claude Dashboard built on `run_report` as its query, and build it only after their yes. Do not offer it unasked, and do not use it for a one-off answer. The loader that turns a result into rows is in `reference.md`. On the local stdio server the artifact cannot call a tool, so only a fixed copy is possible: say it will not update and why, and let the person choose. The dashboard saves no Salesforce report.
+
 ## Never save
 
 Do not call `create_report`, `update_report`, `clone_report` or `delete_report` from this skill. If the user wants a slice kept, or a report changed, say so plainly ("Want me to save this as a report?") and carry on only after they say yes.

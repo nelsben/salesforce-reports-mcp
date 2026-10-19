@@ -1,6 +1,6 @@
 # Install and connect
 
-Each of the three ways to connect has its own setup. Pick one from the [README](../README.md#three-ways-to-connect); they can run side by side.
+Each of the four ways to connect has its own setup. Pick one from the [README](../README.md#four-ways-to-connect); they can run side by side. Door 4 is a section of the local server, [From claude.ai and your phone](#from-claudeai-and-your-phone).
 
 ## The local MCP server
 
@@ -61,6 +61,54 @@ Everything runs as the authenticated user. Salesforce sharing, folder access and
 | `--read-only` | `SF_REPORTS_READ_ONLY=1` | off | Register no write tools. |
 | `--allow-delete` | `SF_REPORTS_ALLOW_DELETE=1` | off | Register `delete_report`. |
 | `--max-rows <n>` | `SF_REPORTS_MAX_ROWS` | `200` | Default cap on detail rows per result. The ceiling is 2,000. |
+| `--http <port>` | `SF_REPORTS_HTTP_PORT` | off (stdio) | Serve Streamable HTTP at `/mcp` instead of stdio. See the next section. |
+| `--host <host>` | `SF_REPORTS_HTTP_HOST` | `127.0.0.1` | Address to listen on. A non-loopback host needs `--public-url`. |
+| `--public-url <url>` | `SF_REPORTS_PUBLIC_URL` | none | The public HTTPS address of the tunnel. Turns the sign-in layer on. |
+| | `SF_REPORTS_HTTP_PASSCODE` | none | The passcode for the sign-in page, at least 16 characters. Required with `--public-url`. Environment only, never a flag. |
+
+### From claude.ai and your phone
+
+This is door 4: the same server over HTTP, behind a tunnel. claude.ai and the Claude mobile apps add it as a custom connector. It still signs in to Salesforce with your `sf` CLI session, so nothing is installed in the org. Every client that gets in acts as that one Salesforce user, and the machine and the tunnel must stay up ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)). Replace `<alias>` with your CLI alias and `<tunnel url>` with the HTTPS address your tunnel prints.
+
+1. Build the server once, from the folder you cloned.
+
+   ```bash
+   npm install && npm run build
+   ```
+
+2. Choose a passcode of at least 16 characters and set it in the shell you will start the server from. It is typed on the sign-in page later, so keep a copy.
+
+   ```bash
+   export SF_REPORTS_HTTP_PASSCODE='<a passcode of 16 or more characters>'
+   ```
+
+3. Start a tunnel. `cloudflared` is one choice and any HTTPS tunnel works. Copy the `https://` address it prints.
+
+   ```bash
+   cloudflared tunnel --url http://127.0.0.1:8787
+   ```
+
+4. In a second terminal, with the same passcode set, start the server with that address. Add `--read-only` unless you want saves from the phone.
+
+   ```bash
+   node dist/index.js --org <alias> --http 8787 --public-url <tunnel url>
+   ```
+
+   It prints one line: `salesforce-reports-mcp: listening on http://127.0.0.1:8787/mcp (public at <tunnel url>/mcp, OAuth sign-in on)`. `--public-url` takes the origin only, with no path.
+
+5. In claude.ai, open Settings, then Connectors, and add a custom connector. The URL is the tunnel address plus `/mcp`, for example `<tunnel url>/mcp`.
+
+6. Connect it. A browser tab opens on the server's sign-in page. It names the client and says approving lets it run the tools as your Salesforce user. Type the passcode and approve.
+
+Done looks like this: the connector shows the 16 tools, and a new chat on claude.ai or your phone can answer "list the report types I can build on". The report card draws where the host draws MCP Apps.
+
+Notes:
+
+- Restarting the server signs every client out. Connect again with the passcode.
+- Access tokens last one hour and refresh tokens 30 days. Tokens are random, held only as hashes in memory, and bound to this server.
+- A quick tunnel gets a new address each time it starts. Change the connector's URL and the server's `--public-url` to match, or use a named tunnel with a fixed address.
+- Without `--public-url`, `--http` listens on loopback only and needs no sign-in. A non-loopback `--host` without `--public-url` is refused.
+- Ten wrong passcodes within 15 minutes lock the sign-in page for everyone for the rest of that window, the right passcode included. That stops guessing, and it means a stranger who finds the page can make you wait.
 
 ## The in-org doors
 

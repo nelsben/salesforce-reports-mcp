@@ -23,6 +23,7 @@ npm run demo:gif                    # remakes docs/assets/report-view.gif from t
 npm run live -- --org <alias> --allow-delete   # every tool against a real org; leaves no report behind
 npm run capture -- --org <alias>    # recapture test fixtures (then anonymise; see below)
 node dist/index.js --org <alias>    # run the server over stdio
+node dist/index.js --org <alias> --http 8787   # the same server over HTTP on loopback (door 4; add --public-url and SF_REPORTS_HTTP_PASSCODE behind a tunnel)
 ```
 
 CI runs build and test on Node 20 and 22. The live check needs a real org and runs by hand only.
@@ -37,6 +38,7 @@ CI runs build and test on Node 20 and 22. The live check needs a real org and ru
 | `src/reports/shape.ts` | factMap to `ReportResult` |
 | `src/reports/summarize.ts`, `combine.ts` | describe summaries, stack and join |
 | `src/server.ts` | tool registration; tool descriptions are prompts Claude reads |
+| `src/http.ts`, `src/http-auth.ts` | door 4: Streamable HTTP at `/mcp`, and its own OAuth 2.1 server for one owner (passcode page, tokens held as hashes in memory) |
 | `src/widget/` | the report view: one self-contained HTML MCP App that `run_report` and `query_report` carry on the local door |
 | `skills/` | the Claude skills |
 | `test/fixtures/` | captured, anonymised API responses and expected results |

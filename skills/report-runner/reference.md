@@ -40,6 +40,20 @@ Examples of slices, in the user's words:
 
 The server fixes two Salesforce quirks and says so in `notes`: it adds an aggregated column to the detail columns, and drops a grouped column from them.
 
+## Loader for a Claude Dashboard
+
+A Claude Dashboard artifact binds live data to a connector tool, here `run_report` (or `query_report`), and draws rows. Its loader calls the tool, then reshapes the `ReportResult` into plain rows:
+
+1. `groups.dimensions` and `groups.measures` are lists of objects. Their `name` values, dimensions first and then measures, name the cells of each row in `groups.rows`, in order. Zip each row with those names into one object per row, and use each `label` as the column heading.
+2. `totals.measures` and `totals.values` are two lists of the same length. Zip them into one more row, labelled "Total".
+3. A flat report has no `groups`: zip each row of `detail.rows` with the `name` of each entry in `detail.columns` instead, and say when `detail.truncated` is true.
+4. `filters` stay words. Show them as a caption or a filter note, never as controls the dashboard cannot honour.
+5. Carry `notes` and `report.url` through: show any note about cut rows, and keep the link to the report.
+
+Keep the run's input in the dashboard (the `reportId` and any `overrides`) so each refresh asks the same question. Check the shape of a real result before writing the loader.
+
+On the local stdio server there is no connector, so a dashboard can hold only a fixed copy of one result. Say that it is a snapshot, will not update, and why, before building it. A live one needs door 4 (the server over HTTP) or the hosted server.
+
 ## Limits
 
 - At most 2,000 detail rows and 100 columns per run, and 500 synchronous runs per org per hour. Prefer one grouped query over many small ones.

@@ -4,7 +4,7 @@ How the pieces fit, who calls what, and where each control lives. This page is t
 
 Diagrams are Mermaid. GitHub renders them; VS Code needs a Mermaid preview extension. Each sequence diagram is numbered, and the table under it says what happens at each step and which decision record settled it.
 
-## Three doors, one contract
+## Four doors, one contract
 
 Every door exposes the same tool names, takes the same `ReportDefinition` and returns the same `ReportResult`. The skills bind to tool names, never to a transport, so a skill written against one door works against the others.
 
@@ -13,8 +13,9 @@ Every door exposes the same tool names, takes the same `ReportDefinition` and re
 | Local MCP server | npm package (v0.1) | Claude Desktop, Claude Code, any MCP client | the user's machine, Node 20+ | the `sf` CLI session or a token |
 | In-org REST | Salesforce package `force-app` plus the skills | Claude Code and Cowork through the `sf` CLI; Postman, Flow HTTP callouts, Agentforce, any HTTP client | the Salesforce org | the caller's own Salesforce session |
 | In-org hosted MCP | Salesforce package `mcp-app`, deployed on top of `force-app`, and optionally `callout-app` for the callout tools | claude.ai, Claude Desktop, any MCP client with OAuth | Salesforce's MCP gateway, then the org | OAuth against the External Client App, scope `mcp_api` |
+| Local server over HTTP | The same npm package, started with `--http` | claude.ai in a browser, Claude mobile, Claude's Dashboard artifacts; one owner | the owner's machine, behind an HTTPS tunnel | the server's own OAuth sign-in with a passcode, then the machine's `sf` CLI session to Salesforce |
 
-Nothing in the local server depends on the org packages. The hosted MCP door depends on the REST door, because Salesforce builds a custom MCP server from an API Catalog registration of an Apex REST class. That dependency is the platform's, not ours, and the layering below keeps it honest.
+Door 4 is door 1 with a different transport, so it shares its code and needs nothing in the org either ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)). Nothing in the local server depends on the org packages. The hosted MCP door depends on the REST door, because Salesforce builds a custom MCP server from an API Catalog registration of an Apex REST class. That dependency is the platform's, not ours, and the layering below keeps it honest.
 
 The local door alone also carries a report view: `run_report` and `query_report` return their result as `structuredContent` too, with an MCP App resource, `ui://salesforce-reports/report`, that draws it as a report card in Claude Desktop, claude.ai and Cowork. The text result is unchanged, so Claude Code sees no difference. The in-org doors carry no view ([decision 0013](decisions/0013-report-view-as-an-mcp-app.md)). The third package, `callout-app`, is optional and holds no code: a per-user named credential that lets the hosted door call the org's own REST API as the user ([decision 0012](decisions/0012-per-user-jwt-named-credential.md)). `force-app` never depends on it.
 
@@ -318,6 +319,57 @@ This was the one open question in v0.2, settled on 2026-10-12 ([decision 0007](d
 | Named Credential, per-user principal, browser flow | Yes | each user authorises once in My Settings, and a consumer secret | Turned down for the JWT flow |
 | Named Credential, named principal | Yes, but reports would run as the integration user | one credential | Ruled out: the caller's sharing and field security would be lost |
 
+## Door 4: the local server over HTTP
+
+The same server as door 1, started with `--http` and `--public-url`, behind an HTTPS tunnel the owner runs. claude.ai and the phone reach it as a custom connector. It signs the connector in with its own OAuth server and a passcode, then calls Salesforce as the `sf` CLI user of the machine, so nothing is installed in the org and no Salesforce MCP is used. Every client acts as that one user ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)).
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Owner
+  participant H as claude.ai<br/>or the phone
+  participant T as HTTPS tunnel
+  participant S as Local MCP server<br/>Node, --http
+  participant CLI as sf CLI
+  participant RR as Reports REST API
+  participant V as Report card<br/>MCP App
+
+  U->>H: Add custom connector: tunnel URL plus /mcp
+  H->>T: POST /mcp without a token
+  T->>S: forwarded
+  S-->>H: 401 with the protected-resource metadata URL
+  H->>S: metadata, then dynamic client registration
+  H->>U: opens /authorize in the browser (PKCE S256 challenge)
+  U->>S: the passcode, on the server's own page
+  S->>S: constant-time check, rate limited, one-time code bound to client, redirect and resource
+  S-->>H: redirect with the code
+  H->>S: POST /token with the PKCE verifier
+  S-->>H: opaque access token (1 hour) and refresh token (30 days)
+  U->>H: "Which stage holds most of the pipeline?"
+  H->>S: tools/call query_report over /mcp, Authorization: Bearer
+  S->>S: hash the token, check expiry and audience
+  S->>CLI: the sf CLI session (first call of the process)
+  CLI-->>S: instance URL and token, held in memory only
+  S->>RR: POST /services/data/v62.0/analytics/reports/query
+  RR-->>S: factMap
+  S-->>H: text ReportResult and structuredContent
+  H->>S: resources/read ui://salesforce-reports/report
+  S-->>H: the report card document
+  H->>V: draws the card, where the host draws MCP Apps
+  H-->>U: the answer
+```
+
+| Steps | What happens |
+| --- | --- |
+| 1 to 4 | The owner adds the tunnel URL plus `/mcp` as a custom connector. A request without a token gets a 401 whose `WWW-Authenticate` header names the metadata, which is how the client finds the sign-in. |
+| 5 to 6 | The client registers itself (dynamic client registration) and sends the owner to `/authorize` with a PKCE challenge. Only https and loopback redirect URIs are accepted. |
+| 7 to 9 | The page names the client and says approving lets it run the tools as the signed-in Salesforce user. The passcode comes from `SF_REPORTS_HTTP_PASSCODE`. A right answer redirects with a single-use code that lives 5 minutes. |
+| 10 to 11 | The client exchanges the code and its PKCE verifier for tokens. Tokens are opaque, bound to this server's `/mcp`, and held only as SHA-256 hashes in memory. A restart signs every client out. |
+| 12 to 14 | Each call carries the bearer. The server checks expiry and audience, and never forwards the token anywhere: token passthrough is out ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)). |
+| 15 to 19 | From here it is door 1: the `sf` CLI session, one request to the Reports REST API as the user, and the factMap shaped into a `ReportResult` ([decision 0008](decisions/0008-result-limits.md)). |
+| 20 to 22 | The result went back as text and `structuredContent`; the host reads the same `ui://` view as door 1 and draws it. |
+| 23 | The reply comes back to the owner, with the card drawn where the host draws MCP Apps. Claude's Dashboard artifact can use `run_report` from this connector as its live query ([decision 0021](decisions/0021-claude-dashboards-as-the-shareable-view.md)). |
+
 ## The write path, both doors
 
 ```mermaid
@@ -359,6 +411,7 @@ There is no `delete_report` in the org. Deleting is left to the report builder a
 | Permission set `Salesforce_Reports_Write` with custom permission `Reports_Write` | who may create, update or clone | admin | `ReportsService`, before any callout |
 | `with sharing`, running as the caller | which reports, folders, rows and fields a call can see | the org's existing sharing model | the platform |
 | External Client App scopes `mcp_api`, `refresh_token` | what the hosted connector's token can reach | admin, at deploy | Salesforce OAuth |
+| Passcode `SF_REPORTS_HTTP_PASSCODE`, with short-lived audience-bound tokens | who may use door 4's Salesforce identity | the owner, in the environment | the server's OAuth layer, before any tool runs |
 | `SF_REPORTS_SETUP_ORGS` or `--yes` | which orgs the setup scripts will write to | the person running the script | the scripts, before any CLI call |
 | No in-org delete | the one irreversible action | design | absence of code |
 

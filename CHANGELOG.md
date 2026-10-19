@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Door 4: the local server over HTTP, so claude.ai and the phone can use it with nothing in the org and no Salesforce MCP. `--http <port>` (`SF_REPORTS_HTTP_PORT`) serves Streamable HTTP at `/mcp`, `--host <host>` (`SF_REPORTS_HTTP_HOST`, default `127.0.0.1`) sets the address, and `--public-url <url>` (`SF_REPORTS_PUBLIC_URL`) turns on the server's own OAuth 2.1 sign-in for one owner: dynamic client registration, PKCE, and a passcode page checked against `SF_REPORTS_HTTP_PASSCODE` (at least 16 characters). Tokens are opaque, audience-bound and held as hashes in memory. The steps are in [From claude.ai and your phone](docs/install.md#from-claudeai-and-your-phone), the sequence in [docs/architecture.md](docs/architecture.md), and the reasons in [decision 0020](docs/decisions/0020-door-four-the-local-server-over-http.md).
+- The report-runner skill offers a live Claude Dashboard when the person wants a view to keep or share, where the host offers Claude's Dashboard artifacts and `run_report` comes from a connector. Its reference gains the loader recipe, and says that on the local door only a fixed copy is possible ([decision 0021](docs/decisions/0021-claude-dashboards-as-the-shareable-view.md)).
+
 ## 0.3.0
 
 Dashboards on every door, the Lightning look on both cards, and a check loop that runs by itself. To upgrade an org on 0.2.0: redeploy `force-app` (it adds `ReportsDashboards` and its test), then `mcp-app`, rerun `npm run mcp:setup -- --org <alias> --yes`, and prove the hosted door with `npm run mcp-login -- --org <alias>` followed by `npm run mcp-check -- --org <alias> --auth <alias>`. The hosted door's dashboard tools call out, so they need `callout-app`, like the other callout tools. Local users only update the package.
