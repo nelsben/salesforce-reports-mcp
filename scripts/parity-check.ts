@@ -6,7 +6,9 @@
  * query_report, list_report_types and describe_report_type reach the org's REST API from Apex (phase 3a), so their
  * cases also check that callout. The save cases (phase 3b) let each door make its own zz-parity report, compare the
  * answers after normalize(), and delete every report through the local server. The org's user needs the
- * Salesforce_Reports_Write permission set for the door's save cases.
+ * Salesforce_Reports_Write permission set for the door's save cases. The dashboard cases read the probe dashboard
+ * Pipeline_Overview (probes/v0.3-dashboards) through both doors: list, describe, run from the cache, run with filter1
+ * and two refused filters. They never refresh it.
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -196,6 +198,8 @@ async function apexAnswers(label: string, tool: string, args: Record<string, unk
 }
 
 const prefix = "zz-parity";
+/** The dashboard the dashboard cases read: probes/v0.3-dashboards deploys it. */
+const PROBE_DASHBOARD = "Pipeline_Overview";
 const stamp = Date.now().toString(36);
 const created: string[] = [];
 const range = { column: "CLOSE_DATE", startDate: "2020-01-01", endDate: "2030-12-31" };
@@ -406,6 +410,34 @@ try {
   await apexAnswers("apex: query_report without reportType answers 400", "query_report", { columns: ["AMOUNT"] }, 400, "INVALID_INPUT");
   await apexAnswers("apex: an unknown tool answers 404", "no_such_tool", {}, 404, "UNKNOWN_TOOL");
   await apexAnswers("apex: a bad report id answers 400", "run_report", { reportId: "not-an-id" }, 400, "INVALID_INPUT");
+
+  // Dashboards: read only, against the probe dashboard. Nothing is refreshed or saved.
+  const listed = await local("list_dashboards", { query: PROBE_DASHBOARD });
+  const dashboardId: string | undefined = listed.ok ? listed.body.dashboards.find((d: Json) => d.developerName === PROBE_DASHBOARD)?.id : undefined;
+  if (!dashboardId) {
+    line(false, `dashboard ${PROBE_DASHBOARD} found`, "deploy probes/v0.3-dashboards to check the dashboard cases");
+  } else {
+    await same(`list_dashboards ${PROBE_DASHBOARD}`, "list_dashboards", { query: PROBE_DASHBOARD });
+    await same("describe_dashboard", "describe_dashboard", { dashboardId });
+    await same("run_dashboard from the cache", "run_dashboard", { dashboardId });
+    const described = await local("describe_dashboard", { dashboardId });
+    const filter = described.ok ? described.body.filters?.[0] : undefined;
+    if (!filter?.options?.length) {
+      line(false, "run_dashboard with filter1", `${PROBE_DASHBOARD} has no filter with options`);
+    } else {
+      await same(`run_dashboard with filter1 (${filter.name})`, "run_dashboard", { dashboardId, filters: [{ name: filter.name, option: filter.options[0] }] });
+      await sameError("run_dashboard with an unknown filter label gives the local error body", "run_dashboard", {
+        dashboardId,
+        filters: [{ name: filter.name, option: "zz-no-such-option" }],
+      });
+    }
+    await sameError("run_dashboard with an unknown filter name gives the local error body", "run_dashboard", {
+      dashboardId,
+      filters: [{ name: "zz-no-such-filter", option: "x" }],
+    });
+    await apexAnswers("apex: refresh_dashboard is not on this door yet (404)", "refresh_dashboard", { dashboardId }, 404, "UNKNOWN_TOOL");
+    await apexAnswers("apex: a bad dashboard id answers 400", "describe_dashboard", { dashboardId: "00O000000000000AAA" }, 400, "INVALID_INPUT");
+  }
 } catch (error) {
   line(false, "setup", error instanceof Error ? error.message : String(error));
 } finally {

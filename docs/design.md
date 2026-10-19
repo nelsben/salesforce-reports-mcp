@@ -128,6 +128,10 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 - **The cache is per filter value.** A value never refreshed answers `NO_DATA`. After a refresh for another value, the older caches keep their data and show `refreshStatus: STALE`.
 - **The SOQL field `Dashboard.DashboardResultRefreshedDate` stays null after a REST refresh** (checked 2026-10-16 on `dev-frontend-2`, with the probe dashboard refreshed five times, as was `DashboardResultRunningUser`). `list_dashboards` reads the last refresh from `/status` instead: the newest `refreshDate` of the unfiltered cache.
 - **A second refresh inside a minute answers 403 `FORBIDDEN`** with "You can't refresh this dashboard more than once in a minute." `refresh_dashboard` reads the cached results and says when to try again (a minute after the last refresh it can see, or a minute from now). Reproduced through the tool on 2026-10-16.
+- **Apex has no dashboard API.** `Reports.ReportManager` covers reports only, so the in-org readers make a callout for every dashboard read: describe, the results and each `/status` (found 2026-10-18).
+- **`list_dashboards` makes one callout per row in Apex.** The local server asks for `/status` five at a time; Apex calls out one by one, and a transaction allows 100 callouts. The `limit` ceiling of 50 keeps a full list under that.
+- **Apex's `==` on strings ignores case.** The local code matches an option id, a `RowCount` aggregate and a `Gauge` type exactly, so `ReportsDashboards` compares those with `String.equals`. Filter names and option labels still match without case, as on the local server.
+- **`JSON.deserialize` builds `Dashboard` rows for a test.** A test can hand `ReportsDashboards.listRows` rows made from JSON, so the list tests need no dashboard in the org. One `SeeAllData=true` test runs the SOQL against the org's own dashboards, with every `/status` call mocked.
 
 ### ReportResult (output)
 
@@ -287,6 +291,9 @@ One Apex class backs both in-org doors: a hosted MCP custom server wraps an Apex
 | `query_report` | No: it needs a saved report behind it | `POST /analytics/reports/query` |
 | `create_report`, `update_report`, `clone_report` | No: Apex cannot save a report | `POST` and `PATCH /analytics/reports` |
 | `delete_report` | Not offered in the org | |
+| `list_dashboards` | SOQL on `Dashboard` | `GET /analytics/dashboards/{id}/status` per row, for the last refresh |
+| `describe_dashboard`, `run_dashboard` | No: Apex has no dashboard API | `GET /analytics/dashboards/{id}/describe` and `GET /analytics/dashboards/{id}[?filter1=<optionId>]` |
+| `refresh_dashboard` | No | `PUT /analytics/dashboards/{id}`; a later card |
 
 ### Phase 0: probes
 
@@ -327,6 +334,17 @@ Built 2026-10-11 (`docs/probes/v0.2-phase3b.md`). `create_report` (from a defini
 ### Callout through a named credential
 
 Built 2026-10-12 ([decision 0012](decisions/0012-per-user-jwt-named-credential.md)). On the hosted route `ReportsCallout` uses the identity `NAMED_CREDENTIAL`. With the optional package `salesforce/callout-app` installed and its permission set `Salesforce_Reports_Callout` assigned, `list_report_types`, `query_report`, `combine_reports` with definitions, the full `describe_report_type` and the three saves run on the hosted door as the signed-in user, through `callout:SalesforceReportsCallout`. Without the package, the hosted route answers `CALLOUT_SESSION` as before. With it, a user without the permission set gets 500 `CALLOUT_CREDENTIAL` and a hint naming the set, and `describe_report_type` still falls back to a saved report. The REST route keeps the caller's session. In a dev org, anonymous Apex calling the hosted route answered 200 for `list_report_types`, `query_report` and `combine_reports` with definitions. From a real hosted sign-in in claude.ai the same day, `list_report_types` listed 156 types and `query_report` ran an unsaved stage summary, 8 opportunities and 3,091,000, matching the saved report ([rehearsal](rehearsals/runner-hosted.md)).
+
+### In-org dashboards
+
+Built 2026-10-18. `list_dashboards`, `describe_dashboard` and `run_dashboard` are on the REST door, in the core class `ReportsDashboards`, with the local tools' inputs, outputs, notes and error messages ([decisions 0016 to 0018](decisions/README.md)). `refresh_dashboard` is a later card, and the door answers it 404 `UNKNOWN_TOOL`. The hosted door's tool list, the skills and the README follow later too.
+
+- **Listing** is SOQL on `Dashboard` in user mode, newest first, with `query` matched against the title and developer name and `folder` against the folder name. Each row then gets its last refresh from `/status`. A failed `/status` call gives `lastRefreshed: null`. After a `CALLOUT_*` error (no session on the hosted route, or no credential), the list stops calling `/status`, keeps every row with `lastRefreshed: null`, and a note says why.
+- **Describe and run** call `/analytics/dashboards/{id}/describe` and `/analytics/dashboards/{id}` through `ReportsCallout`, so the callout identity is the caller's session on the REST route and the named credential on the hosted route ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md), [decision 0012](decisions/0012-per-user-jwt-named-credential.md)).
+- **Filters** are resolved against describe before the data call, as on the local server: the filter by name, and its option by id exactly or by label, value or alias. Names and labels are trimmed and matched without case. An unknown name or option, a filter given twice, or `filters` on a dashboard without any, answers 400 `INVALID_INPUT` with the local message, and no data call is made. The option id goes on the query string, URL-encoded, as `filter1`.
+- **Each component's `reportResult`** is shaped by `ReportsShape`, with detail rows only for a tabular report and `maxRows` capped by the in-org ceiling. A filtered component gets `Dashboard filter <words>` in its filters.
+- **The card fields** match the local `dashboardView`: `sourceReport`, `measure` (with `Record Count` and `int` for `RowCount`), `metricLabel`, `colorPalette` per component and for the dashboard, and `gauge` with its range, inner breakpoints and colours.
+- **Report names** in describe come from one SOQL on `Report` in user mode. A report the user cannot read gives `name: null`, and its id still works with `run_report`.
 
 ### Phases
 

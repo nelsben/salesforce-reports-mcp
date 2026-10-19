@@ -7,7 +7,8 @@
  * returns the cached results with a note, which also passes.
  * With --door apex, the read and save steps go through the in-org REST door (salesforce/, class ReportsApi). Saving
  * there needs the Salesforce_Reports_Write permission set. Reports are still deleted through the local server,
- * and steps for tools the door lacks print "skipped on the apex door".
+ * and steps for tools the door lacks print "skipped on the apex door". The dashboard reads (D1 to D3) go through the
+ * door too; the door has no refresh_dashboard yet, so D4 runs on the local server.
  */
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -48,6 +49,9 @@ const APEX_TOOLS = new Set([
   "create_report",
   "update_report",
   "clone_report",
+  "list_dashboards",
+  "describe_dashboard",
+  "run_dashboard",
 ]);
 
 const connection = resolveConnection({ org: values.org });
