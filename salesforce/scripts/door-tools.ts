@@ -7,12 +7,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ReportsApi } from "../../src/reports/api.js";
 import type { SalesforceApi } from "../../src/salesforce/client.js";
-import { buildServer, VIEW_HINT } from "../../src/server.js";
+import { buildServer, DASHBOARD_VIEW_HINT, VIEW_HINT } from "../../src/server.js";
 
 /**
- * The eleven tools ReportsApi answers, in the order the door lists them: the six phase 1 tools, list_report_types
- * and query_report, which call the org's own REST API (phase 3a), and the three save tools (phase 3b), which also
- * need the Reports_Write custom permission. delete_report stays on the local server only.
+ * The fifteen tools ReportsApi answers, in the order the local server lists them: the six phase 1 tools, list_report_types
+ * and query_report, which call the org's own REST API (phase 3a), the three dashboard readers, the three save tools
+ * (phase 3b) and refresh_dashboard, which also need the Reports_Write custom permission. delete_report stays on the
+ * local server only.
  */
 export const DOOR_TOOLS = [
   "search_reports",
@@ -23,24 +24,34 @@ export const DOOR_TOOLS = [
   "run_report",
   "query_report",
   "combine_reports",
+  "list_dashboards",
+  "describe_dashboard",
+  "run_dashboard",
   "create_report",
   "update_report",
   "clone_report",
+  "refresh_dashboard",
 ] as const;
 
-/** The save tools, which need the Reports_Write custom permission in the org. */
-export const SAVE_TOOLS: readonly string[] = ["create_report", "update_report", "clone_report"];
+/** The tools that need the Reports_Write custom permission in the org: the save tools and the dashboard refresh. */
+export const SAVE_TOOLS: readonly string[] = ["create_report", "update_report", "clone_report", "refresh_dashboard"];
+
+/** The local refresh wait, and what the in-org door waits instead (20 back-to-back polls or about 30 seconds). */
+const LOCAL_REFRESH_WAIT = "It waits up to 60 seconds for the refresh to finish.";
+const DOOR_REFRESH_WAIT = "It waits up to 20 status checks or about 30 seconds for the refresh to finish, then returns the cached results with a note to call run_dashboard in a minute.";
 
 /** Added after a save tool's local description on the door: the OpenAPI operation, the server, the tool row. */
 export const WRITE_PERMISSION_SENTENCES =
   "In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED.";
 
 /**
- * A tool's description on the door: the local description without the report view hint (the hosted door draws no
- * report card), plus the write permission sentences for a save tool.
+ * A tool's description on the door: the local description without the report and dashboard view hints (the hosted
+ * door draws no card), the in-org refresh wait, plus the write permission sentences for a write tool.
  */
 export function doorDescription(name: string, local: string): string {
-  const base = local.endsWith(VIEW_HINT) ? local.slice(0, -VIEW_HINT.length) : local;
+  let base = local;
+  for (const hint of [VIEW_HINT, DASHBOARD_VIEW_HINT]) if (base.endsWith(hint)) base = base.slice(0, -hint.length);
+  base = base.replace(LOCAL_REFRESH_WAIT, DOOR_REFRESH_WAIT);
   return SAVE_TOOLS.includes(name) ? `${base} ${WRITE_PERMISSION_SENTENCES}` : base;
 }
 

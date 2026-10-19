@@ -3,7 +3,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { describe, expect, it } from "vitest";
 import { ReportsApi } from "../src/reports/api.js";
 import { SalesforceError, type SalesforceApi } from "../src/salesforce/client.js";
-import { doorTools } from "../salesforce/scripts/door-tools.js";
+import { doorTools, WRITE_PERMISSION_SENTENCES } from "../salesforce/scripts/door-tools.js";
 import { buildServer, DASHBOARD_VIEW_HINT, VIEW_HINT, type ServerOptions } from "../src/server.js";
 import { fixture } from "./helpers.js";
 
@@ -507,10 +507,19 @@ describe("view hint", () => {
     expect(VIEW_HINT).toMatch(/never repeat the card's rows, totals or a table/);
   });
 
-  it("the hosted door carries no dashboard tool, so the dashboard card's hint never reaches it", async () => {
+  it("the hosted door carries the four dashboard tools without the dashboard card's hint, and refresh_dashboard with the write sentences", async () => {
     const tools = await doorTools();
-    expect(tools.map((t) => t.name).filter((n) => n.includes("dashboard"))).toEqual([]);
-    for (const tool of tools) expect(tool.description, tool.name).not.toContain(DASHBOARD_VIEW_HINT.trim());
+    expect(tools.map((t) => t.name).filter((n) => n.includes("dashboard"))).toEqual(["list_dashboards", "describe_dashboard", "run_dashboard", "refresh_dashboard"]);
+    for (const tool of tools) {
+      expect(tool.description, tool.name).not.toContain(DASHBOARD_VIEW_HINT.trim());
+      expect(tool.description, tool.name).not.toMatch(/dashboard card|report card|Claude Desktop|MCP Apps/);
+    }
+    const refresh = tools.find((t) => t.name === "refresh_dashboard")!;
+    expect(refresh.description).toContain(WRITE_PERMISSION_SENTENCES);
+    expect(refresh.description).not.toContain("60 seconds");
+    expect(refresh.description).toMatch(/30 seconds/);
+    for (const name of ["list_dashboards", "describe_dashboard", "run_dashboard"]) expect(tools.find((t) => t.name === name)!.description).not.toContain(WRITE_PERMISSION_SENTENCES);
+    expect(tools).toHaveLength(15);
   });
 
   it("the hosted door's descriptions carry none of the view hint", async () => {

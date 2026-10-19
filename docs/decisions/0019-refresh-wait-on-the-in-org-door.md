@@ -22,4 +22,4 @@ On the local server a refresh is a write only by annotation. On the in-org door 
 - A caller sees a shorter wait than on the local server, and a refresh that finishes later than about 30 seconds shows as the "had not finished" note with the cached results. The next `run_dashboard` reads the finished refresh.
 - A refresh costs at most 24 callouts: one status, the PUT, up to 20 polls, a describe when filters are given, and the results GET. That leaves room under the 100-callout limit.
 - The poll budget is a trade: a longer one risks the 120-second callout limit and the user's wait, a shorter one shows the note more often. If a real org shows the note on small dashboards, raise `REFRESH_BUDGET_MS` first.
-- The hosted door does not list the tool yet. Called there, it passes the write check and then answers `CALLOUT_SESSION`, as the other callout tools do without the credential.
+- Superseded: the hosted door now lists `refresh_dashboard`, with the in-org wait in its description. (Originally: the hosted door did not list the tool. Called there, it passes the write check and then answers `CALLOUT_SESSION`, as the other callout tools do without the credential.)

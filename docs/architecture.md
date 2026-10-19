@@ -37,8 +37,8 @@ flowchart TB
 
   subgraph forceapp [Package force-app: the REST adapter and the core]
     API["ReportsApi @RestResource<br/>/services/apexrest/reports/v1/{tool}, the REST door<br/>/services/apexrest/reports/v1/mcp/{tool}, the hosted door<br/>reads the URL and body, maps error categories to status codes"]
-    SVC["ReportsService<br/>tool list and dispatch by tool name, with sharing<br/>checks Reports_Write for saves"]
-    SHAPE["ReportsDefinition, ReportsShape,<br/>ReportsSummary, ReportsCombine<br/>definition to reportMetadata, factMap to ReportResult"]
+    SVC["ReportsService<br/>tool list and dispatch by tool name, with sharing<br/>checks Reports_Write for saves<br/>and refresh_dashboard"]
+    SHAPE["ReportsDefinition, ReportsShape,<br/>ReportsSummary, ReportsCombine,<br/>ReportsDashboards<br/>definition to reportMetadata, factMap to ReportResult"]
     ERR["ReportsInput, ReportsException<br/>typed input, errors with a category<br/>and never an HTTP status"]
     CALL["ReportsCallout<br/>outbound adapter: the org calling its own Reports REST API"]
     PS["Permission sets<br/>Salesforce_Reports (read)<br/>Salesforce_Reports_Write (saves)"]
@@ -262,7 +262,7 @@ sequenceDiagram
   OAUTH-->>AI: access token, refresh token
   AI->>GW: tools/list
   GW->>GW: read the server's tool rows and the registration's OpenAPI schema
-  GW-->>AI: 11 tools with input schemas
+  GW-->>AI: 15 tools with input schemas
 
   U->>AI: "Run my pipeline report"
   AI->>GW: tools/call run_report {"reportId":"00O..."}
@@ -301,7 +301,7 @@ sequenceDiagram
 | Steps | What happens |
 | --- | --- |
 | 1 to 4 | The user adds the connector in claude.ai and signs in to the org. The token carries only `mcp_api` and `refresh_token`, so it cannot call the org's REST API on its own. |
-| 5 to 7 | The gateway builds the tool list from the server's tool rows and the registration's OpenAPI schema: 11 tools, no delete ([decision 0006](decisions/0006-no-delete-in-the-org.md)). |
+| 5 to 7 | The gateway builds the tool list from the server's tool rows and the registration's OpenAPI schema: 15 tools, no delete ([decision 0006](decisions/0006-no-delete-in-the-org.md)). |
 | 8 to 12 | A saved report run. The gateway calls the API Catalog operation as the user, which posts to the hosted route `/reports/v1/mcp/run_report`. |
 | 13 to 19 | `Reports.ReportManager` runs it in the org. The result comes back through the same chain, and Claude summarises. |
 | 20 to 25 | An unsaved report needs the Reports REST API. The route tells the code it was called by the hosted door, so it never asks for a session: under this sign-in, asking throws an exception Apex cannot catch ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md)). |
