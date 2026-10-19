@@ -193,7 +193,7 @@ describe("run_report and query_report", () => {
       if (method === "POST" && path.includes("/instances")) return { id: "0LG000000000001", attributes: { status: "New" } };
       if (path.includes("/instances/")) {
         polls++;
-        return polls < 2 ? { attributes: { status: "Running" } } : { ...fixture("tabular"), attributes: { status: "Success" } };
+        return polls < 2 ? { attributes: { status: "Running" } } : { ...(fixture("tabular") as object), attributes: { status: "Success" } };
       }
       return routes(method, path, undefined);
     });

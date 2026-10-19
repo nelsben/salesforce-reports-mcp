@@ -1,24 +1,43 @@
 # salesforce-reports-mcp
 
-Claude finds, builds, runs and saves Salesforce reports. You ask a question in plain words and get the answer, with the report behind it.
+Claude finds, builds, runs and saves Salesforce reports, and reads your dashboards, from an MCP server on your own machine. Nothing is installed in Salesforce, no Salesforce MCP licence is needed, and no admin has to approve anything. You sign in with the Salesforce CLI you already use.
 
-This repo is working software, and a demonstration. It takes one useful job, reports, and delivers it to Claude three ways, from a server on your laptop to a feature that lives inside Salesforce. Every design choice is written down with what it costs. Built by [Ben Nelsen](https://github.com/nelsben).
+This repo is working software, and a demonstration of how to put MCP in front of Salesforce without Salesforce's own MCP. The same tools are also packaged as a feature inside the org, for people who cannot run a local server, and every design choice is written down with what it costs. Built by [Ben Nelsen](https://github.com/nelsben).
 
-> **You:** List the report types I can build on, then build me an opportunity report grouped by stage without saving it.
+> **You:** I'm a seller. How is our pipeline looking this fiscal year? Is there anything I should worry about, and can you show it to me by owner too?
 >
-> **Claude:** The org has 156 report types; here they are by category. Opportunities by stage: 8 open deals, $3,091,000. Negotiation/Review holds 3 of them and 39% of the value. Salesforce applied its default filters: close date this fiscal quarter, probability above 0. Nothing was saved. Want it across all close dates, or saved to your Private Reports?
+> **Claude:** $3.09M across 8 open opportunities, here by stage and by owner. Worries: one owner holds 91% of the dollars, one deal alone is 29% of the pipeline, nothing is closed won this fiscal year, and one deal has no amount. Salesforce applied its default probability filter. Nothing was saved; say the word and I will save it as a report.
 >
-> *claude.ai, through the MCP server hosted by Salesforce, signed in as the user ([rehearsal](docs/rehearsals/runner-hosted.md)).*
+> *Claude Desktop, through the local MCP server, signed in with the sf CLI ([rehearsal](docs/rehearsals/runner.md)).*
+
+![The report card for an unsaved opportunity report grouped by stage, drawn in light, then dark, then at phone width](docs/assets/report-view.gif)
+
+In Claude Desktop the run also draws as a card: the headline numbers, the filters Salesforce applied, the groups with a bar beside each amount, and a button that asks Claude to save it. Dashboards draw the same way, every component as its own chart.
+
+![The dashboard card for a pipeline dashboard: a metric, a gauge, a donut, bar, line, table, funnel and column charts](docs/assets/dashboard-card.png)
+
+*Drawn by the [render test](docs/decisions/0014-render-tests-through-a-test-host.md)'s host page from anonymised test data.*
+
+## Run it on your own org
+
+Two commands in Claude Code, with Node 20 and the Salesforce CLI signed in:
+
+```
+claude plugin marketplace add nelsben/salesforce-reports-mcp
+claude plugin install salesforce-reports@salesforce-reports
+```
+
+That installs the three skills and the MCP server. For Claude Desktop, [docs/claude-desktop.md](docs/claude-desktop.md) is the full recipe: the config entry with the two paths that trip people up, how to check it works, the safety flags, and what each Claude surface, including mobile, can do with a local server. [docs/install.md](docs/install.md#the-local-mcp-server) has every option.
 
 ## Why I built this
 
-Most of what a company knows about its customers and its pipeline sits in Salesforce reports, and most of the people who need those answers cannot build a report. Assistants like Claude are becoming the way people ask, and the hard part is not the model: it is where the code runs, whose identity each call uses, and what it is allowed to change. I built this to work through those questions end to end for one real job, in the open, with every decision written down.
+Most of what a company knows about its customers and its pipeline sits in Salesforce reports, and most of the people who need those answers cannot build a report. Assistants like Claude are becoming the way people ask, and the hard part is not the model: it is where the code runs, whose identity each call uses, and what it is allowed to change. I built this to work through those questions end to end for one real job, in the open, with every decision written down. The first answer is the local server, which needs nothing from Salesforce but an API session. The in-org packages show what it takes when that is not enough.
 
 ## What this repo shows
 
 | Claim | Where to look | Evidence you can check |
 | --- | --- | --- |
-| **1. Three ways to connect Salesforce and Claude**, each with its own trade-offs | [Three ways to connect](#three-ways-to-connect) | One tool contract and result shape on every door (16 tools locally, 11 in the org); a [parity check](docs/decisions/0010-verification-by-parity.md) runs the same calls through two doors against a real org and compares them |
+| **1. MCP on Salesforce without Salesforce MCP**, plus two in-org doors for when a local server is not an option | [Three ways to connect](#three-ways-to-connect) | One tool contract and result shape on every door (16 tools locally, 11 in the org); a [parity check](docs/decisions/0010-verification-by-parity.md) runs the same calls through two doors against a real org and compares them |
 | **2. A useful feature added to Salesforce itself**, packaged the way an admin expects | [A feature inside Salesforce](#a-feature-inside-salesforce) | Three package directories; layered Apex with a CI test that fails if the layers leak; 65 Apex tests at 98% coverage |
 | **3. Security, authentication and integration** done deliberately, per door | [Security and identity](#security-and-identity) | A different identity per door, a per-user JWT named credential with no stored secret, writes behind a custom permission, and a test that keeps org values out of the repo |
 | **4. Product and architecture judgment**, shown in the work | [How it was built](#how-it-was-built) | Personas and [experiences](docs/experiences.md), [7 probes](docs/probes/) before building, [18 decision records](docs/decisions/README.md), [live findings](docs/design.md), [7 rehearsals](docs/rehearsals/README.md) |
@@ -41,19 +60,13 @@ Most of what a company knows about its customers and its pipeline sits in Salesf
 
 **Answers you can trust.** Every run returns the same compact shape: the filters that were applied, including the ones Salesforce adds on its own, the groups and totals, and notes that say when rows were cut or Salesforce ignored part of the request. The [experiences page](docs/experiences.md) has the personas and the facts that shaped them.
 
-**A report card in the chat.** In Claude Desktop, a report run on the local server also draws as a card: the headline numbers across the top, the filters, the groups with a bar beside each amount (or, for a matrix, a heat grid), the totals, a link to open it in Salesforce and, for an unsaved report, a button that asks Claude to save it. Claude's reply then leads with what the card cannot show instead of repeating it. The card is an MCP App that loads nothing from the network, styled with the Lightning Design System's own tokens so it reads as Salesforce ([decision 0018](docs/decisions/0018-cards-follow-the-lightning-design-system.md)), and every heat cell passes WCAG AA contrast in light and dark. Clients that show only text, such as Claude Code, get the same result as text ([decision 0013](docs/decisions/0013-report-view-as-an-mcp-app.md), [decision 0015](docs/decisions/0015-report-card-visuals.md)).
+**A report card in the chat.** The card at the top is an MCP App the local server carries with each run: the headline numbers, the filters, the groups with a bar beside each amount (or, for a matrix, a heat grid), the totals, a link to open it in Salesforce and, for an unsaved report, a button that asks Claude to save it. Claude's reply then leads with what the card cannot show instead of repeating it. The card loads nothing from the network, is styled with the Lightning Design System's own tokens so it reads as Salesforce ([decision 0018](docs/decisions/0018-cards-follow-the-lightning-design-system.md)), and every heat cell passes WCAG AA contrast in light and dark. Clients that show only text, such as Claude Code, get the same result as text ([decision 0013](docs/decisions/0013-report-view-as-an-mcp-app.md), [decision 0015](docs/decisions/0015-report-card-visuals.md)).
 
-![The report card for an unsaved opportunity report grouped by stage, drawn in light, then dark, then at phone width](docs/assets/report-view.gif)
-
-**Dashboards, read and refreshed.** Claude can find a dashboard, describe its components and filters, read the numbers Salesforce last cached, and refresh it when the data is missing or old. A refresh counts as a write, so read-only mode leaves it out, and no tool saves a dashboard ([decision 0016](docs/decisions/0016-dashboards-read-and-refresh-only.md)). In Claude Desktop the result draws as a dashboard card, with every component as its own chart in the dashboard's layout ([decision 0017](docs/decisions/0017-dashboard-card.md)).
-
-![The dashboard card for a pipeline dashboard: a metric, a gauge, a donut, bar, line, table, funnel and column charts](docs/assets/dashboard-card.png)
-
-*Drawn by the [render test](docs/decisions/0014-render-tests-through-a-test-host.md)'s host page from anonymised test data.*
+**Dashboards, read and refreshed.** Claude can find a dashboard, describe its components and filters, read the numbers Salesforce last cached, and refresh it when the data is missing or old. A refresh counts as a write, so read-only mode leaves it out, and no tool saves a dashboard ([decision 0016](docs/decisions/0016-dashboards-read-and-refresh-only.md)). In Claude Desktop the result draws as the dashboard card above, with every component as its own chart in the dashboard's layout ([decision 0017](docs/decisions/0017-dashboard-card.md)).
 
 ## Three ways to connect
 
-The same tools reach Claude three ways. They differ in where the code runs, who hosts it and how the user signs in.
+The local server is the lead: it is the whole product for anyone on Claude Code or Claude Desktop, and it needs nothing from Salesforce beyond an API session. The same tools also reach Claude two more ways, for people who cannot run a local process: a seller on claude.ai, a Flow, an Agentforce agent. Those doors live inside the org as Apex. They differ in where the code runs, who hosts it and how the user signs in.
 
 ```mermaid
 flowchart LR
@@ -84,14 +97,14 @@ flowchart LR
 | **Installed in the org** | Nothing | `force-app` | `force-app`, `mcp-app`, optionally `callout-app` |
 | **Signs in with** | Your `sf` CLI session or a token | Your own Salesforce session | OAuth with PKCE through an External Client App |
 | **Clients** | Claude Code, Claude Desktop, any MCP client | Claude Code and any agent with a shell; Flow, Agentforce, any HTTP client | claude.ai and any remote MCP client, with nothing to host |
-| **Tools** | All 12, delete only with a flag | 11, no delete | 11, no delete |
-| **Choose it when** | One person, no org change allowed | An admin wants the feature in the org, used from scripts and agents | A team wants Claude in the browser, governed by the org |
+| **Tools** | All 16, including dashboards; delete only with a flag | 11, no delete | 11, no delete |
+| **Choose it when** | You can run a process on your machine. No org change, no Salesforce MCP | An admin wants the feature in the org, used from scripts and agents | A team wants Claude in the browser, governed by the org |
 
 Each door gets the same tool names, the same input and the same result ([decision 0001](docs/decisions/0001-one-contract-three-doors.md)). The skills bind to tool names, not to a door, so one skill works over all three. [docs/architecture.md](docs/architecture.md) has a numbered sequence diagram for each door, with every step explained.
 
 ## A feature inside Salesforce
 
-The in-org doors are a Salesforce feature an admin installs, not a script. They ship as three package directories in [salesforce/](salesforce/README.md) ([decision 0009](docs/decisions/0009-two-shipping-units.md)):
+The in-org doors are the same tools, rebuilt in Apex so they run where a local server cannot. They are a Salesforce feature an admin installs, not a script. They ship as three package directories in [salesforce/](salesforce/README.md) ([decision 0009](docs/decisions/0009-two-shipping-units.md)):
 
 | Package | Holds | Needs |
 | --- | --- | --- |
@@ -136,16 +149,10 @@ The method was the same for every feature: probe the platform, decide in writing
 
 | You want | Start here |
 | --- | --- |
-| Claude Code or Desktop on your own org, nothing installed in Salesforce | [Local MCP server](docs/install.md#the-local-mcp-server) |
+| Claude Desktop on your own org, nothing installed in Salesforce | [Claude Desktop guide](docs/claude-desktop.md) |
+| Claude Code or another MCP client, the same way | [Local MCP server](docs/install.md#the-local-mcp-server) |
 | The feature inside your org, called from the CLI, scripts or agents | [The REST door](docs/install.md#the-rest-door) |
 | Claude in the browser, signed in through Salesforce | [The MCP door](docs/install.md#the-mcp-door), then [the callout tools](docs/install.md#the-callout-tools-on-the-mcp-door) |
-
-The quickest try is the Claude Code plugin, which bundles the skills and the local server:
-
-```
-claude plugin marketplace add nelsben/salesforce-reports-mcp
-claude plugin install salesforce-reports@salesforce-reports
-```
 
 The tools, the result shape, the safety rails and the limits are in [docs/reference.md](docs/reference.md).
 

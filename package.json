@@ -33,6 +33,7 @@
   },
   "scripts": {
     "build": "tsc && tsx scripts/build-widget.ts",
+    "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run",
     "test:render": "playwright test",
     "live": "tsx scripts/live-check.ts",
