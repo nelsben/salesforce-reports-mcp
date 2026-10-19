@@ -4,6 +4,7 @@
 
 - Door 4: the local server over HTTP, so claude.ai and the phone can use it with nothing in the org and no Salesforce MCP. `--http <port>` (`SF_REPORTS_HTTP_PORT`) serves Streamable HTTP at `/mcp`, `--host <host>` (`SF_REPORTS_HTTP_HOST`, default `127.0.0.1`) sets the address, and `--public-url <url>` (`SF_REPORTS_PUBLIC_URL`) turns on the server's own OAuth 2.1 sign-in for one owner: dynamic client registration, PKCE, and a passcode page checked against `SF_REPORTS_HTTP_PASSCODE` (at least 16 characters). Tokens are opaque, audience-bound and held as hashes in memory. The steps are in [From claude.ai and your phone](docs/install.md#from-claudeai-and-your-phone), the sequence in [docs/architecture.md](docs/architecture.md), and the reasons in [decision 0020](docs/decisions/0020-door-four-the-local-server-over-http.md).
 - The report-runner skill offers a live Claude Dashboard when the person wants a view to keep or share, where the host offers Claude's Dashboard artifacts and `run_report` comes from a connector. Its reference gains the loader recipe, and says that on the local door only a fixed copy is possible ([decision 0021](docs/decisions/0021-claude-dashboards-as-the-shareable-view.md)).
+- The parity check reads `SKIP` for its dashboard cases when the org has no `Pipeline_Overview` probe dashboard, as the live check already did, so `npm run verify` stays green once the probe is removed. A dashboard listing that fails is still a `FAIL`.
 
 ## 0.3.0
 
