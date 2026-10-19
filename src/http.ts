@@ -5,6 +5,7 @@ import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { createOwnerAuth, type OAuthOptions, type OwnerOAuthProvider } from "./http-auth.js";
 
 export const LOOPBACK_HOSTS = ["127.0.0.1", "::1", "localhost"];
 
@@ -13,32 +14,39 @@ export interface HttpOptions {
   host: string;
   /** Builds one McpServer per session. */
   createServer: () => McpServer;
+  /** Turns the OAuth layer on: /mcp then needs a bearer this server issued, and --host may be any address. */
+  oauth?: OAuthOptions;
 }
 
 export interface HttpHandle {
   port: number;
   host: string;
   close: () => Promise<void>;
+  /** The in-memory OAuth server, when the OAuth layer is on. */
+  oauth?: OwnerOAuthProvider;
 }
 
 export function assertLoopbackHost(host: string): void {
   if (!LOOPBACK_HOSTS.includes(host)) {
-    throw new Error(`--host ${host} is not loopback. A non-loopback host needs the OAuth layer, which a later change adds.`);
+    throw new Error(`--host ${host} is not loopback. A non-loopback host needs the OAuth layer: set --public-url and SF_REPORTS_HTTP_PASSCODE.`);
   }
 }
 
 // Express request and response types are not imported here; the SDK's own types are enough.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export async function startHttpServer(options: HttpOptions): Promise<HttpHandle> {
-  assertLoopbackHost(options.host);
-  const app = createMcpExpressApp({ host: options.host });
+  const auth = options.oauth ? createOwnerAuth(options.oauth) : undefined;
+  if (!auth) assertLoopbackHost(options.host);
+  const app = createMcpExpressApp(auth ? { host: options.host, allowedHosts: auth.allowedHosts } : { host: options.host });
+  if (auth) app.use(auth.router);
+  const guard = auth ? [auth.bearer] : [];
   const sessions = new Map<string, { transport: StreamableHTTPServerTransport; server: McpServer }>();
 
   const reject = (res: any, status: number, message: string) => {
     res.status(status).json({ jsonrpc: "2.0", error: { code: -32000, message }, id: null });
   };
 
-  app.post("/mcp", async (req: any, res: any) => {
+  app.post("/mcp", ...guard, async (req: any, res: any) => {
     try {
       const sessionId = req.headers["mcp-session-id"] as string | undefined;
       const existing = sessionId ? sessions.get(sessionId) : undefined;
@@ -80,8 +88,8 @@ export async function startHttpServer(options: HttpOptions): Promise<HttpHandle>
       if (!res.headersSent) reject(res, 500, "Internal server error");
     }
   };
-  app.get("/mcp", bySession);
-  app.delete("/mcp", bySession);
+  app.get("/mcp", ...guard, bySession);
+  app.delete("/mcp", ...guard, bySession);
 
   const httpServer: Server = await new Promise((resolve, reject2) => {
     const s: Server = app.listen(options.port, options.host, () => resolve(s));
@@ -103,5 +111,5 @@ export async function startHttpServer(options: HttpOptions): Promise<HttpHandle>
     })();
     return closing;
   };
-  return { port, host: options.host, close };
+  return { port, host: options.host, close, oauth: auth?.provider };
 }
