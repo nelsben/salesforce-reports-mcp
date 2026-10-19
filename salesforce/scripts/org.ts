@@ -66,7 +66,7 @@ export function orgAndFlagsFromArgs<F extends string>(usage: string, flags: read
     console.error(verdict.message);
     process.exit(2);
   }
-  return { org, flags: Object.fromEntries(flags.map((f) => [f, values[f] === true])) as Record<F, boolean> };
+  return { org, flags: Object.fromEntries(flags.map((f) => [f, (values as unknown as Record<string, boolean | undefined>)[f] === true])) as Record<F, boolean> };
 }
 
 /** Prints the alias and instance URL about to be changed. Never the token. */
