@@ -127,14 +127,16 @@ To remove the REST door, remove the MCP door first if it is installed, then unas
 
 5. Connect Claude. In claude.ai, open Settings, then Connectors, then Add custom connector. Paste the URL from step 2. Under Advanced settings, paste the consumer key as the OAuth Client ID. Click Add, then Connect, and sign in to the org. A sandbox or scratch org uses `https://api.salesforce.com/platform/mcp/v1/sandbox/custom/SalesforceReports`. Production and Developer Edition use the same URL without `sandbox/`.
 
-Each user signs in as themselves, so sharing, folder access and field-level security apply. The save tools are listed for every user, and refuse anyone without `Salesforce_Reports_Write`. To check the door from a terminal, sign the Salesforce CLI in through the External Client App once, then pass that alias to the check. The consumer key is read from the org as step 4 shows. Paste it into the command and do not print it elsewhere.
+Each user signs in as themselves, so sharing, folder access and field-level security apply. The save tools are listed for every user, and refuse anyone without `Salesforce_Reports_Write`. To check the door from a terminal, sign in once through the External Client App with one command, then run the check. Both name the org with `--org`; the Salesforce CLI must be signed in to it.
 
 ```bash
-sf org login web --client-app reports-mcp --client-id <consumer key> --scopes "mcp_api refresh_token" -a <auth alias>
-npm run mcp-check -- --org <alias> --auth <auth alias>
+npm run mcp-login -- --org <alias> [--auth <name>]
+npm run mcp-check -- --org <alias> --auth <name>
 ```
 
-The app already lists `http://localhost:1717/OauthRedirect` as a callback. The CLI refreshes the token itself, so the check can run in a loop. The check reads the token with `sf org auth show-access-token --json --target-org <auth alias>` and never prints it. `SF_MCP_TOKEN=<token>` still works and wins when set. The check expects the fifteen tools, runs `search_reports` and `run_report`, then `list_dashboards` and, when one is listed, `describe_dashboard` and `run_dashboard`. It refreshes and saves nothing, prints counts only, and ends with `mcp-check: tools=<n> steps=<passed>/<total>`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy `mcp-app` again.
+`mcp-login` reads the app's consumer key and the instance URL from the org (the queries in step 4), opens the sign-in page in your default browser and prints its URL too, and waits on `localhost:1717` for the callback, which the app already lists. It is a PKCE sign-in as a public client, with no secret, for the `mcp_api` and `refresh_token` scopes. It stores only the instance URL, the consumer key and the refresh token, in `~/.config/salesforce-reports-mcp/auth/<name>.json` (folder 0700, file 0600), and prints `mcp-login: auth=<name> stored`. `<name>` defaults to the alias. It gives up after four minutes, on a state mismatch, or on an error from the callback, each with one line and exit 1. To sign out, delete the file.
+
+`mcp-check --auth <name>` exchanges the stored refresh token for a fresh access token on every run, so it can run in a loop. The access token is never stored or printed. If the exchange fails, it prints the HTTP status and the `error` field only; run `mcp-login` again. With `--auth` and no file, it says to run `mcp-login`. `SF_MCP_TOKEN=<token>` still works and wins when set. The check expects the fifteen tools, runs `search_reports` and `run_report`, then `list_dashboards` and, when one is listed, `describe_dashboard` and `run_dashboard`. It refreshes and saves nothing, prints counts only, and ends with `mcp-check: tools=<n> steps=<passed>/<total>`. After you change a tool in `src/server.ts`, run `npm run mcp:generate`, then deploy `mcp-app` again.
 
 ### The callout tools on the MCP door
 
@@ -161,10 +163,10 @@ To remove the MCP door, run `npm run mcp:teardown -- --org <alias> --yes` (the s
 From the repo root, one command runs the whole loop against one org:
 
 ```bash
-npm run verify -- --org <alias> --auth <auth alias>
+npm run verify -- --org <alias> --auth <name>
 ```
 
-It runs `build`, `typecheck`, `test`, `deploy` (the Apex tests), `parity`, `live` (on the in-org door, with deletes), `hosted` and `leftover` (a query that proves no report was left behind), in that order. The first failure stops the run and the later steps read `SKIP`. `--skip <step,...>` skips named steps. `hosted` needs `--auth`, a CLI sign-in made through the External Client App (the recipe is above); without it the step reads `SKIP`. Each step's output goes to a file under `--log <dir>` (a fresh temp folder by default), and the run ends with one table of counts: tests passed, Apex tests run and failed, parity cases matched and differing, live steps passed, hosted tools and steps, and the leftover count. It exits 0 only when no step failed. The logic is in `scripts/verify-lib.ts`.
+It runs `build`, `typecheck`, `test`, `deploy` (the Apex tests), `parity`, `live` (on the in-org door, with deletes), `hosted` and `leftover` (a query that proves no report was left behind), in that order. The first failure stops the run and the later steps read `SKIP`. `--skip <step,...>` skips named steps. `hosted` needs `--auth <name>`, a sign-in stored by `npm run mcp-login` (the recipe is above); without it the step reads `SKIP`. Each step's output goes to a file under `--log <dir>` (a fresh temp folder by default), and the run ends with one table of counts: tests passed, Apex tests run and failed, parity cases matched and differing, live steps passed, hosted tools and steps, and the leftover count. It exits 0 only when no step failed. The logic is in `scripts/verify-lib.ts`.
 
 ## The skills
 

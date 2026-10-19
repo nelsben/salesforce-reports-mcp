@@ -215,6 +215,8 @@ sf project deploy start --manifest manifest/force-app/package.xml --pre-destruct
 
 The same class is also a Salesforce hosted MCP server. Everything it adds is in `mcp-app`, deployed on top of `force-app`, and none of it is code. The admin steps are in the repo's [README](../README.md), section "In the org", and the platform findings are in [docs/probes/v0.2-phase2.md](../docs/probes/v0.2-phase2.md).
 
+To check the hosted door from a terminal, run `npm run mcp-login -- --org <alias> --auth <name>` once (a PKCE sign-in through the External Client App in your browser; it keeps a refresh token), then `npm run mcp-check -- --org <alias> --auth <name>`. `SF_MCP_TOKEN` still works and wins when set. See [docs/install.md](../docs/install.md), "In the org".
+
 | Piece | Source | Made by |
 | --- | --- | --- |
 | API Catalog entry `ReportsApi` (ExternalServiceRegistration, ApexRest, inline OpenAPI 3) | `mcp-app/main/default/externalServiceRegistrations/` | `npm run mcp:generate`, from the local tool list |

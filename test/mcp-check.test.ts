@@ -1,52 +1,67 @@
 import { describe, expect, it } from "vitest";
 import { DOOR_TOOLS } from "../salesforce/scripts/door-tools.js";
-import { compareTools, NO_TOKEN_MESSAGE, resolveToken, runSteps, showTokenArgs, summaryLine, type SfRunner } from "../scripts/mcp-check-lib.js";
+import { compareTools, NO_TOKEN_MESSAGE, NO_AUTH_FILE_MESSAGE, resolveToken, runSteps, summaryLine } from "../scripts/mcp-check-lib.js";
+import { authPath, type FileStore } from "../scripts/mcp-auth-lib.js";
 
 const SECRET = "fake-token-value-not-real";
+const HOME = "/home/u";
+const STORED = { instanceUrl: "https://example.my.salesforce.com", clientId: "KEY", refreshToken: "fake-refresh" };
 
-function runner(result: { code: number; stdout: string }) {
-  const calls: string[][] = [];
-  const run: SfRunner = async (args) => {
-    calls.push(args);
-    return result;
-  };
-  return { run, calls };
+function store(files: Record<string, string>) {
+  const fs: FileStore = { mkdir: () => undefined, writeFile: () => undefined, readFile: (path) => files[path] };
+  return fs;
+}
+function fetcher(status: number, body: unknown) {
+  const calls: { url: string; body: string }[] = [];
+  const fn = (async (url: string, init: RequestInit) => {
+    calls.push({ url, body: String(init.body) });
+    return new Response(JSON.stringify(body), { status });
+  }) as unknown as typeof fetch;
+  return { fn, calls };
 }
 
 describe("resolveToken", () => {
-  it("lets SF_MCP_TOKEN win and does not call sf", async () => {
-    const { run, calls } = runner({ code: 0, stdout: JSON.stringify({ result: { accessToken: "from-cli" } }) });
-    expect(await resolveToken({ env: "from-env", auth: "alias", run })).toBe("from-env");
+  it("lets SF_MCP_TOKEN win and makes no request", async () => {
+    const { fn, calls } = fetcher(200, { access_token: "x" });
+    const files = { [authPath(HOME, "a")]: JSON.stringify(STORED) };
+    expect(await resolveToken({ env: "from-env", auth: "a", fetch: fn, store: store(files), home: HOME })).toBe("from-env");
     expect(calls).toHaveLength(0);
   });
 
-  it("reads the token from sf org auth show-access-token with the alias", async () => {
-    const { run, calls } = runner({ code: 0, stdout: JSON.stringify({ status: 0, result: { accessToken: SECRET } }) });
-    expect(await resolveToken({ env: undefined, auth: "my-alias", run })).toBe(SECRET);
-    expect(calls).toEqual([["org", "auth", "show-access-token", "--json", "--target-org", "my-alias"]]);
-    expect(showTokenArgs("my-alias")).toEqual(calls[0]);
+  it("exchanges the stored refresh token for a fresh access token on each call", async () => {
+    const { fn, calls } = fetcher(200, { access_token: SECRET });
+    const files = { [authPath(HOME, "a")]: JSON.stringify(STORED) };
+    const opts = { env: undefined, auth: "a", fetch: fn, store: store(files), home: HOME };
+    expect(await resolveToken(opts)).toBe(SECRET);
+    expect(await resolveToken(opts)).toBe(SECRET);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]!.url).toBe("https://example.my.salesforce.com/services/oauth2/token");
+    expect(Object.fromEntries(new URLSearchParams(calls[0]!.body))).toEqual({ grant_type: "refresh_token", client_id: "KEY", refresh_token: "fake-refresh" });
   });
 
   it("refuses with neither source, naming both ways", async () => {
-    const { run } = runner({ code: 0, stdout: "" });
-    const error = await resolveToken({ env: undefined, auth: undefined, run }).catch((e: Error) => e);
-    expect((error as Error).message).toBe(NO_TOKEN_MESSAGE);
-    expect((error as Error).message).toContain("SF_MCP_TOKEN");
-    expect((error as Error).message).toContain("--auth");
+    const { fn } = fetcher(200, {});
+    const error = (await resolveToken({ env: undefined, auth: undefined, fetch: fn, store: store({}), home: HOME }).catch((e: Error) => e)) as Error;
+    expect(error.message).toBe(NO_TOKEN_MESSAGE);
+    expect(error.message).toContain("SF_MCP_TOKEN");
+    expect(error.message).toContain("--auth");
+    expect(error.message).toContain("mcp-login");
   });
 
-  it("reports only the exit code when sf fails, never its output", async () => {
-    const { run } = runner({ code: 3, stdout: `error with ${SECRET}` });
-    const error = (await resolveToken({ env: undefined, auth: "a", run }).catch((e: Error) => e)) as Error;
-    expect(error.message).toContain("exit code 3");
-    expect(error.message).not.toContain(SECRET);
+  it("tells the user to run mcp-login when --auth has no file", async () => {
+    const { fn } = fetcher(200, {});
+    const error = (await resolveToken({ env: undefined, auth: "gone", fetch: fn, store: store({}), home: HOME }).catch((e: Error) => e)) as Error;
+    expect(error.message).toBe(NO_AUTH_FILE_MESSAGE("gone"));
+    expect(error.message).toContain("npm run mcp-login");
   });
 
-  it("does not echo output that has no token", async () => {
-    const { run } = runner({ code: 0, stdout: `not json ${SECRET}` });
-    const error = (await resolveToken({ env: undefined, auth: "a", run }).catch((e: Error) => e)) as Error;
-    expect(error.message).toContain("no access token");
+  it("reports only the status and error field when the exchange fails", async () => {
+    const { fn } = fetcher(400, { error: "invalid_grant", error_description: `x ${SECRET}` });
+    const files = { [authPath(HOME, "a")]: JSON.stringify(STORED) };
+    const error = (await resolveToken({ env: undefined, auth: "a", fetch: fn, store: store(files), home: HOME }).catch((e: Error) => e)) as Error;
+    expect(error.message).toContain("HTTP 400 invalid_grant");
     expect(error.message).not.toContain(SECRET);
+    expect(error.message).not.toContain("fake-refresh");
   });
 });
 
