@@ -1,36 +1,47 @@
 /**
  * Check the hosted MCP door: the Salesforce Reports server that salesforce/scripts/mcp-setup.ts wires up.
- * Usage: SF_MCP_TOKEN=<token> npm run mcp-check -- --org <alias> [--url <endpoint>] [--dump <file>]
+ * Usage: npm run mcp-check -- --org <alias> [--auth <cli alias>] [--url <endpoint>] [--dump <file>]
  *
- * The bearer token comes only from SF_MCP_TOKEN: an access token with the mcp_api scope, from the External
- * Client App's OAuth flow (the CLI's own token is refused). --org finds the endpoint in the org's API Catalog
- * through the Salesforce CLI; --url gives it directly. The check calls tools/list, requires the door tool
- * names exactly, then calls search_reports and run_report on a report it finds. It prints no token.
- * --dump writes the hosted tools/list result to a file, for the findings doc.
+ * The bearer token is an access token with the mcp_api scope, from the External Client App's OAuth flow (the
+ * CLI's own token is refused). SF_MCP_TOKEN wins when set. Otherwise --auth reads it from
+ * `sf org auth show-access-token --json --target-org <alias>`, a CLI sign-in made through that app.
+ * --org finds the endpoint in the org's API Catalog through the Salesforce CLI; --url gives it directly.
+ * The check requires the fifteen door tool names exactly, calls search_reports and run_report, then
+ * list_dashboards and, when one is listed, describe_dashboard and run_dashboard. It refreshes and saves nothing.
+ * It prints counts only, and no token. --dump writes the hosted tools/list result to a file.
+ * The logic lives in scripts/mcp-check-lib.ts.
  */
+import { execFile } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
-import { DOOR_TOOLS } from "../salesforce/scripts/door-tools.js";
 import { Org, SERVER } from "../salesforce/scripts/org.js";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Json = any;
+import { resolveToken, runSteps, summaryLine, NO_TOKEN_MESSAGE, type Json, type SfRunner } from "./mcp-check-lib.js";
 
 process.on("uncaughtException", (error) => {
   console.error(`FAIL  ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 });
 
-const { values } = parseArgs({ options: { org: { type: "string" }, url: { type: "string" }, dump: { type: "string" } }, strict: true });
-const token = process.env.SF_MCP_TOKEN;
-if (!token) {
-  console.error("Set SF_MCP_TOKEN to an access token with the mcp_api scope. The check never prints it.");
+const { values } = parseArgs({ options: { org: { type: "string" }, url: { type: "string" }, auth: { type: "string" }, dump: { type: "string" } }, strict: true });
+if (!process.env.SF_MCP_TOKEN && !values.auth) {
+  console.error(NO_TOKEN_MESSAGE);
   process.exit(2);
 }
 if (!values.org && !values.url) {
   console.error("Pass --org <alias> (to find the endpoint in the org's API Catalog) or --url <endpoint>. There is no default org.");
   process.exit(2);
 }
+
+/** Runs `sf` through execFile, never a shell. Its output goes only to the caller. */
+const runSf: SfRunner = (args) =>
+  new Promise((resolve) => {
+    execFile("sf", args, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout) => {
+      const code = error ? (typeof error.code === "number" ? error.code : 1) : 0;
+      resolve({ code, stdout: String(stdout) });
+    });
+  });
+
+const token = await resolveToken({ env: process.env.SF_MCP_TOKEN, auth: values.auth, run: runSf });
 
 async function endpoint(): Promise<string> {
   if (values.url) return values.url;
@@ -39,7 +50,7 @@ async function endpoint(): Promise<string> {
   if (!server) throw new Error(`The org has no McpServerDefinition named ${SERVER}.`);
   const entry = await org.catalogServer(server.Id);
   if (!entry?.serverUrl) throw new Error(`The API Catalog has no endpoint for ${SERVER}.`);
-  if (!entry.isActive) console.log(`Note: the API Catalog says ${SERVER} is not active. Run salesforce/scripts/mcp-setup.ts.`);
+  if (!entry.isActive) console.log("Note: the API Catalog says the server is not active. Run salesforce/scripts/mcp-setup.ts.");
   return entry.serverUrl;
 }
 
@@ -78,56 +89,13 @@ async function rpc(method: string, params?: Json, notify = false): Promise<Json>
   return reply.result;
 }
 
-let failed = false;
-function check(ok: boolean, label: string, detail = ""): void {
-  console.log(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? `: ${detail}` : ""}`);
-  if (!ok) failed = true;
-}
-
-/** The tool's arguments, wrapped if the hosted schema nests the request body under one property. */
-function argsFor(tool: Json, args: Record<string, unknown>): Record<string, unknown> {
-  const props = Object.keys(tool?.inputSchema?.properties ?? {});
-  if (Object.keys(args).every((k) => props.includes(k))) return args;
-  if (props.length === 1) return { [props[0]!]: args };
-  return args;
-}
-
-/** The JSON body a tool call returns: structured content, or the text content parsed. */
-function body(result: Json): Json {
-  if (result?.structuredContent) return result.structuredContent;
-  const text = result?.content?.find((c: Json) => c.type === "text")?.text ?? "";
-  try {
-    return JSON.parse(text);
-  } catch {
-    return text;
-  }
-}
-
-console.log(`Endpoint: ${url}`);
 const init = await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "mcp-check", version: "0.0.0" } });
-console.log(`Server: ${init?.serverInfo?.name ?? "?"} ${init?.serverInfo?.version ?? ""}, protocol ${init?.protocolVersion}`);
+console.log(`Protocol ${init?.protocolVersion ?? "?"}`);
 await rpc("notifications/initialized", undefined, true);
 
 const { tools } = await rpc("tools/list", {});
 if (values.dump) writeFileSync(values.dump, JSON.stringify(tools, null, 2));
-const names: string[] = tools.map((t: Json) => t.name).sort();
-const expected = [...DOOR_TOOLS].sort();
-check(expected.length === 15, "the door lists 15 tools", String(expected.length));
-check(JSON.stringify(names) === JSON.stringify(expected), "tools/list has the door tools exactly", names.join(", "));
-for (const t of tools) console.log(`      ${t.name}: input ${Object.keys(t.inputSchema?.properties ?? {}).join(", ") || "(none)"}`);
-const byName = (name: string) => tools.find((t: Json) => t.name === name);
-
-const search = await rpc("tools/call", { name: "search_reports", arguments: argsFor(byName("search_reports"), { limit: 5 }) });
-const found = body(search);
-const reportId: string | undefined = found?.reports?.[0]?.id;
-check(!search.isError && typeof found?.count === "number", "search_reports answers", `${found?.count ?? "?"} reports${search.isError ? `, error ${JSON.stringify(found).slice(0, 300)}` : ""}`);
-
-if (reportId) {
-  const run = await rpc("tools/call", { name: "run_report", arguments: argsFor(byName("run_report"), { reportId, maxRows: 5 }) });
-  const result = body(run);
-  check(!run.isError && Boolean(result?.report), "run_report answers", run.isError ? JSON.stringify(result).slice(0, 300) : `${result?.report?.name ?? reportId}, ${result?.report?.format ?? "?"}`);
-} else {
-  check(false, "run_report answers", "search_reports found no report to run");
-}
-
-process.exit(failed ? 1 : 0);
+const steps = await runSteps((method, params) => rpc(method, params), tools as Json[]);
+for (const step of steps) console.log(`${step.ok ? "PASS" : "FAIL"}  ${step.label}${step.detail ? `: ${step.detail}` : ""}`);
+console.log(summaryLine(tools.length, steps));
+process.exit(steps.every((s) => s.ok) ? 0 : 1);
