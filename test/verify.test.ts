@@ -91,6 +91,13 @@ describe("runVerify", () => {
     expect(Object.keys(h.logs)).toContain("build");
   });
 
+  it("passes leftover at zero when the CLI's update warning follows the JSON", async () => {
+    const h = harness({ leftover: { code: 0, output: '{"result":{"totalSize":0}}\n ›   Warning: @salesforce/cli update available.\n' } });
+    const r = await runVerify({ ...base, skip: [], run: h.run, print: h.print, log: h.log });
+    expect(r.ok).toBe(true);
+    expect(r.results.find((x) => x.step === "leftover")!.result).toBe("PASS");
+  });
+
   it("fails deploy on test errors or a failed status", async () => {
     const h = harness({ deploy: { code: 0, output: JSON.stringify({ result: { status: "Failed", numberTestsCompleted: 10, numberTestErrors: 3 } }) } });
     const r = await runVerify({ ...base, skip: [], run: h.run, print: h.print, log: h.log });
@@ -109,6 +116,11 @@ describe("parseDetail", () => {
     expect(parseDetail("deploy", '{"result":{"numberTestsCompleted":7,"numberTestErrors":0}}')).toBe("apex tests=7 failed=0");
     expect(parseDetail("deploy", '{"result":{}}')).toBe("apex tests=0 failed=0");
     expect(parseDetail("deploy", "not json")).toBe("no result");
+  });
+  it("reads JSON that the CLI's update warning follows on stderr", () => {
+    const warning = "\n ›   Warning: @salesforce/cli update available from 2.1 to 2.2.\n";
+    expect(parseDetail("deploy", `{"result":{"numberTestsCompleted":89,"numberTestErrors":0}}${warning}`)).toBe("apex tests=89 failed=0");
+    expect(parseDetail("leftover", `{\n  "result": {\n    "totalSize": 0\n  }\n}${warning}`)).toBe("reports=0");
   });
   it("reads leftover JSON", () => {
     expect(parseDetail("leftover", '{"result":{"totalSize":0}}')).toBe("reports=0");
