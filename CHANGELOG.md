@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The README leads with the local MCP server: MCP on Salesforce with nothing installed in the org and no Salesforce MCP, a Claude Desktop conversation as the headline, the cards right under it, and the two-command install near the top. The in-org packages are introduced as the same tools rebuilt for people who cannot run a local server. The local door's tool count in the doors table is now 16.
+
 - `npm run typecheck` checks the scripts and tests that `tsc` skips (`salesforce/scripts`, `scripts`, `test`) through `tsconfig.check.json`, and CI runs it after the build. Types only, no change in behaviour: one cast in `salesforce/scripts/org.ts` and one in `test/server.test.ts`.
 
 - The report card and the dashboard card follow the Salesforce Lightning Design System: its font stack, type scale, spacing, card border, radius and shadow, brand blue for links and buttons, and its data-visualization palette on every chart. A dashboard that names the Bluegrass, Sunrise, Water or Watermelon palette draws in it, and `DashboardResult` carries the palette name as `colorPalette`. The values are copied from the published token files into one small file inlined at build; no stylesheet, font file or network load, so the cards stay self-contained ([decision 0018](docs/decisions/0018-cards-follow-the-lightning-design-system.md)). At phone width each headline tile takes a row of its own, so a number never breaks across lines.
