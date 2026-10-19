@@ -146,7 +146,8 @@ describe("report-runner dashboard offer", () => {
     expect(reference).toMatch(/groups\.dimensions/);
     expect(reference).toMatch(/groups\.measures/);
     expect(reference).toMatch(/groups\.rows/);
-    expect(reference).toMatch(/`totals` becomes one more row/);
+    expect(reference).toMatch(/`totals.measures` and `totals.values`/);
+    expect(reference).toMatch(/`detail.rows`/);
     expect(reference).toMatch(/`filters` stay words/);
   });
 });

@@ -44,10 +44,11 @@ The server fixes two Salesforce quirks and says so in `notes`: it adds an aggreg
 
 A Claude Dashboard artifact binds live data to a connector tool, here `run_report` (or `query_report`), and draws rows. Its loader calls the tool, then reshapes the `ReportResult` into plain rows:
 
-1. `groups.dimensions` and `groups.measures` name the columns of `groups.rows`, in order: the dimensions first, then the measures. Zip each row with those names into one object per row.
-2. `totals` becomes one more row, labelled "Total", with the measure names as its keys.
-3. `filters` stay words. Show them as a caption or a filter note, never as controls the dashboard cannot honour.
-4. Carry `notes` and `url` through: show any note about cut rows, and keep the link to the report.
+1. `groups.dimensions` and `groups.measures` are lists of objects. Their `name` values, dimensions first and then measures, name the cells of each row in `groups.rows`, in order. Zip each row with those names into one object per row, and use each `label` as the column heading.
+2. `totals.measures` and `totals.values` are two lists of the same length. Zip them into one more row, labelled "Total".
+3. A flat report has no `groups`: zip each row of `detail.rows` with the `name` of each entry in `detail.columns` instead, and say when `detail.truncated` is true.
+4. `filters` stay words. Show them as a caption or a filter note, never as controls the dashboard cannot honour.
+5. Carry `notes` and `report.url` through: show any note about cut rows, and keep the link to the report.
 
 Keep the run's input in the dashboard (the `reportId` and any `overrides`) so each refresh asks the same question. Check the shape of a real result before writing the loader.
 
