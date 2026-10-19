@@ -112,6 +112,7 @@ const { tools } = await rpc("tools/list", {});
 if (values.dump) writeFileSync(values.dump, JSON.stringify(tools, null, 2));
 const names: string[] = tools.map((t: Json) => t.name).sort();
 const expected = [...DOOR_TOOLS].sort();
+check(expected.length === 15, "the door lists 15 tools", String(expected.length));
 check(JSON.stringify(names) === JSON.stringify(expected), "tools/list has the door tools exactly", names.join(", "));
 for (const t of tools) console.log(`      ${t.name}: input ${Object.keys(t.inputSchema?.properties ?? {}).join(", ") || "(none)"}`);
 const byName = (name: string) => tools.find((t: Json) => t.name === name);

@@ -126,6 +126,51 @@
         <apiDefinition>
             <apiIdentifier>ar:ReportsApi</apiIdentifier>
             <apiSource>API_CATALOG</apiSource>
+            <operation>list_dashboards</operation>
+        </apiDefinition>
+        <descriptionOverride>Find Salesforce dashboards by title or developer name, optionally within a folder. Returns up to `limit` matches (default 25), most recently modified first, each with its id, title, developer name, folder, when its data was last refreshed (null if never) and a Lightning URL; a note says when more match. Use it first when the user names a dashboard. Next, describe_dashboard to see what it shows, or run_dashboard for its numbers. For saved reports, use search_reports.</descriptionOverride>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>true</openWorld>
+        <readOnly>true</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>list_dashboards</toolName>
+        <toolTitle>List dashboards</toolTitle>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>ar:ReportsApi</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>describe_dashboard</operation>
+        </apiDefinition>
+        <descriptionOverride>Show what a dashboard contains without reading its data: its components in layout order (top to bottom, then left to right), each with its visualization type, header, title, source report id and name, grouping and measure, plus the dashboard's filters with their option labels and whose data it shows (the running user). Use it before run_dashboard to learn the filter names and options, or to find the saved report behind a chart and run it with run_report. Different from describe_report, which describes one saved report.</descriptionOverride>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>true</openWorld>
+        <readOnly>true</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>describe_dashboard</toolName>
+        <toolTitle>Describe a dashboard</toolTitle>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>ar:ReportsApi</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>run_dashboard</operation>
+        </apiDefinition>
+        <descriptionOverride>Read a dashboard's numbers as Salesforce last refreshed them: per component its header, visualization type, status (data, no data, error) and a compact report result (groups and totals, the same shape run_report returns), plus the filters in words, whose data it shows and when it was refreshed. It never refreshes: a component with no data says so in notes, and notes give the data's age when it is older than a day; then offer refresh_dashboard. `filters` pick a dashboard filter option by name and label (see describe_dashboard). Use it when the user asks about a dashboard, or wants the set of figures a dashboard already gathers. Different from run_report, which runs one saved report live and can change its filters, groupings and dates for the run.</descriptionOverride>
+        <destructive>false</destructive>
+        <idempotent>true</idempotent>
+        <openWorld>true</openWorld>
+        <readOnly>true</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>run_dashboard</toolName>
+        <toolTitle>Read a dashboard</toolTitle>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>ar:ReportsApi</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
             <operation>create_report</operation>
         </apiDefinition>
         <descriptionOverride>Save a new report in Salesforce. Two ways. From scratch: give name, reportType and the definition. From an existing report: give name and fromReportId, plus only the fields to change; the saved report is copied and the changes applied, so you do not repeat its columns, groupings or filters. A list you send (filters, columns, groupings, aggregates) replaces that list in the copy. With no folderId it lands in the user's Private Reports folder, visible only to them. Use it only when the user asks to save or create a report; try the definition first with query_report, or run_report with overrides when starting from a saved report. The original is never touched; to change the original, use update_report. Returns the new report's id, name, folder, URL and summary. In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED.</descriptionOverride>
@@ -166,5 +211,20 @@
         <returnDirect>false</returnDirect>
         <toolName>clone_report</toolName>
         <toolTitle>Clone a report</toolTitle>
+    </tools>
+    <tools>
+        <apiDefinition>
+            <apiIdentifier>ar:ReportsApi</apiIdentifier>
+            <apiSource>API_CATALOG</apiSource>
+            <operation>refresh_dashboard</operation>
+        </apiDefinition>
+        <descriptionOverride>Refresh a dashboard in Salesforce, so every component reruns its source report now, then return the same result as run_dashboard. It waits up to 20 status checks or about 30 seconds for the refresh to finish, then returns the cached results with a note to call run_dashboard in a minute. Salesforce refreshes a dashboard at most once a minute: a second refresh inside a minute returns the cached results with a note saying when to try again. Each filter option has its own cache, so pass the filters you want to read. Use it when run_dashboard says a component has no data or the data is old, or when the user asks for current numbers. It saves nothing, but it runs every source report and changes what other viewers see, so it counts as a write. For one figure, run_report on the source report is lighter. In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED.</descriptionOverride>
+        <destructive>false</destructive>
+        <idempotent>false</idempotent>
+        <openWorld>true</openWorld>
+        <readOnly>false</readOnly>
+        <returnDirect>false</returnDirect>
+        <toolName>refresh_dashboard</toolName>
+        <toolTitle>Refresh a dashboard</toolTitle>
     </tools>
 </McpServerDefinition>

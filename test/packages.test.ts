@@ -145,10 +145,10 @@ describe("Salesforce packages", () => {
     expect(committed("mcpServerDefinitions/SalesforceReports.mcpServerDefinition-meta.xml")).toBe(serverXml(tools));
   });
 
-  it("only the three save tools name the write permission set in their door description", async () => {
+  it("only the three save tools and refresh_dashboard name the write permission set in their door description", async () => {
     const tools = await doorTools();
     for (const tool of tools) {
-      const save = ["create_report", "update_report", "clone_report"].includes(tool.name);
+      const save = ["create_report", "update_report", "clone_report", "refresh_dashboard"].includes(tool.name);
       expect(tool.description.endsWith(` ${WRITE_SENTENCES}`), tool.name).toBe(save);
     }
   });

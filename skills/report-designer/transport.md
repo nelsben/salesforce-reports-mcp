@@ -31,7 +31,7 @@ The `sf` CLI signs the request with the org's stored session. Never fetch, print
 
 ## Tools on the REST door
 
-The door has eleven tools.
+The door has fifteen tools.
 
 Over MCP the tool schema tells you the input fields. Here it does not, so use these names exactly. The definition fields are `reportType`, `format`, `columns`, `groupingsDown`, `groupingsAcross`, `aggregates`, `filters`, `filterLogic`, `dateFilter`, `sortBy`, `topRows`, `scope` and `reportMetadata`, with the shapes in `reference.md`. The result controls are `detail` and `maxRows`.
 
@@ -45,9 +45,13 @@ Over MCP the tool schema tells you the input fields. Here it does not, so use th
 | `run_report` | read | **`reportId`**, `overrides` (any definition fields, for this run only), `detail`, `maxRows` |
 | `query_report` | read, calls the org's REST API from inside the org | **`reportType`**, the definition fields, `detail`, `maxRows` |
 | `combine_reports` | read | **`mode`** (`stack` or `join`), **`inputs`** (2 to 5 of `{alias, reportId, overrides}` or `{alias, definition}`), `joinOn`, `detail`, `maxRows` |
+| `list_dashboards` | read | `query`, `folder`, `limit` |
+| `describe_dashboard` | read, calls the org's REST API from inside the org | **`dashboardId`** |
+| `run_dashboard` | read, calls the org's REST API from inside the org | **`dashboardId`**, `filters` (`[{name, option}]`, from `describe_dashboard`), `maxRows` |
 | `create_report` | save, needs the write permission | **`name`**, `description`, `folderId`, `fromReportId`, the definition fields (`reportType` when there is no `fromReportId`) |
 | `update_report` | save, needs the write permission | **`reportId`**, `name`, `description`, `folderId`, the definition fields to change |
 | `clone_report` | save, needs the write permission | **`reportId`**, `name`, `folderId` |
+| `refresh_dashboard` | write, needs the write permission; waits up to about 30 seconds | **`dashboardId`**, `filters`, `maxRows` |
 
 Deleting a report is not on this door. It answers 404 `UNKNOWN_TOOL`. Deleting needs the local MCP server started with `--allow-delete`, or Salesforce itself.
 
@@ -68,7 +72,7 @@ Act on `code`:
 | Code | Means | Do |
 | --- | --- | --- |
 | `INVALID_INPUT`, or a Salesforce error code | The input is wrong, often a column name | Fix the input from `message` and `hint` and try once more, as the skill says. |
-| `WRITE_NOT_ALLOWED` (HTTP 403) | The user lacks the write permission for saves | A refusal. Do not retry. Follow the skill's refusal steps. |
+| `WRITE_NOT_ALLOWED` (HTTP 403) | The user lacks the write permission for saves and dashboard refreshes | A refusal. Do not retry. Follow the skill's refusal steps. |
 | `CALLOUT_SESSION` | The door could not call the org's own REST API under this sign-in. On the hosted MCP server, the org lacks the optional callout package | A refusal. Do not retry. Follow the skill's refusal steps. |
 | `CALLOUT_CREDENTIAL` | On the hosted MCP server, the org has the callout package, but this user lacks its permission set (the `hint` names it) or its token failed | A refusal. Do not retry. Follow the skill's refusal steps for `CALLOUT_SESSION`, and pass on the `hint`. |
 | `CALLOUT_FAILED`, `RESULT_TOO_LARGE` | The run was too big or too slow inside the org | Narrow it (fewer columns, a tighter date range, no detail rows) and try once. |

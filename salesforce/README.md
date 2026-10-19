@@ -30,7 +30,7 @@ The class answers on two routes, and reads the tool name from the last segment o
 
 ## Tools
 
-The REST door has fifteen tools: the eight read tools `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`, the three save tools `create_report`, `update_report` and `clone_report`, the three dashboard readers `list_dashboards`, `describe_dashboard` and `run_dashboard`, and `refresh_dashboard`, a write. The hosted MCP door still lists the first eleven; its dashboard tools come later.
+The REST door has fifteen tools: the eight read tools `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`, the three save tools `create_report`, `update_report` and `clone_report`, the three dashboard readers `list_dashboards`, `describe_dashboard` and `run_dashboard`, and `refresh_dashboard`, a write. The hosted MCP door lists all fifteen. `refresh_dashboard` is a write, so its door description adds the `Reports_Write` sentences and says the in-org wait (20 status checks or about 30 seconds) instead of the local 60 seconds.
 
 | Tool | On this door | Differences from the local server |
 | --- | --- | --- |
@@ -209,18 +209,20 @@ sf project deploy start --manifest manifest/force-app/package.xml --pre-destruct
 
 ## Hosted MCP door
 
+**Upgrading a hosted door that lists eleven tools.** Redeploy `mcp-app`, rerun `npm run mcp:setup -- --org <alias> --yes`, then activate the four new operations (`list_dashboards`, `describe_dashboard`, `run_dashboard`, `refresh_dashboard`) in Setup, in the API Catalog entry `ReportsApi`. The dashboard tools call out, so they need `callout-app` on the hosted route, as the other callout tools do.
+
 The same class is also a Salesforce hosted MCP server. Everything it adds is in `mcp-app`, deployed on top of `force-app`, and none of it is code. The admin steps are in the repo's [README](../README.md), section "In the org", and the platform findings are in [docs/probes/v0.2-phase2.md](../docs/probes/v0.2-phase2.md).
 
 | Piece | Source | Made by |
 | --- | --- | --- |
 | API Catalog entry `ReportsApi` (ExternalServiceRegistration, ApexRest, inline OpenAPI 3) | `mcp-app/main/default/externalServiceRegistrations/` | `npm run mcp:generate`, from the local tool list |
-| MCP server `SalesforceReports`, with eleven tools on `ar:ReportsApi`. The save tools are not marked read-only, and their descriptions name the write permission set. | `mcp-app/main/default/mcpServerDefinitions/` | `npm run mcp:generate` |
+| MCP server `SalesforceReports`, with fifteen tools on `ar:ReportsApi`. The save tools and `refresh_dashboard` are not marked read-only, and their descriptions name the write permission set. | `mcp-app/main/default/mcpServerDefinitions/` | `npm run mcp:generate` |
 | External Client App `SalesforceReportsMcp` (PKCE, `mcp_api`, `refresh_token`, callback for claude.ai) | `mcp-app/main/default/externalClientApps/`, `extlClntAppGlobalOauthSets/`, `extlClntAppOauthSettings/` | by hand |
 | Tool rows and server access | not metadata | `npm run mcp:setup -- --org <alias> --yes`, removed by `npm run mcp:teardown -- --org <alias> --yes` |
 
 The permission sets and the custom permission it relies on are in `force-app`, since the REST door needs them too.
 
-For the three save tools, the generator adds two sentences after the local description, in the OpenAPI operation, the server's `descriptionOverride` and the tool row: "In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED." `src/server.ts` stays as it is.
+For the three save tools and `refresh_dashboard`, the generator adds two sentences after the local description, in the OpenAPI operation, the server's `descriptionOverride` and the tool row: "In the org, this tool needs the permission set Salesforce_Reports_Write. Without it, the call answers WRITE_NOT_ALLOWED." `src/server.ts` stays as it is.
 
 The setup script writes each tool row's ReadOnly, Destructive, Idempotent and OpenWorld flags from the local server's annotations. A hosted server lists its tools to every user who can reach it: there is no per-user or per-permission field on the tool, server or access rows. So the save tools are listed for everyone, and the door refuses a user without the write permission.
 

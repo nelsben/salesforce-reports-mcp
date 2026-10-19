@@ -27,7 +27,7 @@ When no report fits, or the user wants a number cut a way no saved report does, 
 
 ## Dashboards
 
-Reach for a dashboard tool instead of a report run when the user names a dashboard ("the pipeline dashboard"), or asks for the set of figures a dashboard already gathers ("how does the board look this week"). For one number, or a cut no dashboard has, stay with reports: a report run is live and takes `overrides`; a dashboard shows what Salesforce cached at its last refresh. The dashboard tools are on the local server only.
+Reach for a dashboard tool instead of a report run when the user names a dashboard ("the pipeline dashboard"), or asks for the set of figures a dashboard already gathers ("how does the board look this week"). For one number, or a cut no dashboard has, stay with reports: a report run is live and takes `overrides`; a dashboard shows what Salesforce cached at its last refresh. The dashboard tools are on every door.
 
 1. **Find it** with `list_dashboards` and the user's words. Pick or ask as for reports.
 2. **Learn its filters** with `describe_dashboard` when the user wants a slice ("only Prospecting"). Filters are chosen by name and option label, and only from the options the dashboard offers. For any other cut, run the source report a component names with `run_report` and `overrides`.
