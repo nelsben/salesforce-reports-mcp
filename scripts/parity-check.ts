@@ -411,7 +411,7 @@ try {
   await apexAnswers("apex: an unknown tool answers 404", "no_such_tool", {}, 404, "UNKNOWN_TOOL");
   await apexAnswers("apex: a bad report id answers 400", "run_report", { reportId: "not-an-id" }, 400, "INVALID_INPUT");
 
-  // Dashboards (BE-36): read only, against the probe dashboard. Nothing is refreshed or saved.
+  // Dashboards: read only, against the probe dashboard. Nothing is refreshed or saved.
   const listed = await local("list_dashboards", { query: PROBE_DASHBOARD });
   const dashboardId: string | undefined = listed.ok ? listed.body.dashboards.find((d: Json) => d.developerName === PROBE_DASHBOARD)?.id : undefined;
   if (!dashboardId) {
