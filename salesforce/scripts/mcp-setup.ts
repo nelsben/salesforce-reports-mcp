@@ -1,5 +1,5 @@
 /**
- * Wires the eleven door tools onto the Salesforce Reports hosted MCP server, idempotently, and activates the
+ * Wires the fifteen door tools onto the Salesforce Reports hosted MCP server, idempotently, and activates the
  * server. Run it after deploying salesforce/force-app (the classes and the permission sets), then salesforce/mcp-app
  * on top of it (the registration, the server and the External Client App).
  *

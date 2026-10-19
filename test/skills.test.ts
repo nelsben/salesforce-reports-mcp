@@ -12,8 +12,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
 
 const SKILLS = ["report-runner", "report-designer"];
-/** Tools only the local server has: delete_report, and the v0.3 dashboard tools (no in-org door yet). */
-const LOCAL_ONLY = ["delete_report", "list_dashboards", "describe_dashboard", "run_dashboard", "refresh_dashboard"];
+/** The tool only the local server has. */
+const LOCAL_ONLY = ["delete_report"];
 
 async function serverToolSchemas(): Promise<Map<string, string[]>> {
   const api: SalesforceApi = {
@@ -66,14 +66,14 @@ describe("skills transport", () => {
       expect(listed).not.toContain(name);
     }
     expect([...listed].sort()).toEqual(tools.filter((t) => !LOCAL_ONLY.includes(t)).sort());
-    expect(listed).toHaveLength(11);
+    expect(listed).toHaveLength(15);
   });
 
   it("names only real input fields as required", async () => {
     const schemas = await serverToolSchemas();
     const section = files[0].split(/^## Tools on the REST door\s*$/m)[1].split(/^## /m)[0];
     const rows = [...section.matchAll(/^\|\s*`([a-z_]+)`\s*\|.*\|(.*)\|\s*$/gm)];
-    expect(rows.length).toBe(11);
+    expect(rows.length).toBe(15);
     for (const [, tool, inputs] of rows) {
       for (const [, field] of inputs.matchAll(/\*\*`([A-Za-z]+)`\*\*/g)) expect(schemas.get(tool)).toContain(field);
     }
