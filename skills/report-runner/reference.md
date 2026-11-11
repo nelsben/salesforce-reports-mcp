@@ -50,6 +50,14 @@ A Claude Dashboard artifact binds live data to a connector tool, here `run_repor
 4. `filters` stay words. Show them as a caption or a filter note, never as controls the dashboard cannot honour.
 5. Carry `notes` and `report.url` through: show any note about cut rows, and keep the link to the report.
 
+The tested source is [dashboard-loader.js](dashboard-loader.js) in this folder. Paste it whole as the loader `fn`; it is one function, `reportResultToRows({ answer })`, and it runs alone. It returns `{columns, rows, cut, meta}` and throws the server's own words when the answer is an error. Do not rewrite it by hand.
+
+The dataset source is a live call with nothing saved:
+
+```
+{kind: 'call', connector, tool: 'query_report', args: {definition: ...}}
+```
+
 Keep the run's input in the dashboard (the `reportId` and any `overrides`) so each refresh asks the same question. Check the shape of a real result before writing the loader.
 
 On the local stdio server there is no connector, so a dashboard can hold only a fixed copy of one result. Say that it is a snapshot, will not update, and why, before building it. A live one needs door 4 (the server over HTTP) or the hosted server.
