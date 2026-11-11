@@ -1,6 +1,6 @@
 # 0021. Claude Dashboards are the shareable view, built on run_report from a connector
 
-Status: Accepted, 2026-10-19
+Status: Accepted, 2026-10-19. Its default for the local door is replaced by [decision 0022](0022-dashboard-from-attached-result-files.md)
 
 ## Context
 

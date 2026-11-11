@@ -139,6 +139,19 @@ The friendly shape that `query_report`, `create_report`, `update_report`, `run_r
 - **Apex's `==` on strings ignores case.** The local code matches an option id, a `RowCount` aggregate and a `Gauge` type exactly, so `ReportsDashboards` compares those with `String.equals`. Filter names and option labels still match without case, as on the local server.
 - **`JSON.deserialize` builds `Dashboard` rows for a test.** A test can hand `ReportsDashboards.listRows` rows made from JSON, so the list tests need no dashboard in the org. One `SeeAllData=true` test runs the SOQL against the org's own dashboards, with every `/status` call mocked.
 
+### Claude Dashboard findings (observed 2026-11-11)
+
+Observed on the local stdio door on 2026-11-10 and 2026-11-11. These are observations, not documented behaviour. See [decision 0022](decisions/0022-dashboard-from-attached-result-files.md).
+
+- **A run with nothing saved became a dashboard.** `query_report` ran on the local stdio door and its `ReportResult` files were attached to a Claude Dashboard as JSON file datasets, one dataset per report. The dashboard drew four datasets (a stage summary, a month summary, a type summary and a tabular deal list) through the tested loader in [dashboard-loader.js](../skills/report-runner/dashboard-loader.js).
+- **No tunnel and no connector were involved.**
+- **The loader went in whole, inside a wrapper.** The wrapper was registered as each dataset's loader and returns `{data: rows, columns, cut, meta}`, because the Dashboard type reads rows from `data`.
+- **A page-side filter redraws at once.** Pressing a stage showed only that stage's deals with its count and amount, from rows already in the files and with no new run.
+- **Design changes go through comments.** They are asked for in the dashboard's own comments to Claude. A dashboard page cannot reach the local server, so it cannot re-run a report by itself.
+- **A Claude Dashboard was not seen to draw inline in a chat.** It opens as its own page and the chat carries a link. The report card (the MCP App) is what draws inline on the local door.
+- **Untested: door 4 from claude.ai.** Door 4 has passed only on loopback through `npm run door4-check`. A claude.ai connector through a tunnel and a connector-bound live dashboard were not run.
+- **The Dashboard type's own self-check never reported a pass for the session.** The dashboard was checked by opening it in a browser.
+
 ### ReportResult (output)
 
 One shape for every report Claude runs.

@@ -36,7 +36,12 @@ Reach for a dashboard tool instead of a report run when the user names a dashboa
 
 ## A dashboard to keep or share
 
-Use this only where the host offers Claude's Dashboard artifacts and `run_report` comes from a connector (the in-org hosted server, or the local server over HTTP on claude.ai). When the person wants a view to keep, share or open again ("make this a dashboard", "can the team see this"), offer a live Claude Dashboard built on `run_report` as its query, and build it only after their yes. Do not offer it unasked, and do not use it for a one-off answer. The loader that turns a result into rows is in `reference.md`. On the local stdio server the artifact cannot call a tool, so only a fixed copy is possible: say it will not update and why, and let the person choose. The dashboard saves no Salesforce report.
+Where the host draws the report card, the card in chat comes first. When the person wants a view to keep, share or open again ("make this a dashboard", "can the team see this"), offer a Claude Dashboard, and build it only after their yes. Do not offer it unasked, and do not use it for a one-off answer.
+
+- **On the local server**, build it from attached result files: run the reports, attach each `ReportResult` file as a dataset, and use the tested loader in `reference.md`. It is a copy as of the run, so the page must say it is a copy and give the run date. To update it, run the reports again. Design changes go through the dashboard's comments.
+- **Where `run_report` comes from a connector** (the in-org hosted server, or the local server over HTTP on claude.ai), a live dashboard is possible with Claude's Dashboard artifacts. That path is untested from claude.ai.
+
+The dashboard saves no Salesforce report.
 
 ## Never save
 

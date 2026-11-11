@@ -42,25 +42,39 @@ The server fixes two Salesforce quirks and says so in `notes`: it adds an aggreg
 
 ## Loader for a Claude Dashboard
 
-A Claude Dashboard artifact binds live data to a connector tool, here `run_report` (or `query_report`), and draws rows. Its loader calls the tool, then reshapes the `ReportResult` into plain rows:
+On the local door a dashboard to keep is built from attached result files. It is a copy as of the run (decision [0022](../../docs/decisions/0022-dashboard-from-attached-result-files.md)). Seen to work on 2026-11-11, not documented behaviour: JSON file datasets, one per report, each read by the loader below.
+
+**Make the files.** `npm run dashboard-files -- --org <alias> --defs <file.json> --out <dir>` runs report definitions read-only and writes one `ReportResult` file per definition. The defs file is a JSON object that maps a short id (letters, digits, dash and underscore) to `query_report` arguments, the definition fields at the top level. Run `npm run build` first. It prints `<id>: rows=<n> truncated=<bool>` for each file, or `<id>: failed`, and ends with `dashboard-files: written=<n> failed=<m>`. Exit codes: 0 when every report was written, 1 when any failed or the server could not be reached, 2 for a usage error. A single result already in the chat can be attached the same way, as a file.
+
+**Reshape each file.** The loader turns a `ReportResult` into plain rows:
 
 1. `groups.dimensions` and `groups.measures` are lists of objects. Their `name` values, dimensions first and then measures, name the cells of each row in `groups.rows`, in order. Zip each row with those names into one object per row, and use each `label` as the column heading.
 2. `totals.measures` and `totals.values` are two lists of the same length. Zip them into one more row, labelled "Total".
 3. A flat report has no `groups`: zip each row of `detail.rows` with the `name` of each entry in `detail.columns` instead, and say when `detail.truncated` is true.
-4. `filters` stay words. Show them as a caption or a filter note, never as controls the dashboard cannot honour.
+4. `filters` stay words. The report's own filters are shown as a caption or filter note, never as controls that would change the run. A page-side control may filter only rows already in the files, and never over a dataset whose `cut` is true, because its totals would be wrong.
 5. Carry `notes` and `report.url` through: show any note about cut rows, and keep the link to the report.
 
-The tested source is [dashboard-loader.js](dashboard-loader.js) in this folder. Paste it whole as the loader `fn`; it is one function, `reportResultToRows({ answer })`, and it runs alone. It returns `{columns, rows, cut, meta}` and throws the server's own words when the answer is an error. Do not rewrite it by hand.
+The tested source is [dashboard-loader.js](dashboard-loader.js) in this folder. It is one function, `reportResultToRows({ answer })`, that runs alone. It returns `{columns, rows, cut, meta}` and throws the server's own words when the answer is an error. Do not rewrite it by hand. Paste it whole inside a wrapper and register the wrapper as each dataset's loader. The dashboard reads rows from `data`, so the wrapper returns them there:
 
-The dataset source is a live call with nothing saved. Its `args` are the `query_report` input itself, the definition fields at the top level:
+```
+function loadReport({ answer }) {
+  /* dashboard-loader.js pasted whole here */
+  var r = reportResultToRows({ answer: answer });
+  return { data: r.rows, columns: r.columns, cut: r.cut, meta: r.meta };
+}
+```
+
+Beyond the wrapper, follow the Dashboard type's own instructions.
+
+**Say it is a copy.** The page states that it is a copy and gives the date of the runs. To bring it up to date, run the reports again and attach the new files. A dashboard page cannot reach the local server, so it cannot re-run a report. Ask for design changes through the dashboard's comments to Claude.
+
+**Where `run_report` comes from a connector**, a live dataset is possible. Its source is a live call with nothing saved, and its `args` are the `query_report` input itself, the definition fields at the top level. This was not run from claude.ai and is untested.
 
 ```
 {kind: 'call', connector, tool: 'query_report', args: {reportType, columns, groupingsDown, aggregates, filters, ...}}
 ```
 
 Keep the run's input in the dashboard (the `reportId` and any `overrides`) so each refresh asks the same question. Check the shape of a real result before writing the loader.
-
-On the local stdio server there is no connector, so a dashboard can hold only a fixed copy of one result. Say that it is a snapshot, will not update, and why, before building it. A live one needs door 4 (the server over HTTP) or the hosted server.
 
 ## Limits
 

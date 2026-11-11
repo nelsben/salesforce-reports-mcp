@@ -68,6 +68,8 @@ Everything runs as the authenticated user. Salesforce sharing, folder access and
 
 ### From claude.ai and your phone
 
+A tunnel is needed only so claude.ai or a phone can reach the server: they call it from the cloud, so a loopback address is unreachable. A dashboard to keep does not need it (see the [skill reference](../skills/report-runner/reference.md#loader-for-a-claude-dashboard) and [decision 0022](decisions/0022-dashboard-from-attached-result-files.md)). The tunnel path has passed on loopback only, and `npm run door4-check -- --org <alias>` is that proof: it starts the server on a free loopback port, signs in with a random passcode, lists the tools and runs one `query_report`. It saves nothing, builds nothing (run `npm run build` first) and ends with `door4-check: tools=<n> steps=<passed>/<total>`.
+
 This is door 4: the same server over HTTP, behind a tunnel. claude.ai and the Claude mobile apps add it as a custom connector. It still signs in to Salesforce with your `sf` CLI session, so nothing is installed in the org. Every client that gets in acts as that one Salesforce user, and the machine and the tunnel must stay up ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)). Replace `<alias>` with your CLI alias and `<tunnel url>` with the HTTPS address your tunnel prints.
 
 1. Build the server once, from the folder you cloned.
