@@ -102,6 +102,8 @@ This is door 4: the same server over HTTP, behind a tunnel. claude.ai and the Cl
 
 Done looks like this: the connector shows the 16 tools, and a new chat on claude.ai or your phone can answer "list the report types I can build on". The report card draws where the host draws MCP Apps.
 
+To check door 4 before you add the connector, run `npm run door4-check -- --org <alias>` after `npm run build`. It starts the server on a free loopback port with a random passcode, does what a connector does (register, sign in, exchange the code, list the tools, run one summary query) and stops the server. It saves nothing, prints counts only, and ends with `door4-check: tools=<n> steps=<passed>/<total>`. `npm run verify` runs it as the `door4` step.
+
 Notes:
 
 - Restarting the server signs every client out. Connect again with the passcode.

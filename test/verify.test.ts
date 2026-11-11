@@ -19,7 +19,7 @@ const base = { org: "alias-x", auth: "auth-y" };
 describe("stepSpecs", () => {
   it("lists the steps in order, with argument arrays", () => {
     const specs = stepSpecs(base.org, base.auth);
-    expect(specs.map((s) => s.name)).toEqual(["build", "typecheck", "test", "deploy", "parity", "live", "hosted", "leftover"]);
+    expect(specs.map((s) => s.name)).toEqual(["build", "typecheck", "test", "deploy", "parity", "live", "door4", "hosted", "leftover"]);
     expect(STEP_NAMES).toEqual(specs.map((s) => s.name));
     for (const s of specs) expect(Array.isArray(s.args)).toBe(true);
   });
@@ -34,6 +34,9 @@ describe("stepSpecs", () => {
     ]);
     expect(by.parity!.args).toEqual(["run", "parity", "--", "--org", "o1"]);
     expect(by.live!.args).toEqual(["run", "live", "--", "--org", "o1", "--allow-delete", "--door", "apex"]);
+    expect(by.door4!.cmd).toBe("npm");
+    expect(by.door4!.cwd).toBe("root");
+    expect(by.door4!.args).toEqual(["run", "door4-check", "--", "--org", "o1"]);
     expect(by.hosted!.args).toEqual(["run", "mcp-check", "--", "--org", "o1", "--auth", "a1"]);
     expect(by.leftover!.args).toEqual(["data", "query", "-q", "SELECT COUNT() FROM Report WHERE CreatedDate = TODAY", "-o", "o1", "--json"]);
     expect(by.test!.args).toEqual(["vitest", "run"]);
@@ -58,15 +61,28 @@ describe("runVerify", () => {
     const r = await runVerify({ ...base, skip: [], run: h.run, print: h.print, log: h.log });
     expect(h.ran.map((s) => s.name)).toEqual(["build", "typecheck", "test"]);
     expect(r.ok).toBe(false);
-    expect(r.results.map((x) => x.result)).toEqual(["PASS", "PASS", "FAIL", "SKIP", "SKIP", "SKIP", "SKIP", "SKIP"]);
+    expect(r.results.map((x) => x.result)).toEqual(["PASS", "PASS", "FAIL", "SKIP", "SKIP", "SKIP", "SKIP", "SKIP", "SKIP"]);
   });
 
   it("honours --skip", async () => {
     const h = harness({ leftover: { code: 0, output: '{"result":{"totalSize":0}}' } });
-    const r = await runVerify({ ...base, skip: ["build", "deploy", "parity", "live", "hosted"], run: h.run, print: h.print, log: h.log });
+    const r = await runVerify({ ...base, skip: ["build", "deploy", "parity", "live", "door4", "hosted"], run: h.run, print: h.print, log: h.log });
     expect(h.ran.map((s) => s.name)).toEqual(["typecheck", "test", "leftover"]);
     expect(r.results.find((x) => x.step === "build")!.result).toBe("SKIP");
     expect(r.ok).toBe(true);
+  });
+
+  it("honours --skip door4 and runs door4 otherwise, with its parsed detail", async () => {
+    const out = { leftover: { code: 0, output: '{"result":{"totalSize":0}}' }, door4: { code: 0, output: "door4-check: tools=16 steps=8/8" } };
+    const h = harness(out);
+    const r = await runVerify({ ...base, skip: [], run: h.run, print: h.print, log: h.log });
+    expect(r.results.find((x) => x.step === "door4")!.detail).toBe("tools=16 steps=8/8");
+    expect(h.ran.map((s) => s.name).indexOf("door4")).toBe(STEP_NAMES.indexOf("live") + 1);
+    const g = harness(out);
+    const s = await runVerify({ ...base, skip: ["door4"], run: g.run, print: g.print, log: g.log });
+    expect(g.ran.map((x) => x.name)).not.toContain("door4");
+    expect(s.results.find((x) => x.step === "door4")!.result).toBe("SKIP");
+    expect(s.ok).toBe(true);
   });
 
   it("skips hosted without --auth", async () => {
@@ -133,6 +149,10 @@ describe("parseDetail", () => {
   it("counts live steps from its own lines", () => {
     const out = ["PASS  a", "SKIP  b: skipped on the apex door", "PASS  c", "FAIL  d: boom", "      refreshed at 2026", "", "1 step(s) failed."].join("\n");
     expect(parseDetail("live", out)).toBe("passed=2/3");
+  });
+  it("reads the door4 last line", () => {
+    expect(parseDetail("door4", "PASS  x\ndoor4-check: tools=15 steps=8/8")).toBe("tools=15 steps=8/8");
+    expect(parseDetail("door4", "nothing")).toBe("no summary");
   });
   it("reads the hosted last line", () => {
     expect(parseDetail("hosted", "PASS  x\nmcp-check: tools=15 steps=5/6")).toBe("tools=15 steps=5/6");

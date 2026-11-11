@@ -23,7 +23,7 @@ export interface StepOutcome {
   detail: string;
 }
 
-export const STEP_NAMES = ["build", "typecheck", "test", "deploy", "parity", "live", "hosted", "leftover"] as const;
+export const STEP_NAMES = ["build", "typecheck", "test", "deploy", "parity", "live", "door4", "hosted", "leftover"] as const;
 
 const APEX_TESTS = ["ReportsApiTest", "ReportsCalloutTest", "ReportsCombineTest", "ReportsDashboardsTest", "ReportsDefinitionTest", "ReportsSaveTest", "ReportsSummaryTest"];
 
@@ -45,6 +45,7 @@ export function stepSpecs(org: string, auth?: string): StepSpec[] {
     },
     { name: "parity", cmd: "npm", args: ["run", "parity", "--", "--org", org], cwd: "root" },
     { name: "live", cmd: "npm", args: ["run", "live", "--", "--org", org, "--allow-delete", "--door", "apex"], cwd: "root" },
+    { name: "door4", cmd: "npm", args: ["run", "door4-check", "--", "--org", org], cwd: "root" },
     { name: "hosted", cmd: "npm", args: ["run", "mcp-check", "--", "--org", org, ...(auth ? ["--auth", auth] : [])], cwd: "root" },
     { name: "leftover", cmd: "sf", args: ["data", "query", "-q", "SELECT COUNT() FROM Report WHERE CreatedDate = TODAY", "-o", org, "--json"], cwd: "root" },
   ];
@@ -100,6 +101,10 @@ export function parseDetail(step: string, rawOutput: string): string {
     case "live": {
       const passed = lineCount(output, "PASS");
       return `passed=${passed}/${passed + lineCount(output, "FAIL")}`;
+    }
+    case "door4": {
+      const m = /door4-check: tools=(\d+) steps=(\d+)\/(\d+)/.exec(output);
+      return m ? `tools=${m[1]} steps=${m[2]}/${m[3]}` : "no summary";
     }
     case "hosted": {
       const m = /mcp-check: tools=(\d+) steps=(\d+)\/(\d+)/.exec(output);

@@ -2,7 +2,7 @@
  * Runs the whole check loop against one org and ends with one table of counts.
  * Usage: npm run verify -- --org <alias> [--auth <cli alias>] [--skip <step,...>] [--log <dir>]
  *
- * Steps, in order: build, typecheck, test, deploy, parity, live, hosted, leftover. The first FAIL stops the run and
+ * Steps, in order: build, typecheck, test, deploy, parity, live, door4, hosted, leftover. The first FAIL stops the run and
  * the steps after it read SKIP. `hosted` needs --auth (see docs/install.md). Each step's output goes to a file under
  * the log folder, so the terminal stays short. The logic lives in scripts/verify-lib.ts.
  */
