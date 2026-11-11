@@ -78,10 +78,12 @@ export async function runDoor4Check(options: CheckOptions): Promise<{ ok: boolea
 
   const steps: StepResult[] = [];
   let tools = 0;
-  const add = (ok: boolean, detail = ""): boolean => {
+  /** Records a step. `detail` says why it failed; `okDetail` is a count shown when it passed. */
+  const add = (ok: boolean, detail = "", okDetail = ""): boolean => {
     const label = STEP_LABELS[steps.length]!;
-    steps.push({ ok, label, detail });
-    print(`${ok ? "PASS" : "FAIL"}  ${label}${detail ? `: ${detail}` : ""}`);
+    const shown = ok ? okDetail : detail;
+    steps.push({ ok, label, detail: shown });
+    print(`${ok ? "PASS" : "FAIL"}  ${label}${shown ? `: ${shown}` : ""}`);
     return ok;
   };
 
@@ -253,7 +255,7 @@ export async function runDoor4Check(options: CheckOptions): Promise<{ ok: boolea
       listFailure = error instanceof Error ? error.message : "failed";
     }
     tools = Array.isArray(listed) ? listed.length : 0;
-    if (!add(tools > 0, listFailure || `${tools} tools`)) return finish();
+    if (!add(tools > 0, listFailure || `${tools} tools`, `${tools} tools`)) return finish();
 
     let queryOk = false;
     let queryDetail = "";
@@ -266,7 +268,7 @@ export async function runDoor4Check(options: CheckOptions): Promise<{ ok: boolea
     } catch (error) {
       queryDetail = error instanceof Error ? error.message : "failed";
     }
-    add(queryOk, queryDetail);
+    add(queryOk, queryDetail, queryDetail);
 
     // Best effort: end the session. A failure here changes nothing.
     if (sessionId) {
