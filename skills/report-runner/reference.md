@@ -52,10 +52,10 @@ A Claude Dashboard artifact binds live data to a connector tool, here `run_repor
 
 The tested source is [dashboard-loader.js](dashboard-loader.js) in this folder. Paste it whole as the loader `fn`; it is one function, `reportResultToRows({ answer })`, and it runs alone. It returns `{columns, rows, cut, meta}` and throws the server's own words when the answer is an error. Do not rewrite it by hand.
 
-The dataset source is a live call with nothing saved:
+The dataset source is a live call with nothing saved. Its `args` are the `query_report` input itself, the definition fields at the top level:
 
 ```
-{kind: 'call', connector, tool: 'query_report', args: {definition: ...}}
+{kind: 'call', connector, tool: 'query_report', args: {reportType, columns, groupingsDown, aggregates, filters, ...}}
 ```
 
 Keep the run's input in the dashboard (the `reportId` and any `overrides`) so each refresh asks the same question. Check the shape of a real result before writing the loader.
