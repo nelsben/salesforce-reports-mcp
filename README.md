@@ -1,5 +1,7 @@
 # salesforce-reports-mcp
 
+[![ci](https://github.com/nelsben/salesforce-reports-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/nelsben/salesforce-reports-mcp/actions/workflows/ci.yml)
+
 **Ask Salesforce a question in plain words. Get the answer, the chart and the caveats.**
 
 Claude finds, builds, runs and saves Salesforce reports, and reads your dashboards, from a server on your own machine. Nothing is installed in Salesforce and no Salesforce MCP licence is needed. It works with the Salesforce login, API access and report permissions you already have, through the Salesforce CLI.
@@ -44,19 +46,34 @@ Every run returns the same compact shape: the filters that were applied, includi
 
 **In Claude Desktop the result draws as a card in the chat: the headline, the filters, the groups and a button to save it.**
 
-Dashboards draw the same way, every component as its own chart.
+Salesforce dashboards draw the same way, every component as its own chart.
 
 ![The dashboard card for a pipeline dashboard: a metric, a gauge, a donut, bar, line, table, funnel and column charts](docs/assets/dashboard-card.png)
 
 *Drawn by the [render test](docs/decisions/0014-render-tests-through-a-test-host.md)'s host page from anonymised test data.*
 
-Claude can find a dashboard, read the numbers Salesforce last cached and refresh it when the data is old.
+Claude can find a Salesforce dashboard, read the numbers Salesforce last cached and refresh it when the data is old.
 
-To keep or share a view, Claude can build a Claude Dashboard from the results. It is a copy as of the run, and it says so on the page.
+## Then keep it as a Claude dashboard
 
-## What it does not need
+**Ask for a dashboard, and Claude turns the report it just ran into a page you can keep and share.**
+
+In one test on Claude Desktop for Windows in November 2026, a single request ran a pipeline report and built a page with four headline tiles, a chart by stage, the detail table and a note on what was counted, in under three minutes. The page is made with [Claude Data](https://support.claude.com/en/articles/17454700-get-started-with-claude-dashboards), Claude's own dashboard feature, so your Claude plan has to include it.
+
+The page is a copy of the numbers as of the run, not a live view. Check it against the answer in the chat before you share it.
+
+## What you need, and what you do not
 
 **No new licence and no install in Salesforce. A person who can already run reports and use the Salesforce CLI can start asking.**
+
+You need:
+
+- Claude Code or Claude Desktop. The dashboard step also needs a Claude plan that includes [Claude Data](https://support.claude.com/en/articles/17454700-get-started-with-claude-dashboards).
+- Node.js 20 or later.
+- The [Salesforce CLI](https://developer.salesforce.com/tools/salesforcecli), signed in to your org.
+- A Salesforce user with API access and the Run Reports permission, plus Create and Customize Reports to save a report.
+
+If your company restricts API access or the Salesforce CLI, that is the question to take to your admin.
 
 | It does not need | Because |
 | --- | --- |
@@ -77,16 +94,52 @@ claude plugin marketplace add nelsben/salesforce-reports-mcp
 claude plugin install salesforce-reports@salesforce-reports
 ```
 
-That installs the three skills and the MCP server. For Claude Desktop, [docs/claude-desktop.md](docs/claude-desktop.md) is the full recipe: the config entry with the two paths that trip people up, how to check it works, the safety flags, and what each Claude surface, including mobile, can do with a local server. For claude.ai and your phone, [From claude.ai and your phone](docs/install.md#from-claudeai-and-your-phone) runs the same server over HTTP behind a tunnel. [docs/install.md](docs/install.md#the-local-mcp-server) has every option.
+That installs the three skills and the MCP server. Claude uses your Salesforce CLI default org. To pick another org, start Claude Code with `SF_ORG=<alias> claude`. To remove every tool that can save or change something, add `SF_REPORTS_READ_ONLY=1` the same way.
+
+Then ask:
+
+- "How is our open pipeline looking by stage, and what should I worry about?"
+- "Start from my pipeline report, group it by owner and save it as a new report."
+- "Build me a dashboard of that to share with my team."
+
+For Claude Desktop, [docs/claude-desktop.md](docs/claude-desktop.md) is the full recipe: the config entry with the two paths that trip people up, how to check it works, the safety flags, and what each Claude surface, including mobile, can do with a local server. For claude.ai and your phone, [From claude.ai and your phone](docs/install.md#from-claudeai-and-your-phone) runs the same server over HTTP behind a tunnel. [docs/install.md](docs/install.md#the-local-mcp-server) has every option.
+
+## Where your data goes
+
+**Report data goes from your Salesforce org to your machine and into your Claude conversation. The server sends it nowhere else.**
+
+- The server runs on your machine and calls only your own Salesforce org, as you. It has no analytics.
+- What a report returns goes into your Claude conversation, under the terms of your Claude plan.
+- Nothing is saved or changed in Salesforce unless you ask.
+- A Claude dashboard is a copy of the numbers in your Claude account, private until you share it. Anyone you share it with sees those numbers, whatever their Salesforce access.
+
+[Security and identity](docs/security.md#where-your-data-goes) has the detail.
+
+## Limits
+
+**Know these before a number goes on a slide.**
+
+- A Claude dashboard is a copy as of the run, not a live view.
+- The report card draws amounts with a dollar sign in every org, whatever the org's currency.
+- Salesforce returns at most 2,000 detail rows per run and 100 columns per report. Every answer says when rows were cut.
+- Joined reports are not supported.
+- Salesforce allows 500 report runs per org per hour.
+- Salesforce adds default filters to some report types. They are listed in every answer, so check them against your question.
+
+[The reference](docs/reference.md#limits) has the full list.
 
 ## Go deeper
 
 | Page | What it holds |
 | --- | --- |
 | [Field notes](docs/field-notes.md) | What else was built and tried: the four ways to connect, the feature inside Salesforce, how it was built and checked, and why |
-| [Security and identity](docs/security.md) | Who each call runs as, what it can change, and how secrets are kept out |
+| [Security and identity](docs/security.md) | Who each call runs as, what it can change, where your data goes, and how secrets are kept out |
 | [Reference](docs/reference.md) | The tools, the result shape, the safety rails and the limits |
 | [Decision records](docs/decisions/README.md) | Every design choice, with what it costs and what was turned down |
+
+## Help
+
+Questions and problems go to [GitHub Issues](https://github.com/nelsben/salesforce-reports-mcp/issues).
 
 ## License
 
