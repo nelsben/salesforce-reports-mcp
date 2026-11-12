@@ -8,7 +8,7 @@ How to run the local MCP server for Claude Desktop, and what each Claude surface
 - Node.js 20 or later.
 - The Salesforce CLI, signed in to the org once: `sf org login web --alias <alias>`.
 
-Nothing else. No admin, no permission set, no connected app. Every call runs as you, with your sharing and field-level security.
+Nothing is installed in the org. Your Salesforce user needs API access and the Run Reports permission, plus Create and Customize Reports to save a report. Every call runs as you, with your sharing and field-level security.
 
 ## The config
 

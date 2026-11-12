@@ -74,25 +74,3 @@ This one is for Claude Code with the Salesforce CLI. It runs only on an admin's 
 3. **Check the target.** Run `sf project deploy start --metadata … --target-org <target> --dry-run`. Report what failed in plain words, such as a missing field, report type or folder, and fix only with the admin's go-ahead.
 4. **Deploy.** Show the exact command. Run it after a clear yes, then give the report's link in the target org.
 5. **Source control.** Commit the retrieved files only when asked.
-
-## Tasks
-
-1. **Skills.** Replace `skills/salesforce-reports/` with three skills: `skills/report-runner/`, `skills/report-designer/` and `skills/report-deploy/`.
-   - Each skill's `description` must trigger on its own experience and not the others'.
-   - The definition grammar and result-reading rules from the current skill move into `skills/report-designer/reference.md` and `skills/report-runner/reference.md`. Each skill keeps what it needs, and nothing points across skills.
-2. **Tool changes.**
-   - `create_report` takes an optional `fromReportId`: describe that report, apply the given changes, save as new.
-   - `describe_report` returns `developerName` and the folder as `{id, name, developerName, isPrivate}`.
-   - Tests for both, and a live-check step for `fromReportId`.
-3. **Probes,** on dev-frontend-2. Record each outcome in this document under "Facts that shape them", and adjust the skills to match.
-   1. Can a REST create or update give a standard column a custom header? If not, can it add a labelled row-level formula column?
-   2. Can `sf project retrieve start` read a report that sits in Private Reports?
-   3. Does a REST create accept a new bucket field and a cross filter?
-4. **Plugin.** Package the repo as a Claude Code plugin:
-   - `.claude-plugin/plugin.json`, the three skills, and the MCP server through `npx -y salesforce-reports-mcp`. It uses `SF_ORG` or the CLI's default org.
-   - A `.claude-plugin/marketplace.json`, so that `claude plugin marketplace add nelsben/salesforce-reports-mcp` and `claude plugin install` work.
-   - `claude plugin validate .` must pass.
-5. **Rehearsals.** Run each skill once, headless, through the plugin, against dev-frontend-2. Save each transcript summary in `docs/rehearsals/`.
-   - The deploy rehearsal is a dry run from dev-frontend-2 to dev-backend.
-   - Any report saved in a rehearsal is deleted afterwards.
-6. **README.** Lead with the three experiences, each with one example exchange, then install through the plugin, then the tool reference.

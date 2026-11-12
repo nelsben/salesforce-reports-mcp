@@ -18,6 +18,10 @@ The tools, what a result holds, the safety rails and the limits. The full contra
 | `update_report` | yes | Change a saved report. Send only the fields to change. |
 | `clone_report` | yes | Copy a saved report. |
 | `delete_report` | yes | Delete a report (Recycle Bin). Registered only with `--allow-delete`. |
+| `list_dashboards` | no | Find dashboards by title, developer name or folder. Returns ids, links and when each was last refreshed. |
+| `describe_dashboard` | no | Show what a dashboard contains without reading its data: each component's chart type and source report, and the dashboard's filters. |
+| `run_dashboard` | no | Read a dashboard's numbers as Salesforce last refreshed them, component by component. It never refreshes. |
+| `refresh_dashboard` | yes | Refresh a dashboard in Salesforce, then return the same result as `run_dashboard`. Not registered with `--read-only`. |
 
 Every run returns the same shape: the filters that were applied (including Salesforce's defaults), a table of groups with their measures, grand totals, optional detail rows, and notes that say when anything was cut.
 

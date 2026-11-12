@@ -79,7 +79,7 @@ describe("permission names", () => {
     const old = /Salesforce_Reports_MCP|Reports_MCP_Write/;
     const paths = [
       "salesforce/force-app", "salesforce/mcp-app", "salesforce/manifest", "salesforce/scripts",
-      "src", "skills", "scripts", "salesforce/README.md", "README.md", "docs/architecture.md", "docs/design.md",
+      "src", "skills", "scripts", "salesforce/README.md", "README.md", "docs/architecture.md", "docs/design.md", "docs/field-notes.md", "docs/security.md",
     ].flatMap((p) => walk(join(repo, p)));
     const hits = paths.filter((p) => old.test(readFileSync(p, "utf8")));
     expect(hits).toEqual([]);
