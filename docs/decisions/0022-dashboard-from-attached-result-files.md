@@ -21,7 +21,7 @@ A connector-bound live dashboard and a claude.ai connector through a tunnel were
 ## Consequences
 
 - Nothing in `src/` changes. The contract stays one `ReportResult` ([decision 0001](0001-one-contract-three-doors.md)).
-- `npm run dashboard-files` makes one result file per report definition. A single result already in the chat can be attached the same way.
+- `salesforce-reports-mcp dashboard-files` (or `npm run dashboard-files` in a clone) makes one result file per report definition. A single result already in the chat can be attached the same way.
 - A page-side filter acts only on rows already in the files, so it redraws at once and runs nothing. It is never offered over a dataset whose `cut` is true, because its totals would be wrong.
 - A change to a report's own filters is a new run, then new files.
 - The dashboard holds a copy of the data. Share it with care: everyone who can open it sees the figures, whatever their Salesforce access.

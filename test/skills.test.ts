@@ -145,6 +145,7 @@ describe("report-runner dashboard offer", () => {
     expect(reference).toMatch(/attached result files/);
     expect(reference).toMatch(/gives the date of the runs/);
     expect(reference).toMatch(/npm run dashboard-files/);
+    expect(reference).toMatch(/salesforce-reports-mcp dashboard-files/);
     expect(reference).toMatch(/cannot re-run a report/);
   });
 

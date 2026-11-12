@@ -1,9 +1,22 @@
 /**
- * The logic behind scripts/dashboard-files.ts, with no side effects at import: it validates a defs file, calls
- * query_report once per id through an injected client and writes one ReportResult JSON file per id. Tests use a
- * fake client and a fake writer, so they need no org and no child process. Output is ids and counts only.
+ * The dashboard-files command: runs report definitions over the local door, read-only, and writes one ReportResult
+ * JSON file per report, ready to attach to a Claude Dashboard. It is the `dashboard-files` subcommand of the server
+ * binary: `salesforce-reports-mcp dashboard-files --org <alias> --defs <file.json> --out <dir>`.
+ *
+ * The defs file is a JSON object mapping a short id to query_report arguments (the definition fields at the top
+ * level). The command never uses a default org and never prints a row value, a token or the instance URL. The last
+ * line is `dashboard-files: written=<n> failed=<m>`.
+ *
+ * Importing this module has no side effects. The command runs the reports through a child server: this package's own
+ * dist/index.js, read-only, on the local door.
  */
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { parseArgs } from "node:util";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
 /** The part of the MCP SDK client this command uses. */
 export interface ToolClient {
@@ -16,7 +29,7 @@ export interface FileWriter {
   writeFile(path: string, text: string): Promise<void>;
 }
 
-export const USAGE = "Usage: npm run dashboard-files -- --org <alias> --defs <file.json> --out <dir>";
+export const USAGE = "Usage: salesforce-reports-mcp dashboard-files --org <alias> --defs <file.json> --out <dir>";
 
 const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
@@ -89,4 +102,62 @@ export async function runDashboardFiles(options: RunOptions): Promise<{ written:
   }
   print(summaryLine(written, failed));
   return { written, failed };
+}
+
+/**
+ * Runs the dashboard-files command on its arguments (everything after the subcommand name). Returns the exit code:
+ * 0 when every report was written, 1 when any failed or the server could not be reached, 2 on a usage error.
+ */
+export async function dashboardFilesCommand(argv: string[]): Promise<number> {
+  let values: { org?: string; defs?: string; out?: string };
+  try {
+    values = parseArgs({
+      args: argv,
+      options: { org: { type: "string" }, defs: { type: "string" }, out: { type: "string" } },
+      strict: true,
+    }).values;
+  } catch {
+    console.error(USAGE);
+    return 2;
+  }
+  if (!values.org || !values.defs || !values.out) {
+    console.error(USAGE);
+    return 2;
+  }
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(values.defs, "utf8"));
+  } catch {
+    console.error("The defs file could not be read as JSON.");
+    return 2;
+  }
+  const checked = validateDefs(raw);
+  if ("error" in checked) {
+    console.error(checked.error);
+    return 2;
+  }
+
+  const client = new Client({ name: "dashboard-files", version: "1.0.0" });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [fileURLToPath(new URL("./index.js", import.meta.url)), "--org", values.org, "--read-only"],
+    stderr: "ignore",
+  });
+
+  let failed = 1;
+  try {
+    await client.connect(transport);
+    ({ failed } = await runDashboardFiles({
+      client,
+      defs: checked.entries,
+      outDir: resolve(values.out),
+      writer: { mkdir: async (dir) => void (await mkdir(dir, { recursive: true })), writeFile: (path, text) => writeFile(path, text) },
+      print: (line) => console.log(line),
+    }));
+  } catch {
+    console.error("dashboard-files: the server could not be started or reached.");
+    await client.close().catch(() => undefined);
+  }
+  return failed > 0 ? 1 : 0;
 }

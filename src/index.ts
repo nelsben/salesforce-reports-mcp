@@ -7,10 +7,17 @@ import { resolveConnection } from "./salesforce/connection.js";
 import { checkOAuthOptions, PASSCODE_ENV, type OAuthOptions } from "./http-auth.js";
 import { assertLoopbackHost, startHttpServer } from "./http.js";
 import { buildServer } from "./server.js";
+import { dashboardFilesCommand } from "./dashboard-files.js";
 
 const HELP = `salesforce-reports-mcp: an MCP server for Salesforce reports (stdio, or Streamable HTTP with --http)
 
 Usage: salesforce-reports-mcp [--org <alias>] [options]
+       salesforce-reports-mcp dashboard-files --org <alias> --defs <file.json> --out <dir>
+
+  dashboard-files      Run report definitions read-only and write one result file per definition, for a Claude
+                       Dashboard. Flags: --org <alias> (required), --defs <file.json> (a JSON object mapping an id
+                       to query_report arguments), --out <dir> (required). Exit 0 when all reports were written,
+                       1 when any failed, 2 on a usage error. It starts no server.
 
   --org <alias>        Authenticate through the Salesforce CLI (env SF_ORG). Default: the sf default org.
                        Or set SF_INSTANCE_URL and SF_ACCESS_TOKEN to use a token you already hold.
@@ -32,6 +39,10 @@ function flag(value: boolean | undefined, envName: string): boolean {
 }
 
 async function main(): Promise<void> {
+  if (process.argv[2] === "dashboard-files") {
+    process.exitCode = await dashboardFilesCommand(process.argv.slice(3));
+    return;
+  }
   const { values } = parseArgs({
     options: {
       org: { type: "string" },
