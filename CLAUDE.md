@@ -9,6 +9,7 @@ An MCP server, plus Claude skills, that lets Claude find, define, run, save and 
 - [docs/design.md](docs/design.md) is the contract for the tools: the `ReportDefinition` input, the `ReportResult` output, safety, and live findings that corrected the first draft.
 - `docs/experiences.md` describes how people use the tools: the report runner, the report designer and report deploy, each a skill.
 - [docs/architecture.md](docs/architecture.md) maps the three doors and the Apex layers; [docs/decisions/](docs/decisions/README.md) records why. A change that moves a decision gets a new record.
+- [docs/field-notes.md](docs/field-notes.md) holds what the README no longer carries: the four doors side by side, the in-org feature, how it was built and why. [docs/security.md](docs/security.md) holds identity and what each door can change. The README stays short and business-first, and technical detail belongs on those pages.
 
 Read the relevant one before changing behaviour, and update it in the same change when behaviour moves.
 

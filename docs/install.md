@@ -1,6 +1,16 @@
 # Install and connect
 
-Each of the four ways to connect has its own setup. Pick one from the [README](../README.md#four-ways-to-connect); they can run side by side. Door 4 is a section of the local server, [From claude.ai and your phone](#from-claudeai-and-your-phone).
+Each of the four ways to connect has its own setup, and they can run side by side. [Field notes](field-notes.md#four-ways-to-connect) compares them. Door 4 is a section of the local server, [From claude.ai and your phone](#from-claudeai-and-your-phone).
+
+**Pick the row that matches where you use Claude.**
+
+| You want | Start here |
+| --- | --- |
+| Claude Desktop on your own org, nothing installed in Salesforce | [Claude Desktop guide](claude-desktop.md) |
+| Claude Code or another MCP client, the same way | [Local MCP server](#the-local-mcp-server) |
+| The feature inside your org, called from the CLI, scripts or agents | [The REST door](#the-rest-door) |
+| Claude on claude.ai or your phone, with nothing in the org and no Salesforce MCP | [From claude.ai and your phone](#from-claudeai-and-your-phone) |
+| Claude in the browser, signed in through Salesforce | [The MCP door](#the-mcp-door), then [the callout tools](#the-callout-tools-on-the-mcp-door) |
 
 ## The local MCP server
 
@@ -15,7 +25,7 @@ claude plugin marketplace add nelsben/salesforce-reports-mcp
 claude plugin install salesforce-reports@salesforce-reports
 ```
 
-The plugin starts the server with no org baked in. It uses the org in the `SF_ORG` environment variable, or your Salesforce CLI default org. To point it at an org, set `SF_ORG=<alias>` in the environment you start Claude Code from (`SF_ORG=my-sandbox claude`). To use a token you already hold, set `SF_INSTANCE_URL` and `SF_ACCESS_TOKEN` the same way. For other options, such as `--read-only`, use the manual setup below instead of the plugin's server.
+The plugin starts the server with no org baked in. It uses the org in the `SF_ORG` environment variable, or your Salesforce CLI default org. To point it at an org, set `SF_ORG=<alias>` in the environment you start Claude Code from (`SF_ORG=my-sandbox claude`). To use a token you already hold, set `SF_INSTANCE_URL` and `SF_ACCESS_TOKEN` the same way. Options that have an environment variable are set the same way, for example `SF_REPORTS_READ_ONLY=1 claude` for a read-only session. The [options table](#options) lists them.
 
 ### Manual MCP config
 
@@ -122,10 +132,10 @@ There are three doors to the same tools. Each takes the same tool names and inpu
 | Door | What runs | Who uses it | Tools |
 | --- | --- | --- | --- |
 | Local MCP | This Node server, on your machine | Claude Code, Claude Desktop, any MCP client that starts a process | All 16: the twelve report tools and the four dashboard tools |
-| In-org REST | The Apex class `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce, other agents | 11: the eight read tools and three save tools |
-| In-org MCP | Salesforce hosted MCP over `ReportsApi`, server `SalesforceReports` | claude.ai and other remote MCP clients, with nothing to host | 11: the eight read tools and three save tools |
+| In-org REST | The Apex class `ReportsApi`, at `/services/apexrest/reports/v1/<tool>` | Scripts, Flow, Agentforce, other agents | 15: the eight report read tools, the three save tools and the four dashboard tools |
+| In-org MCP | Salesforce hosted MCP over `ReportsApi`, server `SalesforceReports` | claude.ai and other remote MCP clients, with nothing to host | 15: the eight report read tools, the three save tools and the four dashboard tools |
 
-The eight read tools are `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`. The three save tools are `create_report`, `update_report` and `clone_report`. They work only for a user with the permission set `Salesforce_Reports_Write`, and answer `WRITE_NOT_ALLOWED` (HTTP 403) to anyone else. `delete_report` is on the local server only. The save tools, `list_report_types`, `query_report` and `describe_report_type` call the org's own REST API under the user's session. On the REST door that works. A hosted MCP sign-in gives Apex no session ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md)). The optional package `callout-app` gives the hosted door a per-user named credential instead, so every tool but `delete_report` works there as the signed-in user ([decision 0012](decisions/0012-per-user-jwt-named-credential.md)). Without it, on the hosted door `search_reports`, `list_report_folders`, `describe_report`, `run_report` and `combine_reports` over saved reports work, `describe_report_type` reads the type through a saved report, and `list_report_types`, `query_report` and the save tools answer `CALLOUT_SESSION`. The in-org doors ship as Salesforce package directories in `salesforce/` ([decision 0009](decisions/0009-two-shipping-units.md)): `force-app` is the REST door, complete on its own, `mcp-app` adds the hosted MCP door on top of it with no code of its own, and `callout-app` adds the callout identity for the hosted door, also with no code. [salesforce/README.md](../salesforce/README.md) has the details. Hosted MCP needs API 67.0 or later.
+The eight read tools are `search_reports`, `list_report_folders`, `list_report_types`, `describe_report`, `describe_report_type`, `run_report`, `query_report` and `combine_reports`. The three save tools are `create_report`, `update_report` and `clone_report`. They work only for a user with the permission set `Salesforce_Reports_Write`, and answer `WRITE_NOT_ALLOWED` (HTTP 403) to anyone else. The four dashboard tools are `list_dashboards`, `describe_dashboard`, `run_dashboard` and `refresh_dashboard`; `refresh_dashboard` counts as a write and needs the same permission set. `delete_report` is on the local server only. The save tools, `list_report_types`, `query_report` and `describe_report_type` call the org's own REST API under the user's session. On the REST door that works. A hosted MCP sign-in gives Apex no session ([decision 0007](decisions/0007-callout-identity-under-hosted-mcp.md)). The optional package `callout-app` gives the hosted door a per-user named credential instead, so every tool but `delete_report` works there as the signed-in user ([decision 0012](decisions/0012-per-user-jwt-named-credential.md)). Without it, on the hosted door `search_reports`, `list_report_folders`, `describe_report`, `run_report` and `combine_reports` over saved reports work, `describe_report_type` reads the type through a saved report, and `list_report_types`, `query_report` and the save tools answer `CALLOUT_SESSION`. The in-org doors ship as Salesforce package directories in `salesforce/` ([decision 0009](decisions/0009-two-shipping-units.md)): `force-app` is the REST door, complete on its own, `mcp-app` adds the hosted MCP door on top of it with no code of its own, and `callout-app` adds the callout identity for the hosted door, also with no code. [salesforce/README.md](../salesforce/README.md) has the details. Hosted MCP needs API 67.0 or later.
 
 ### The REST door
 
