@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
+
+The local server reaches claude.ai and the phone as door 4, a Claude Dashboard can be built from attached result files on the local door, and the installed package makes those files itself with the `dashboard-files` subcommand. Nothing in a Salesforce org needs redeploying for this release; local users only update the package.
 
 - Door 4: the local server over HTTP, so claude.ai and the phone can use it with nothing in the org and no Salesforce MCP. `--http <port>` (`SF_REPORTS_HTTP_PORT`) serves Streamable HTTP at `/mcp`, `--host <host>` (`SF_REPORTS_HTTP_HOST`, default `127.0.0.1`) sets the address, and `--public-url <url>` (`SF_REPORTS_PUBLIC_URL`) turns on the server's own OAuth 2.1 sign-in for one owner: dynamic client registration, PKCE, and a passcode page checked against `SF_REPORTS_HTTP_PASSCODE` (at least 16 characters). Tokens are opaque, audience-bound and held as hashes in memory. The steps are in [From claude.ai and your phone](docs/install.md#from-claudeai-and-your-phone), the sequence in [docs/architecture.md](docs/architecture.md), and the reasons in [decision 0020](docs/decisions/0020-door-four-the-local-server-over-http.md).
 - The report-runner skill offers a Claude Dashboard when the person wants a view to keep or share, and builds it only after their yes. On the local door it is built from attached result files with the tested loader and is a copy as of the run: the page says so and gives the run date, and the reports are run again to update it. Where `run_report` comes from a connector a live dashboard is possible but untested from claude.ai. Its reference leads with the attached-files path and the wrapper that returns `data` ([decision 0022](docs/decisions/0022-dashboard-from-attached-result-files.md), which replaces the local-door default of [decision 0021](docs/decisions/0021-claude-dashboards-as-the-shareable-view.md)).
