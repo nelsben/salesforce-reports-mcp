@@ -72,6 +72,8 @@ To keep or share a view, Claude can build a Claude Dashboard from the results. I
 
 **Two commands, and Claude is working on your own data.**
 
+Run them in Claude Code, with Node 20 and the Salesforce CLI signed in:
+
 ```
 claude plugin marketplace add nelsben/salesforce-reports-mcp
 claude plugin install salesforce-reports@salesforce-reports
