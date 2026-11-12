@@ -6,7 +6,7 @@ v0.1 gave Claude the tools. This document says how a person uses them. There are
 
 | Experience | Who | They say | They get |
 | --- | --- | --- | --- |
-| **Runner** | A seller or manager exploring data | "What's in my pipeline report?" "Why is Q4 down?" "Show me that by owner." | The answer, read from a real report. The report's own filters are said in words. Next slices are offered and nothing is saved. |
+| **Runner** | A seller or manager exploring data | "What's in my pipeline report?" "Why is Q4 down?" "Show me that by owner." | The answer, read from a real report. The report's own filters are said in words. Next slices are offered and nothing is saved. One run gives two outputs: the report card in chat, and, when they want a view to keep, a Claude Dashboard built from attached result files, a copy as of the run ([decision 0022](decisions/0022-dashboard-from-attached-result-files.md)). A live dashboard on the door 4 connector is untested from claude.ai. |
 | **Designer** | A seller, manager or admin who wants a report changed or made | "Start from my pipeline report, add Next Step and group it by owner." "Build me a report of deals stuck in a stage for 30 days." | A previewed definition, changed until they like it, then saved in one step: as a new report, or over the original when they own it. |
 | **Deploy** | An admin | "Move that report to production." "Put our reports in git." | The saved report retrieved as metadata, checked against the target org, and deployed after they confirm. |
 

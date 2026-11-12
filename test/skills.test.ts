@@ -130,16 +130,27 @@ describe("report-runner dashboard offer", () => {
   const reference = read("skills/report-runner/reference.md");
   const section = skill.split(/^## A dashboard to keep or share\s*$/m)[1]?.split(/^## /m)[0] ?? "";
 
-  it("offers a live Claude Dashboard on run_report only for a view to keep or share, and never unasked", () => {
+  it("offers a Claude Dashboard only for a view to keep or share, after a yes, and never unasked", () => {
     expect(section).toMatch(/Claude's Dashboard artifacts/);
     expect(section).toMatch(/`run_report`/);
     expect(section).toMatch(/keep, share or open again/);
+    expect(section).toMatch(/only after their yes/);
     expect(section).toMatch(/Do not offer it unasked/);
   });
 
-  it("says the local stdio server can only make a fixed copy, and why", () => {
-    expect(section).toMatch(/only a fixed copy/);
-    expect(reference).toMatch(/only a fixed copy/);
+  it("builds the local dashboard from attached result files, as a copy that says so and gives the run date", () => {
+    expect(section).toMatch(/attached result files/);
+    expect(section).toMatch(/copy as of the run/);
+    expect(section).toMatch(/give the run date/);
+    expect(reference).toMatch(/attached result files/);
+    expect(reference).toMatch(/gives the date of the runs/);
+    expect(reference).toMatch(/npm run dashboard-files/);
+    expect(reference).toMatch(/cannot re-run a report/);
+  });
+
+  it("gives a wrapper that returns the rows as data", () => {
+    expect(reference).toMatch(/function loadReport\(\{ answer \}\)/);
+    expect(reference).toMatch(/return \{ data: r\.rows, columns: r\.columns, cut: r\.cut, meta: r\.meta \}/);
   });
 
   it("gives the loader recipe for a ReportResult", () => {

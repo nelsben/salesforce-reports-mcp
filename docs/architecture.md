@@ -13,7 +13,7 @@ Every door exposes the same tool names, takes the same `ReportDefinition` and re
 | Local MCP server | npm package (v0.1) | Claude Desktop, Claude Code, any MCP client | the user's machine, Node 20+ | the `sf` CLI session or a token |
 | In-org REST | Salesforce package `force-app` plus the skills | Claude Code and Cowork through the `sf` CLI; Postman, Flow HTTP callouts, Agentforce, any HTTP client | the Salesforce org | the caller's own Salesforce session |
 | In-org hosted MCP | Salesforce package `mcp-app`, deployed on top of `force-app`, and optionally `callout-app` for the callout tools | claude.ai, Claude Desktop, any MCP client with OAuth | Salesforce's MCP gateway, then the org | OAuth against the External Client App, scope `mcp_api` |
-| Local server over HTTP | The same npm package, started with `--http` | claude.ai in a browser, Claude mobile, Claude's Dashboard artifacts; one owner | the owner's machine, behind an HTTPS tunnel | the server's own OAuth sign-in with a passcode, then the machine's `sf` CLI session to Salesforce |
+| Local server over HTTP | The same npm package, started with `--http` | claude.ai in a browser, Claude mobile, Claude's Dashboard artifacts (untested from claude.ai; the default on the local door is a dashboard from attached result files, [decision 0022](decisions/0022-dashboard-from-attached-result-files.md)); one owner | the owner's machine, behind an HTTPS tunnel | the server's own OAuth sign-in with a passcode, then the machine's `sf` CLI session to Salesforce |
 
 Door 4 is door 1 with a different transport, so it shares its code and needs nothing in the org either ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)). Nothing in the local server depends on the org packages. The hosted MCP door depends on the REST door, because Salesforce builds a custom MCP server from an API Catalog registration of an Apex REST class. That dependency is the platform's, not ours, and the layering below keeps it honest.
 
@@ -368,7 +368,7 @@ sequenceDiagram
 | 12 to 14 | Each call carries the bearer. The server checks expiry and audience, and never forwards the token anywhere: token passthrough is out ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)). |
 | 15 to 19 | From here it is door 1: the `sf` CLI session, one request to the Reports REST API as the user, and the factMap shaped into a `ReportResult` ([decision 0008](decisions/0008-result-limits.md)). |
 | 20 to 22 | The result went back as text and `structuredContent`; the host reads the same `ui://` view as door 1 and draws it. |
-| 23 | The reply comes back to the owner, with the card drawn where the host draws MCP Apps. Claude's Dashboard artifact can use `run_report` from this connector as its live query ([decision 0021](decisions/0021-claude-dashboards-as-the-shareable-view.md)). |
+| 23 | The reply comes back to the owner, with the card drawn where the host draws MCP Apps. Claude's Dashboard artifact can use `run_report` from this connector as its live query ([decision 0021](decisions/0021-claude-dashboards-as-the-shareable-view.md)). That path is untested from claude.ai. The default on the local door is a dashboard from attached result files ([decision 0022](decisions/0022-dashboard-from-attached-result-files.md)). |
 
 ## The write path, both doors
 
