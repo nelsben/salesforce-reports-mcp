@@ -6,3 +6,4 @@ test-results/
 playwright-report/
 test/render/.build/
 test/render/.video/
+skill-zips/

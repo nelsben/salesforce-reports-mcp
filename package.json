@@ -36,6 +36,7 @@
     "typecheck": "tsc -p tsconfig.check.json",
     "test": "vitest run",
     "test:render": "playwright test",
+    "skill-zips": "node scripts/skill-zips.mjs",
     "live": "tsx scripts/live-check.ts",
     "parity": "tsx scripts/parity-check.ts",
     "capture": "tsx scripts/capture-fixtures.ts",
