@@ -1,6 +1,6 @@
 {
   "name": "salesforce-reports-mcp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Ask Salesforce a question in plain words. Claude runs your reports and turns the answer into a dashboard you can share.",
   "keywords": [
     "salesforce",

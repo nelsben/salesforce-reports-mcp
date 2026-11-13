@@ -1,8 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
-- The Claude Code plugin starts the server read-only and pinned to the release it ships with, `salesforce-reports-mcp@0.4.0` for now. The tools that save a report or refresh a dashboard come on with `SF_REPORTS_READ_ONLY=0 claude`. A manual MCP config and Claude Desktop are unchanged ([decision 0023](docs/decisions/0023-the-plugin-starts-read-only-and-pinned.md)). The three skills say how to turn saving on when the tools are missing.
+The Claude Code plugin now starts read-only and pinned to its release, the report runner offers a Claude dashboard after a run and sets the date range on its first query, and `dashboard-files` can run a saved report by id and says why a report failed. Nothing in a Salesforce org needs redeploying for this release; local users only update the package.
+
+- The Claude Code plugin starts the server read-only and pinned to the release it ships with. The tools that save a report or refresh a dashboard come on with `SF_REPORTS_READ_ONLY=0 claude`. A manual MCP config and Claude Desktop are unchanged ([decision 0023](docs/decisions/0023-the-plugin-starts-read-only-and-pinned.md)). The three skills say how to turn saving on when the tools are missing.
 - The README ends with a line that the project is independent and not affiliated with Salesforce or Anthropic, and provided as is.
 - New one-line description for the package and the plugin: "Ask Salesforce a question in plain words. Claude runs your reports and turns the answer into a dashboard you can share."
 - `dashboard-files` runs a saved report when an entry has a `reportId`, with optional `overrides`, and prints the server's error code, message and hint when a report fails. `--org` may come from `SF_ORG`.
