@@ -57,13 +57,15 @@ In Claude Desktop, open Settings, then Developer, then Edit Config. This opens a
 
 If the file is empty, paste the whole block for your system. If the file already has `mcpServers`, add only the inner `salesforce-reports` entry next to the others.
 
-On macOS, first run this and copy the path it prints:
+On macOS, first run these three commands:
 
 ```
-which npx
+which npx; which node; which sf
 ```
 
-Then paste this, with your path in place of `/opt/homebrew/bin/npx`:
+Put the `npx` path in `command`, and make sure the folders of `node` and `sf` are both in the `PATH` line. The example already covers Homebrew and the Salesforce installer.
+
+Then paste this, with your `npx` path in place of `/opt/homebrew/bin/npx`:
 
 ```json
 {
@@ -167,7 +169,7 @@ Saving is off because the config has `--read-only`. To turn it on, remove `--rea
 | What you see | What to do |
 | --- | --- |
 | No `salesforce-reports` in the tools list | Check the JSON for a missing comma or bracket. Quit Claude Desktop fully and open it again. Read the log: `~/Library/Logs/Claude/mcp-server-salesforce-reports.log` on macOS, or the files in `%APPDATA%\Claude\logs` on Windows. |
-| "The Salesforce CLI (sf) could not be started" | The `PATH` in the config does not include the folder with `sf`. Run `which sf` and add that folder. |
+| "The Salesforce CLI (sf) could not be started" | Run `which sf` on macOS or `where sf` on Windows and add that folder to `PATH` in the config (on Windows add an `env` with `PATH` if the entry has none). |
 | Log in again, or a 401 error | Your session ended. Run step 2 again. |
 | `API_DISABLED_FOR_ORG` or "API not enabled" | Ask your admin to give your profile or permission set API Enabled. |
 | A saved report answers forbidden | You have no access to its folder. Ask for the question in plain words instead. |
@@ -182,5 +184,5 @@ Saving is off because the config has `--read-only`. To turn it on, remove `--rea
 3. Sign the CLI out of the org:
 
 ```
-sf org logout --target-org my-org
+sf org logout --target-org my-org --no-prompt
 ```
