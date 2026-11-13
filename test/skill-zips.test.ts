@@ -29,4 +29,16 @@ describe("skill-zips script", () => {
       expect(entries.filter((e) => !e.startsWith(`${n}/`))).toEqual([]);
     }
   });
+
+  it("accepts an explicit ref", () => {
+    const dir = join(mkdtempSync(join(tmpdir(), "skill-zips-")), "out");
+    const text = execFileSync("node", [script, dir, "HEAD"], { encoding: "utf8" });
+    for (const n of names) expect(text).toMatch(new RegExp(`^${n}\\.zip \\d+$`, "m"));
+  });
+
+  it("exits non-zero for a bad ref", () => {
+    const dir = join(mkdtempSync(join(tmpdir(), "skill-zips-")), "out");
+    const r = spawnSync("node", [script, dir, "no-such-ref-xyz"], { encoding: "utf8" });
+    expect(r.status).not.toBe(0);
+  });
 });

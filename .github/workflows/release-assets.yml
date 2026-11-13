@@ -21,9 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ env.TAG }}
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node scripts/skill-zips.mjs skill-zips
+      - run: node scripts/skill-zips.mjs skill-zips "$TAG"
       - run: gh release upload "$TAG" skill-zips/*.zip --clobber
