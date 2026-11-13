@@ -5,6 +5,8 @@
 - The Claude Code plugin starts the server read-only and pinned to the release it ships with, `salesforce-reports-mcp@0.4.0` for now. The tools that save a report or refresh a dashboard come on with `SF_REPORTS_READ_ONLY=0 claude`. A manual MCP config and Claude Desktop are unchanged ([decision 0023](docs/decisions/0023-the-plugin-starts-read-only-and-pinned.md)). The three skills say how to turn saving on when the tools are missing.
 - The README ends with a line that the project is independent and not affiliated with Salesforce or Anthropic, and provided as is.
 - New one-line description for the package and the plugin: "Ask Salesforce a question in plain words. Claude runs your reports and turns the answer into a dashboard you can share."
+- `dashboard-files` runs a saved report when an entry has a `reportId`, with optional `overrides`, and prints the server's error code, message and hint when a report fails. `--org` may come from `SF_ORG`.
+- The report-runner skill offers a Claude dashboard once after it answers a run, and builds it only after a yes. It sets the date range on the first `query_report`, so an Opportunity question with no period counts every close date, not Salesforce's default of this fiscal quarter. `skills/report-runner/dashboard-defs.example.json` is a working defs file ([decision 0024](docs/decisions/0024-the-runner-offers-a-dashboard-after-a-run.md)).
 
 
 ## 0.4.0

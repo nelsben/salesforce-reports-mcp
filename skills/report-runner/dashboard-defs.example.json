@@ -1,0 +1,16 @@
+{
+  "pipeline-by-stage": {
+    "reportType": "Opportunity",
+    "groupingsDown": [{ "column": "STAGE_NAME" }],
+    "aggregates": ["s!AMOUNT", "RowCount"],
+    "filters": [{ "column": "CLOSED", "operator": "equals", "value": "False" }],
+    "dateFilter": { "column": "CLOSE_DATE", "duration": "CUSTOM" }
+  },
+  "pipeline-by-owner": {
+    "reportType": "Opportunity",
+    "groupingsDown": [{ "column": "FULL_NAME" }],
+    "aggregates": ["s!AMOUNT", "RowCount"],
+    "filters": [{ "column": "CLOSED", "operator": "equals", "value": "False" }],
+    "dateFilter": { "column": "CLOSE_DATE", "duration": "CUSTOM" }
+  }
+}

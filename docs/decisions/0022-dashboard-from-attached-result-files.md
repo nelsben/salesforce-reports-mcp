@@ -1,6 +1,6 @@
 # 0022. On the local door, a view to keep is a Claude Dashboard built from attached result files
 
-Status: Accepted, 2026-11-11
+Status: Accepted, 2026-11-11. The offer rule is replaced by [decision 0024](0024-the-runner-offers-a-dashboard-after-a-run.md).
 
 ## Context
 

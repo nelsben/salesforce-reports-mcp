@@ -25,6 +25,8 @@ The tools named below may come from any door: the local MCP server, the hosted M
 
 When no report fits, or the user wants a number cut a way no saved report does, use `query_report`. It defines the report in the call and saves nothing. Find the `reportType` with `list_report_types`, then the column names with `describe_report_type` (give it a `search` word). Never guess column names. The definition grammar is in `reference.md`. If the user likes the result and wants it kept, say you can save it as a report. Do not save it yourself; that is a different job and needs their yes. If `query_report` is not offered or answers `CALLOUT_SESSION`, follow "When the org refuses" below.
 
+**Set the date range before the first run.** A definition with no `dateFilter` gets Salesforce's default range; for Opportunity that is only the deals closing this fiscal quarter. So give every `query_report` the `dateFilter` the question means, on the first call. When the question names no period ("our open pipeline", "all deals"), that is every date: `dateFilter: {column: "CLOSE_DATE", duration: "CUSTOM"}` with no `startDate` or `endDate`. If you did run with the default, say so in the first line of the answer, before any total, and run again with the right range. Never give a quarter-only total as the whole pipeline.
+
 ## Dashboards
 
 Reach for a dashboard tool instead of a report run when the user names a dashboard ("the pipeline dashboard"), or asks for the set of figures a dashboard already gathers ("how does the board look this week"). For one number, or a cut no dashboard has, stay with reports: a report run is live and takes `overrides`; a dashboard shows what Salesforce cached at its last refresh. The dashboard tools are on every door.
@@ -36,9 +38,9 @@ Reach for a dashboard tool instead of a report run when the user names a dashboa
 
 ## A dashboard to keep or share
 
-Where the host draws the report card, the card in chat comes first. When the person wants a view to keep, share or open again ("make this a dashboard", "can the team see this"), offer a Claude Dashboard, and build it only after their yes. Do not offer it unasked, and do not use it for a one-off answer.
+Where the host draws the report card, the card in chat comes first. After you answer a report run, offer once, in one short line at the end, to turn it into a Claude dashboard they can keep or share, for example "Want this as a dashboard you can keep or share?" Offer it once in a conversation, not after every slice, and only where you can make Claude artifacts. When the person asks for one themselves ("make this a dashboard", "can the team see this"), that is the yes. Build it only after their yes ([decision 0024](../../docs/decisions/0024-the-runner-offers-a-dashboard-after-a-run.md)).
 
-- **On the local server**, build it from attached result files: run the reports, attach each `ReportResult` file as a dataset, and use the tested loader in `reference.md`. It is a copy as of the run, so the page must say it is a copy and give the run date. To update it, run the reports again. Design changes go through the dashboard's comments.
+- **On the local server**, build it from attached result files: make them with `dashboard-files` (start from [dashboard-defs.example.json](dashboard-defs.example.json)), attach each `ReportResult` file as a dataset as it is, and use the tested loader in `reference.md`. Never type a number into the page or into a file by hand; every figure on the page comes from the files. It is a copy as of the run, so the page must say it is a copy and give the run date. To update it, run the reports again. Design changes go through the dashboard's comments.
 - **Where `run_report` comes from a connector** (the in-org hosted server, or the local server over HTTP on claude.ai), a live dashboard is possible with Claude's Dashboard artifacts. That path is untested from claude.ai.
 
 The dashboard saves no Salesforce report.
