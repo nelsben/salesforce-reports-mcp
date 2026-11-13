@@ -3,6 +3,8 @@
 ## Unreleased
 
 - The Claude Code plugin runs salesforce-reports-mcp@0.5.0.
+- New docs/get-started.md, "Try it on your own Salesforce org": one page, in order, from install to a first answer and a dashboard in Claude Desktop.
+- Each release carries report-runner.zip, report-designer.zip and report-deploy.zip, ready to upload as Claude skills (npm run skill-zips builds them locally).
 
 ## 0.5.0
 

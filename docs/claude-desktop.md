@@ -1,5 +1,7 @@
 # Claude Desktop, with nothing in Salesforce
 
+New here? Start with the step-by-step [get-started guide](get-started.md).
+
 How to run the local MCP server for Claude Desktop, and what each Claude surface can and cannot do with it. This is the recipe behind the README's headline: reports and dashboards in Claude, with no package in the org and no Salesforce MCP.
 
 ## What you need

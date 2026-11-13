@@ -87,6 +87,8 @@ If your company restricts API access or the Salesforce CLI, that is the question
 
 **Two commands, and Claude is working on your own data.**
 
+For Claude Desktop, follow the step-by-step guide in [docs/get-started.md](docs/get-started.md).
+
 Run them in Claude Code, with Node 20 and the Salesforce CLI signed in:
 
 ```
