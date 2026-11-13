@@ -7,6 +7,7 @@
 - New one-line description for the package and the plugin: "Ask Salesforce a question in plain words. Claude runs your reports and turns the answer into a dashboard you can share."
 - `dashboard-files` runs a saved report when an entry has a `reportId`, with optional `overrides`, and prints the server's error code, message and hint when a report fails. `--org` may come from `SF_ORG`.
 - The report-runner skill offers a Claude dashboard once after it answers a run, and builds it only after a yes. It sets the date range on the first `query_report`, so an Opportunity question with no period counts every close date, not Salesforce's default of this fiscal quarter. `skills/report-runner/dashboard-defs.example.json` is a working defs file ([decision 0024](docs/decisions/0024-the-runner-offers-a-dashboard-after-a-run.md)).
+- SECURITY.md: report vulnerabilities privately through GitHub's Report a vulnerability.
 
 
 ## 0.4.0
