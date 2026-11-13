@@ -11,7 +11,7 @@
   "mcpServers": {
     "salesforce-reports": {
       "command": "npx",
-      "args": ["-y", "salesforce-reports-mcp@0.4.0"],
+      "args": ["-y", "salesforce-reports-mcp@0.5.0"],
       "env": { "SF_REPORTS_READ_ONLY": "${SF_REPORTS_READ_ONLY:-1}" }
     }
   }

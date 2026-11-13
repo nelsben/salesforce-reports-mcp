@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The Claude Code plugin runs salesforce-reports-mcp@0.5.0.
+
 ## 0.5.0
 
 The Claude Code plugin now starts read-only and pinned to its release, the report runner offers a Claude dashboard after a run and sets the date range on its first query, and `dashboard-files` can run a saved report by id and says why a report failed. Nothing in a Salesforce org needs redeploying for this release; local users only update the package.
