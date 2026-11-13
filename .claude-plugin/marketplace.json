@@ -1,12 +1,12 @@
 {
   "name": "salesforce-reports",
   "owner": { "name": "nelsben" },
-  "description": "Salesforce reports for Claude.",
+  "description": "Ask Salesforce a question in plain words. Claude runs your reports and turns the answer into a dashboard you can share.",
   "plugins": [
     {
       "name": "salesforce-reports",
       "source": "./",
-      "description": "Explore, design and deploy Salesforce reports with Claude.",
+      "description": "Ask Salesforce a question in plain words. Claude runs your reports and turns the answer into a dashboard you can share.",
       "category": "productivity"
     }
   ]

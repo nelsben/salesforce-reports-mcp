@@ -1,7 +1,7 @@
 {
   "name": "salesforce-reports-mcp",
   "version": "0.4.0",
-  "description": "MCP server to find, define, run, save and combine Salesforce reports through the Reports and Dashboards REST API",
+  "description": "Ask Salesforce a question in plain words. Claude runs your reports and turns the answer into a dashboard you can share.",
   "keywords": [
     "salesforce",
     "reports",

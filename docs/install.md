@@ -25,7 +25,9 @@ claude plugin marketplace add nelsben/salesforce-reports-mcp
 claude plugin install salesforce-reports@salesforce-reports
 ```
 
-The plugin starts the server with no org baked in. It uses the org in the `SF_ORG` environment variable, or your Salesforce CLI default org. To point it at an org, set `SF_ORG=<alias>` in the environment you start Claude Code from (`SF_ORG=my-sandbox claude`). To use a token you already hold, set `SF_INSTANCE_URL` and `SF_ACCESS_TOKEN` the same way. Options that have an environment variable are set the same way, for example `SF_REPORTS_READ_ONLY=1 claude` for a read-only session. The [options table](#options) lists them.
+The plugin starts the server with no org baked in. It uses the org in the `SF_ORG` environment variable, or your Salesforce CLI default org. To point it at an org, set `SF_ORG=<alias>` in the environment you start Claude Code from (`SF_ORG=my-sandbox claude`). To use a token you already hold, set `SF_INSTANCE_URL` and `SF_ACCESS_TOKEN` the same way.
+
+The plugin pins the server to the release it ships with, and starts it read-only: `SF_REPORTS_READ_ONLY` defaults to `1`, so the tools that save a report or refresh a dashboard are not registered ([decision 0023](decisions/0023-the-plugin-starts-read-only-and-pinned.md)). To turn them on, start Claude Code with `SF_REPORTS_READ_ONLY=0 claude`. Other options that have an environment variable are set the same way. The [options table](#options) lists them.
 
 ### Manual MCP config
 
@@ -68,7 +70,7 @@ Everything runs as the authenticated user. Salesforce sharing, folder access and
 | `--org <alias>` | `SF_ORG` | the `sf` default org | Authenticate through the Salesforce CLI. |
 | | `SF_INSTANCE_URL`, `SF_ACCESS_TOKEN` | | Authenticate with a token you hold. |
 | `--api-version <v>` | `SF_API_VERSION` | `62.0` | REST API version. |
-| `--read-only` | `SF_REPORTS_READ_ONLY=1` | off | Register no write tools. |
+| `--read-only` | `SF_REPORTS_READ_ONLY=1` | off; on in the Claude Code plugin | Register no write tools. In the plugin, `SF_REPORTS_READ_ONLY=0` turns them on. |
 | `--allow-delete` | `SF_REPORTS_ALLOW_DELETE=1` | off | Register `delete_report`. |
 | `--max-rows <n>` | `SF_REPORTS_MAX_ROWS` | `200` | Default cap on detail rows per result. The ceiling is 2,000. |
 | `--http <port>` | `SF_REPORTS_HTTP_PORT` | off (stdio) | Serve Streamable HTTP at `/mcp` instead of stdio. See the next section. |

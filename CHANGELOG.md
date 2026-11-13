@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- The Claude Code plugin starts the server read-only and pinned to the release it ships with, `salesforce-reports-mcp@0.4.0` for now. The tools that save a report or refresh a dashboard come on with `SF_REPORTS_READ_ONLY=0 claude`. A manual MCP config and Claude Desktop are unchanged ([decision 0023](docs/decisions/0023-the-plugin-starts-read-only-and-pinned.md)). The three skills say how to turn saving on when the tools are missing.
+- The README ends with a line that the project is independent and not affiliated with Salesforce or Anthropic, and provided as is.
+- New one-line description for the package and the plugin: "Ask Salesforce a question in plain words. Claude runs your reports and turns the answer into a dashboard you can share."
+
+
 ## 0.4.0
 
 The local server reaches claude.ai and the phone as door 4, a Claude Dashboard can be built from attached result files on the local door, and the installed package makes those files itself with the `dashboard-files` subcommand. Nothing in a Salesforce org needs redeploying for this release; local users only update the package.

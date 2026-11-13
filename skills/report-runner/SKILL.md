@@ -32,7 +32,7 @@ Reach for a dashboard tool instead of a report run when the user names a dashboa
 1. **Find it** with `list_dashboards` and the user's words. Pick or ask as for reports.
 2. **Learn its filters** with `describe_dashboard` when the user wants a slice ("only Prospecting"). Filters are chosen by name and option label, and only from the options the dashboard offers. For any other cut, run the source report a component names with `run_report` and `overrides`.
 3. **Read it** with `run_dashboard`. Lead with the two or three components that answer the question, each by its header, and say when the data was refreshed and whose data it shows (`runningUser`). Read `notes`.
-4. **No data or old data.** When a note says a component has no data, or the numbers are more than a day old, say so and offer `refresh_dashboard` with the same filters. Do not refresh without the user's yes: a refresh reruns every source report and changes what other viewers see. If it answers that the dashboard was refreshed less than a minute ago, give the cached numbers and the time to try again; do not retry at once.
+4. **No data or old data.** When a note says a component has no data, or the numbers are more than a day old, say so and offer `refresh_dashboard` with the same filters. Do not refresh without the user's yes: a refresh reruns every source report and changes what other viewers see. If it answers that the dashboard was refreshed less than a minute ago, give the cached numbers and the time to try again; do not retry at once. If `refresh_dashboard` is missing, the server is read-only: give the cached numbers and their date, run the source reports with `run_report` when the user needs today's figures, and say that `SF_REPORTS_READ_ONLY=0 claude` turns refreshing on in the plugin.
 
 ## A dashboard to keep or share
 
@@ -49,7 +49,7 @@ Do not call `create_report`, `update_report`, `clone_report` or `delete_report` 
 
 ## When something fails
 
-A failed call returns an error with a code and a hint (`isError` on MCP, an `error` body on the REST door). Fix the input from the hint (usually a column name) and try once more. Do not retry blindly. If the write tools are missing, the server is read-only; that does not affect this skill.
+A failed call returns an error with a code and a hint (`isError` on MCP, an `error` body on the REST door). Fix the input from the hint (usually a column name) and try once more. Do not retry blindly. If the write tools are missing, the server is read-only; that affects only `refresh_dashboard` here.
 
 ## When the org refuses
 
