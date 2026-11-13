@@ -130,12 +130,13 @@ describe("report-runner dashboard offer", () => {
   const reference = read("skills/report-runner/reference.md");
   const section = skill.split(/^## A dashboard to keep or share\s*$/m)[1]?.split(/^## /m)[0] ?? "";
 
-  it("offers a Claude Dashboard only for a view to keep or share, after a yes, and never unasked", () => {
+  it("offers a Claude dashboard once after a run, and builds it only after a yes", () => {
     expect(section).toMatch(/Claude's Dashboard artifacts/);
     expect(section).toMatch(/`run_report`/);
-    expect(section).toMatch(/keep, share or open again/);
+    expect(section).toMatch(/Offer it once in a conversation/);
     expect(section).toMatch(/only after their yes/);
-    expect(section).toMatch(/Do not offer it unasked/);
+    expect(section).not.toMatch(/Do not offer it unasked/);
+    expect(section).toMatch(/Never type a number into the page/);
   });
 
   it("builds the local dashboard from attached result files, as a copy that says so and gives the run date", () => {
