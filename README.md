@@ -56,7 +56,7 @@ Claude can find a Salesforce dashboard, read the numbers Salesforce last cached 
 
 ## Then keep it as a Claude dashboard
 
-**Ask for a dashboard, and Claude turns the report it just ran into a page you can keep and share.**
+**After an answer, Claude offers to turn the report it just ran into a page you can keep and share.**
 
 In one test on Claude Desktop for Windows in November 2026, a single request ran a pipeline report and built a page with four headline tiles, a chart by stage, the detail table and a note on what was counted, in under three minutes. The page is made with [Claude Data](https://support.claude.com/en/articles/17454700-get-started-with-claude-dashboards), Claude's own dashboard feature, so your Claude plan has to include it.
 
