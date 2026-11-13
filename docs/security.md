@@ -6,7 +6,7 @@ Each door signs in differently, and each is least privilege by default.
 
 | Door | Identity | What it can do |
 | --- | --- | --- |
-| Local | The user's `sf` CLI session, refetched on expiry; never written anywhere | Whatever the user can do. `--read-only` removes every write tool; `delete_report` exists only with `--allow-delete`. |
+| Local | The user's `sf` CLI session, refetched on expiry; never written anywhere | Whatever the user can do. `--read-only` removes every write tool, and the Claude Code plugin starts that way until `SF_REPORTS_READ_ONLY=0` ([decision 0023](decisions/0023-the-plugin-starts-read-only-and-pinned.md)); `delete_report` exists only with `--allow-delete`. |
 | REST | The caller's own Salesforce session | Reads with `Salesforce_Reports`. Saves only with `Salesforce_Reports_Write`, checked in the service, not by hiding tools ([decision 0005](decisions/0005-saves-behind-a-custom-permission.md)). |
 | Hosted MCP | OAuth with PKCE through the External Client App `SalesforceReportsMcp`, scopes `mcp_api` and `refresh_token` only | The same permission sets. For the calls that need the org's REST API, a per-user JWT named credential mints a token for the signed-in user. |
 | Local over HTTP (door 4) | The server's own sign-in with a passcode, then the same `sf` CLI session | The same as Local. Every client that signs in acts as that one Salesforce user ([decision 0020](decisions/0020-door-four-the-local-server-over-http.md)). |

@@ -48,7 +48,8 @@ CI runs build and test on Node 20 and 22. The live check needs a real org and ru
 
 - **Tool descriptions are prompts.** Each says when to use the tool, what it returns, and how it differs from its neighbours. Every input has a description.
 - **Results stay compact.** Return a `ReportResult`, never the raw factMap. Say in `notes` whenever rows were cut or the input was adjusted.
-- **Writes are explicit.** No tool saves as a side effect. `delete_report` exists only with `--allow-delete`, and `--read-only` removes every write tool.
+- **Writes are explicit.** No tool saves as a side effect. `delete_report` exists only with `--allow-delete`, and `--read-only` removes every write tool. The Claude Code plugin starts read-only (`SF_REPORTS_READ_ONLY` defaults to `1` in `.claude-plugin/plugin.json`).
+- **The plugin pins its server.** `.claude-plugin/plugin.json` runs `salesforce-reports-mcp@<version>`. At a release, publish to npm first, then move the pin; never pin a version npm does not serve ([decision 0023](docs/decisions/0023-the-plugin-starts-read-only-and-pinned.md)).
 - **No secrets anywhere.** A token never reaches stdout, stderr, logs, error messages, fixtures or commits. Newer `sf` CLI versions redact the token in `sf org display`, so the server reads it from `sf org auth show-access-token`.
 - **Fixtures are anonymised.** Account, opportunity, contact and user names become neutral ones (`Account 1`). The instance URL becomes `https://example.my.salesforce.com`. Structure, types and numbers are kept.
 - **Salesforce quirks are handled in code and noted**, for example aggregated columns must also be detail columns, and Opportunity reports carry silent default filters. Add new ones to design.md's live findings.

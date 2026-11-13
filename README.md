@@ -29,7 +29,7 @@ Each is a Claude skill, and Claude picks the right one from what you say.
 | Skill | For | What Claude does |
 | --- | --- | --- |
 | [report-runner](skills/report-runner/SKILL.md) | A seller or manager who wants an answer | Finds the report, says in plain words what it counts, runs it, leads with the answer, offers the next slice. Never saves. |
-| [report-designer](skills/report-designer/SKILL.md) | Someone who wants a report changed or made | Drafts the report in your words, previews it on real data, changes it until you like it, saves it in one step when you ask. |
+| [report-designer](skills/report-designer/SKILL.md) | Someone who wants a report changed or made | Drafts the report in your words, previews it on real data, changes it until you like it, saves it in one step when you ask and saving is on. |
 | [report-deploy](skills/report-deploy/SKILL.md) | An admin moving a report between orgs or into git | Retrieves the report's metadata, checks it with a dry run, deploys only after you say yes. |
 
 > **You:** Start from my Pipeline by Stage report. Add Next Step and group it by owner, then save it as Pipeline by Owner.
@@ -40,7 +40,7 @@ Each is a Claude skill, and Claude picks the right one from what you say.
 
 **Every answer says what was counted, what was filtered and what was left out, so nobody presents a number they cannot explain.**
 
-Every run returns the same compact shape: the filters that were applied, including the ones Salesforce adds on its own, the groups and totals, and notes that say when rows were cut or Salesforce ignored part of the request. The [experiences page](docs/experiences.md) has the personas and the facts that shaped them. Nothing is saved or changed unless you ask, and a read-only mode removes every write.
+Every run returns the same compact shape: the filters that were applied, including the ones Salesforce adds on its own, the groups and totals, and notes that say when rows were cut or Salesforce ignored part of the request. The [experiences page](docs/experiences.md) has the personas and the facts that shaped them. Nothing is saved or changed unless you ask. The plugin starts read-only, so Claude cannot save a report or refresh a dashboard until you turn saving on.
 
 ## The answer arrives as a picture
 
@@ -52,7 +52,7 @@ Salesforce dashboards draw the same way, every component as its own chart.
 
 *Drawn by the [render test](docs/decisions/0014-render-tests-through-a-test-host.md)'s host page from anonymised test data.*
 
-Claude can find a Salesforce dashboard, read the numbers Salesforce last cached and refresh it when the data is old.
+Claude can find a Salesforce dashboard, read the numbers Salesforce last cached and, with saving on, refresh it when the data is old.
 
 ## Then keep it as a Claude dashboard
 
@@ -94,12 +94,14 @@ claude plugin marketplace add nelsben/salesforce-reports-mcp
 claude plugin install salesforce-reports@salesforce-reports
 ```
 
-That installs the three skills and the MCP server. Claude uses your Salesforce CLI default org. To pick another org, start Claude Code with `SF_ORG=<alias> claude`. To remove every tool that can save or change something, add `SF_REPORTS_READ_ONLY=1` the same way.
+That installs the three skills and the MCP server, pinned to this release. Claude uses your Salesforce CLI default org. To pick another org, start Claude Code with `SF_ORG=<alias> claude`.
+
+The plugin starts read-only. Claude can find, build and run reports, but the tools that save a report or refresh a dashboard are off. To turn them on, start Claude Code with `SF_REPORTS_READ_ONLY=0 claude`. Moving a report to another org with report-deploy goes through the Salesforce CLI, not these tools, and always asks before a real deploy.
 
 Then ask:
 
 - "How is our open pipeline looking by stage, and what should I worry about?"
-- "Start from my pipeline report, group it by owner and save it as a new report."
+- "Start from my pipeline report and group it by owner."
 - "Build me a dashboard of that to share with my team."
 
 For Claude Desktop, [docs/claude-desktop.md](docs/claude-desktop.md) is the full recipe: the config entry with the two paths that trip people up, how to check it works, the safety flags, and what each Claude surface, including mobile, can do with a local server. For claude.ai and your phone, [From claude.ai and your phone](docs/install.md#from-claudeai-and-your-phone) runs the same server over HTTP behind a tunnel. [docs/install.md](docs/install.md#the-local-mcp-server) has every option.
@@ -110,7 +112,7 @@ For Claude Desktop, [docs/claude-desktop.md](docs/claude-desktop.md) is the full
 
 - The server runs on your machine and calls only your own Salesforce org, as you. It has no analytics.
 - What a report returns goes into your Claude conversation, under the terms of your Claude plan.
-- Nothing is saved or changed in Salesforce unless you ask.
+- Nothing is saved or changed in Salesforce unless saving is on and you ask.
 - A Claude dashboard is a copy of the numbers in your Claude account, private until you share it. Anyone you share it with sees those numbers, whatever their Salesforce access.
 
 [Security and identity](docs/security.md#where-your-data-goes) has the detail.
@@ -143,4 +145,6 @@ Questions and problems go to [GitHub Issues](https://github.com/nelsben/salesfor
 
 ## License
 
-MIT.
+MIT. Provided as is, without warranty of any kind.
+
+This is an independent open-source project. It is not affiliated with, endorsed by or sponsored by Salesforce or Anthropic. Salesforce is a trademark of Salesforce, Inc., and Claude is a trademark of Anthropic, PBC.

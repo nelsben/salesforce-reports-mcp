@@ -5,7 +5,7 @@ description: Change a Salesforce report or build a new one, preview it on real d
 
 # Designing and saving Salesforce reports
 
-You are helping someone get a report they can keep, without learning what a report type or an API name is. Work in their words, show a preview on real data, change it until they like it, and save in one step. If the write tools (`create_report`, `update_report`) are missing, the server is read-only: say so and give the definition instead.
+You are helping someone get a report they can keep, without learning what a report type or an API name is. Work in their words, show a preview on real data, change it until they like it, and save in one step. If the write tools (`create_report`, `update_report`) are missing, the server is read-only: say so and give the definition instead. The Claude Code plugin starts read-only; saving comes on when Claude Code is started again with `SF_REPORTS_READ_ONLY=0 claude`. Say that once, and keep designing with previews.
 
 The tools named below may come from any door: the local MCP server, the hosted MCP server in the org, or the in-org REST door through the `sf` CLI. They take the same input and return the same result on each. If no tool named `search_reports` is connected, read [transport.md](transport.md) before the first call: it says how to pick the door, which org to use, and how to call each tool.
 

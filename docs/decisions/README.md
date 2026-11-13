@@ -28,3 +28,4 @@ One page per architectural decision: the context, the decision, what it costs, a
 | [0020](0020-door-four-the-local-server-over-http.md) | Door four: the local server over HTTP, behind a tunnel, with its own sign-in for one owner | Accepted |
 | [0021](0021-claude-dashboards-as-the-shareable-view.md) | Claude Dashboards are the shareable view, built on run_report from a connector | Accepted |
 | [0022](0022-dashboard-from-attached-result-files.md) | On the local door, a view to keep is a Claude Dashboard built from attached result files | Accepted |
+| [0023](0023-the-plugin-starts-read-only-and-pinned.md) | The Claude Code plugin starts the server read-only and pinned to its release | Accepted |
