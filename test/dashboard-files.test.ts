@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dashboardFilesCommand, runDashboardFiles, summaryLine, validateDefs, type FileWriter, type ToolClient } from "../src/dashboard-files.js";
+import { dashboardFilesCommand, resolveOrg, runDashboardFiles, summaryLine, validateDefs, type FileWriter, type ToolClient } from "../src/dashboard-files.js";
 
 function fakeWriter() {
   const files = new Map<string, string>();
@@ -141,5 +141,110 @@ describe("dashboardFilesCommand", () => {
     expect(await dashboardFilesCommand(["--org", "<alias>", "--defs", defs, "--out", dir])).toBe(2);
     expect(s.stderr()).toContain("bad id");
     expect(s.stdout()).toBe("");
+  });
+});
+
+describe("reportId entries", () => {
+  function recorder(answer: unknown) {
+    const calls: { name: string; arguments: Record<string, unknown> }[] = [];
+    const client: ToolClient = {
+      callTool: async (req) => {
+        calls.push(req);
+        if (answer instanceof Error) throw answer;
+        return answer;
+      },
+      close: async () => undefined,
+    };
+    return { client, calls };
+  }
+  const run = async (defs: [string, Record<string, unknown>][], answer: unknown) => {
+    const { client, calls } = recorder(answer);
+    const lines: string[] = [];
+    await runDashboardFiles({ client, defs, outDir: "/o", writer: fakeWriter().writer, print: (l) => lines.push(l) });
+    return { calls, lines };
+  };
+  const errorAnswer = (text: string) => ({ isError: true, content: [{ type: "text", text }] });
+
+  it("calls run_report with reportId and overrides", async () => {
+    const { calls } = await run([["s", { reportId: "00OAAA", overrides: { limit: 5 } }]], { structuredContent: {} });
+    expect(calls).toEqual([{ name: "run_report", arguments: { reportId: "00OAAA", overrides: { limit: 5 } } }]);
+  });
+
+  it("sends no overrides key when the entry has none", async () => {
+    const { calls } = await run([["s", { reportId: "00OAAA" }]], { structuredContent: {} });
+    expect(calls[0].name).toBe("run_report");
+    expect(calls[0].arguments).toEqual({ reportId: "00OAAA" });
+    expect("overrides" in calls[0].arguments).toBe(false);
+  });
+
+  it("uses query_report when reportId is not a string", async () => {
+    const { calls } = await run([["s", { reportId: 5, reportType: "X" }]], { structuredContent: {} });
+    expect(calls[0].name).toBe("query_report");
+  });
+
+  it("refuses an extra key beside reportId and overrides, naming the id", () => {
+    const r = validateDefs({ mine: { reportId: "00OAAA", limit: 3 } });
+    expect(r).toEqual({ error: expect.stringContaining('"mine"') });
+    expect("error" in r && r.error).toContain("limit");
+    expect(validateDefs({ ok: { reportId: "00OAAA", overrides: {} } })).toHaveProperty("entries");
+  });
+
+  it("refuses overrides that is not an object, naming the id", () => {
+    expect(validateDefs({ mine: { reportId: "00OAAA", overrides: [] } })).toEqual({ error: expect.stringContaining('"mine"') });
+  });
+
+  it("prints code, message and hint for an isError answer", async () => {
+    const body = JSON.stringify({ error: { code: "INVALID_FIELD", message: "No such column", hint: "Check describe_report" } });
+    const { lines } = await run([["s", { reportId: "x" }]], errorAnswer(body));
+    expect(lines[0]).toBe("s: failed INVALID_FIELD: No such column (Check describe_report)");
+  });
+
+  it("prints code and message when there is no hint", async () => {
+    const body = JSON.stringify({ error: { code: "UNEXPECTED", message: "Nope" } });
+    const { lines } = await run([["s", { reportId: "x" }]], errorAnswer(body));
+    expect(lines[0]).toBe("s: failed UNEXPECTED: Nope");
+  });
+
+  it("prints the first line of text that is not the error JSON", async () => {
+    const { lines } = await run([["s", { reportId: "x" }]], errorAnswer("plain failure\nsecond line"));
+    expect(lines[0]).toBe("s: failed: plain failure");
+    const bare = await run([["s", { reportId: "x" }]], { isError: true });
+    expect(bare.lines[0]).toBe("s: failed");
+  });
+
+  it("prints the first line of a thrown message", async () => {
+    const { lines } = await run([["s", { reportId: "x" }]], new Error("boom\nsecond"));
+    expect(lines[0]).toBe("s: failed: boom");
+  });
+
+  it("cuts a line to 300 characters", async () => {
+    const body = JSON.stringify({ error: { code: "E", message: "m".repeat(500) } });
+    const { lines } = await run([["s", { reportId: "x" }]], errorAnswer(body));
+    expect(lines[0]).toHaveLength(300);
+  });
+});
+
+describe("resolveOrg", () => {
+  it("uses SF_ORG when --org is absent", () => {
+    expect(resolveOrg({}, { SF_ORG: "from-env" })).toBe("from-env");
+  });
+  it("lets --org win over SF_ORG", () => {
+    expect(resolveOrg({ org: "flag" }, { SF_ORG: "from-env" })).toBe("flag");
+  });
+  it("is undefined with neither", () => {
+    expect(resolveOrg({}, {})).toBeUndefined();
+    expect(resolveOrg({}, { SF_ORG: "" })).toBeUndefined();
+  });
+  it("makes the command exit 2 with neither", async () => {
+    const saved = process.env.SF_ORG;
+    delete process.env.SF_ORG;
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      expect(await dashboardFilesCommand(["--defs", "d.json", "--out", "/o"])).toBe(2);
+      expect(String(err.mock.calls[0][0])).toContain("Usage:");
+    } finally {
+      err.mockRestore();
+      if (saved !== undefined) process.env.SF_ORG = saved;
+    }
   });
 });
