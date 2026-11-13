@@ -6,7 +6,8 @@
  *
  * The defs file is a JSON object mapping a short id to query_report arguments (the definition fields at the top
  * level). An entry with a string `reportId` runs a saved report with run_report instead, and may carry only
- * `reportId` and `overrides`. A failed report prints its error code, message and hint. The command never uses a default org and never prints a row value, a token or the instance URL. The last
+ * `reportId` and `overrides`. A failed report prints its error code, message and hint when the server
+ * answers with its error JSON, and otherwise only `<id>: failed`. The command never uses a default org and never prints a row value, a token or the instance URL. The last
  * line is `dashboard-files: written=<n> failed=<m>`.
  *
  * Importing this module has no side effects. The command runs the reports through a child server: this package's own
@@ -74,7 +75,7 @@ const LINE_LIMIT = 300;
 
 const firstLine = (text: string): string => text.split(/\r?\n/)[0].trim();
 
-/** The failure line for one report: code, message and hint when the answer carries the error JSON, else the first line. */
+/** The failure line for one report: code, message and hint when the answer carries the server's error JSON, else just `<id>: failed`. */
 function failureLine(id: string, text: string | undefined): string {
   let line = `${id}: failed`;
   if (text) {
@@ -88,8 +89,6 @@ function failureLine(id: string, text: string | undefined): string {
     if (body && typeof body.code === "string" && typeof body.message === "string") {
       line += ` ${body.code}: ${firstLine(body.message)}`;
       if (typeof body.hint === "string" && body.hint) line += ` (${firstLine(body.hint)})`;
-    } else if (firstLine(text)) {
-      line += `: ${firstLine(text)}`;
     }
   }
   return line.slice(0, LINE_LIMIT);
@@ -137,17 +136,15 @@ export async function runDashboardFiles(options: RunOptions): Promise<{ written:
     await writer.mkdir(outDir);
     for (const [id, args] of defs) {
       let answer: ToolAnswer | undefined;
-      let thrown: string | undefined;
       try {
         answer = (await client.callTool(toCall(args))) as ToolAnswer;
-      } catch (error) {
+      } catch {
         answer = undefined;
-        thrown = error instanceof Error ? error.message : undefined;
       }
       const result = answer?.structuredContent;
       if (!answer || answer.isError || typeof result !== "object" || result === null) {
         failed++;
-        print(failureLine(id, answer ? (answer.isError ? answerText(answer) : undefined) : thrown));
+        print(failureLine(id, answer?.isError ? answerText(answer) : undefined));
         continue;
       }
       await writer.writeFile(join(outDir, `${id}.json`), JSON.stringify(result, null, 2) + "\n");

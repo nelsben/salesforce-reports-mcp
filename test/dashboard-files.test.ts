@@ -205,16 +205,18 @@ describe("reportId entries", () => {
     expect(lines[0]).toBe("s: failed UNEXPECTED: Nope");
   });
 
-  it("prints the first line of text that is not the error JSON", async () => {
+  it("prints only the id for text that is not the error JSON", async () => {
     const { lines } = await run([["s", { reportId: "x" }]], errorAnswer("plain failure\nsecond line"));
-    expect(lines[0]).toBe("s: failed: plain failure");
+    expect(lines[0]).toBe("s: failed");
+    const noCode = await run([["s", { reportId: "x" }]], errorAnswer(JSON.stringify({ error: { message: "m" } })));
+    expect(noCode.lines[0]).toBe("s: failed");
     const bare = await run([["s", { reportId: "x" }]], { isError: true });
     expect(bare.lines[0]).toBe("s: failed");
   });
 
-  it("prints the first line of a thrown message", async () => {
+  it("prints only the id when the call throws", async () => {
     const { lines } = await run([["s", { reportId: "x" }]], new Error("boom\nsecond"));
-    expect(lines[0]).toBe("s: failed: boom");
+    expect(lines[0]).toBe("s: failed");
   });
 
   it("cuts a line to 300 characters", async () => {
